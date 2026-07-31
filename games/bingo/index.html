@@ -10,8 +10,23 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    body { background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-    .container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
+    
+    /* 修正點 2：加入指定背景圖片並置中防重複 */
+    body { 
+      background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-color: #f0f4f8; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; backdrop-filter: blur(4px); }
     h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
     
     .menu-group { margin-bottom: 16px; text-align: left; }
@@ -23,7 +38,7 @@
     
     .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
     
-    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
+    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; display: inline-block; text-decoration: none; }
     .btn-primary:hover { background-color: #2563eb; }
     .btn-admin { background-color: #64748b; }
     .btn-admin:hover { background-color: #475569; }
@@ -33,6 +48,10 @@
     .btn-copy:hover { background-color: #7c3aed; }
     .btn-start { background-color: #10b981; }
     .btn-start:hover { background-color: #059669; }
+    
+    /* 修正點 1：回到遊戲大廳按鈕樣式 (置中與特別顏色區隔) */
+    .btn-lobby { background-color: #0284c7; width: auto; min-width: 200px; margin: 16px auto 0 auto; display: block; }
+    .btn-lobby:hover { background-color: #0369a1; }
 
     .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
 
@@ -55,12 +74,11 @@
     .grid-container { position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
     .grid { display: grid; gap: 6px; }
 
-    /* 格子樣式 (改為可顯示圖片並維持圓角與置中) */
+    /* 格子樣式 */
     .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; padding: 4px; }
     .tile img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
     .tile:hover { transform: scale(1.04); }
     
-    /* 修正點 2：玩家頁點擊對中的格子底色改成 Tiffany 藍 (#81d8d0) */
     .tile.marked { background-color: #81d8d0; color: #0f172a; transform: scale(0.96); box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
     .tile.marked img { filter: brightness(1.05); }
     
@@ -81,7 +99,7 @@
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
     
-    .ended-card { background: white; padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; backdrop-filter: blur(4px); }
     .ended-icon { font-size: 48px; margin-bottom: 12px; }
 
     .hidden { display: none !important; }
@@ -162,7 +180,6 @@
       document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
       document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
       document.getElementById('create-event-btn').addEventListener('click', createEvent);
-      document.getElementById('force-end-btn').addEventListener('click', forceEndGameByAdmin);
       document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
       document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
       document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
@@ -327,7 +344,6 @@
         currentLeaderboard = data.scores || {};
         renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
 
-        // 開啟定時器持續比對「現在時間」是否已超過「該局結束時間」
         if (adminStatusTimer) clearInterval(adminStatusTimer);
         adminStatusTimer = setInterval(() => {
           checkRoomStatus(data);
@@ -335,7 +351,6 @@
       });
     }
 
-    // 檢查房間狀態 (比對「現在時間」與「結束時間」)
     function checkRoomStatus(data) {
       const roomNumEl = document.getElementById('room-num-display');
       if (!roomNumEl) return;
@@ -350,18 +365,6 @@
       } else {
         roomNumEl.innerText = eventId;
         roomNumEl.classList.remove('ended');
-      }
-    }
-
-    function forceEndGameByAdmin() {
-      if (!eventId) return;
-      if (confirm('⚠️ 確定要立即強制結束本局比賽嗎？所有玩家將會被強制結算！')) {
-        update(ref(db, 'events_bingo_v2/' + eventId), { isEnded: true }).then(() => {
-          const roomNumEl = document.getElementById('room-num-display');
-          roomNumEl.innerText = '該局結束';
-          roomNumEl.classList.add('ended');
-          alert('已成功結束本局遊戲！');
-        });
       }
     }
 
@@ -583,7 +586,6 @@
       if (callIndex < globalCallList.length) {
         currentDrawn = globalCallList[callIndex];
         
-        // 叫號改用圖片渲染 (修正：加上 crossOrigin = "anonymous" 允許 html2canvas 擷取)
         const callContainer = document.getElementById('current-call-number');
         if (numberImages[currentDrawn]) {
           const img = document.createElement('img');
@@ -622,7 +624,6 @@
 
         tile.className = tileClass;
         
-        // 盤面數字改用圖片渲染 (修正：加上 crossOrigin = "anonymous" 允許 html2canvas 擷取)
         if (numberImages[val]) {
           const img = document.createElement('img');
           img.src = numberImages[val];
@@ -728,7 +729,6 @@
     function copyBoardToClipboard(btnElement) {
       const captureArea = document.getElementById('capture-board-area');
 
-      // 修正：開啟 useCORS: true 與 allowTaint: true 以便截圖跨域 CDN 圖片
       html2canvas(captureArea, { 
         scale: 2,
         useCORS: true,
@@ -815,6 +815,9 @@
     <div class="leaderboard-title">🏆 最終總排行榜</div>
     <div id="ended-leaderboard-list"></div>
   </div>
+
+  <!-- 修正點 1：活動結束頁面的回到大廳按鈕 -->
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
 <!-- 主介面 1：管理者發起活動建立 -->
@@ -826,7 +829,6 @@
   <div id="setting-fields" class="disabled-area">
     <div class="menu-group">
       <label>1. 設定比賽盤面大小</label>
-      <!-- 修正點 1：新增 7x7, 8x8, 9x9 選項 -->
       <div id="grid-options" class="btn-group">
         <div class="btn-option" data-val="9">3x3</div>
         <div class="btn-option" data-val="16">4x4</div>
@@ -880,6 +882,9 @@
       <div id="admin-leaderboard-list"></div>
     </div>
   </div>
+
+  <!-- 修正點 1：主設定頁面的回到大廳按鈕 (置中) -->
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
 <!-- 主介面 2：玩家挑戰對戰畫面 -->
@@ -917,6 +922,9 @@
     <div class="leaderboard-title">🏆 全國排行榜</div>
     <div id="player-leaderboard-list"></div>
   </div>
+
+  <!-- 修正點 1：玩家挑戰頁面的回到大廳按鈕 (置中) -->
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
 </body>
