@@ -21,10 +21,10 @@
         body {
             background-color: #fce4ec;
             background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
-            background-size: cover;
-            background-position: center;
             background-repeat: no-repeat;
+            background-position: center center;
             background-attachment: fixed;
+            background-size: cover;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -33,36 +33,6 @@
             overflow-x: hidden;
             -webkit-user-select: none;
             user-select: none;
-        }
-
-        /* 回到遊戲大廳按鈕樣式 */
-        .lobby-btn-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            margin-bottom: 12px;
-        }
-
-        .btn-lobby {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-            color: #ffffff;
-            font-weight: bold;
-            font-size: 0.95rem;
-            padding: 8px 20px;
-            border-radius: 25px;
-            text-decoration: none;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s ease;
-            border: 2px solid #ffffff;
-        }
-
-        .btn-lobby:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
-            background: linear-gradient(135deg, #ffa726, #fb8c00);
         }
 
         h1 {
@@ -91,7 +61,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             width: 100%;
             margin-bottom: 15px;
         }
@@ -285,6 +255,32 @@
             background-color: #b71c1c;
         }
 
+        /* 回到遊戲大廳按鈕專用樣式 */
+        .btn-lobby {
+            width: 100%;
+            max-width: 250px;
+            margin: 12px auto 0 auto;
+            background-color: #00897b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .btn-lobby:hover {
+            background-color: #00695c;
+        }
+
         /* 按鈕群組通用樣式 */
         .button-group {
             display: flex;
@@ -321,7 +317,7 @@
 
         /* 截圖目標區塊 */
         .capture-area {
-            background-color: rgba(252, 228, 236, 0.9);
+            background-color: #fce4ec;
             padding: 10px;
             border-radius: 14px;
             display: flex;
@@ -329,7 +325,6 @@
             align-items: center;
             width: 100%;
             box-sizing: border-box;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         }
 
         .event-title {
@@ -511,7 +506,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 400px;
             margin-top: 20px;
@@ -534,7 +529,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             width: 100%;
             margin-top: 12px;
         }
@@ -556,11 +551,6 @@
     </style>
 </head>
 <body>
-
-    <!-- 頂部：回到遊戲大廳按鈕 -->
-    <div class="lobby-btn-container">
-        <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
-    </div>
 
     <!-- 主頁面頂部標題 -->
     <h1 id="mainTitleHeader">🏮 懷舊戳戳樂 🏮</h1>
@@ -630,6 +620,9 @@
                     <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
                     <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
                 </div>
+
+                <!-- 回到遊戲大廳按鈕 -->
+                <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
             </div>
 
             <!-- 截圖與即時開獎面板 -->
