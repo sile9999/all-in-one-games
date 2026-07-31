@@ -288,7 +288,7 @@
         .btn-copy-list { background-color: #2e7d32; }
         .btn-purple { background-color: #7b1fa2; }
         .btn-orange { background-color: #e65100; }
-        .btn-gray { background-color: #616161; }
+        .btn-lobby { background-color: #388e3c; }
 
         /* 截圖目標區塊 */
         .capture-area {
@@ -537,7 +537,7 @@
             <h2>🔑 管理員登入</h2>
             <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
             <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
-            <button class="btn-action btn-gray" style="width: 100%; max-width: 100%; margin-top: 4px;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+            <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="margin-top: 10px; width: 100%;">🏠 回到遊戲大廳</a>
         </div>
 
         <!-- 管理員主要控制內容 (驗證成功後顯示) -->
@@ -595,7 +595,7 @@
                 <div class="button-group" style="margin-top: 12px;">
                     <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
                     <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
-                    <button class="btn-action btn-gray" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+                    <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby">🏠 回到遊戲大廳</a>
                 </div>
             </div>
 
@@ -618,7 +618,6 @@
             <div class="button-group">
                 <button class="btn-action" id="screenshotBtn" onclick="copyScreenshot()">📋 複製截圖</button>
                 <button class="btn-action btn-copy-list" id="copyListBtn" onclick="copyWinnerList()">📝 複製得獎列表</button>
-                <button class="btn-action btn-gray" onclick="goToLobby()">🏠 回到遊戲大廳</button>
             </div>
 
             <div class="winner-list-panel">
@@ -636,15 +635,17 @@
             <input type="password" id="inputRoomPass" placeholder="請輸入房間密碼">
             <input type="text" id="inputPlayerName" placeholder="請輸入您的暱稱">
             <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
-            <button class="btn-action btn-gray" style="width: 100%; max-width: 100%; margin-top: 4px;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+            <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="margin-top: 10px; width: 100%;">🏠 回到遊戲大廳</a>
         </div>
 
         <!-- 玩家遊戲畫面 (登入後顯示) -->
         <div id="playerGameArea" style="display: none; width: 100%;">
-            <div style="background: rgba(255, 255, 255, 0.95); padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="background: white; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div>👤 玩家：<strong id="displayName" style="color: #d32f2f;"></strong></div>
-                <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
-                <button class="btn-action btn-gray" style="min-width: 110px; max-width: 140px; padding: 6px 10px; font-size: 0.8rem;" onclick="goToLobby()">🏠 回大廳</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
+                    <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="padding: 4px 10px; font-size: 0.75rem; min-width: auto;">🏠 回到大廳</a>
+                </div>
             </div>
 
             <div class="capture-area">
@@ -729,11 +730,6 @@
         let activeMode = 'A';
         let currentPlayerName = "";
         const ADMIN_DEFAULT_PASS = "594200"; // 主頁面管理者密碼
-
-        // 回到遊戲大廳功能
-        function goToLobby() {
-            window.location.href = window.location.pathname;
-        }
 
         // 時間格式化工具 (YYYY-MM-DD HH:mm:ss)
         function formatDate(timestamp) {
