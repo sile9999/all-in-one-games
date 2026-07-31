@@ -3,107 +3,712 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>經典小遊戲大廳 </title>
+  <title> 數學燒腦遊戲</title>
   <style>
-    /* --- 1. 背景獨立容器（跨裝置完美滿版縮放） --- */
-    .bg-layer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1; /* 放在最底層 */
-      object-fit: cover; /* 自動等比例填滿畫面，不變形 */
-      object-position: center center; /* 置中呈現 */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    
+    /* 背景圖片設置 */
+    body { 
+      background-color: #f0f4f8; 
+      background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
+      background-size: cover;
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
     }
 
-    /* --- 2. 全域設定 --- */
-    body {
-      font-family: Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
-      margin: 0;
-      padding: 30px 20px;
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
+    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
+    
+    .menu-group { margin-bottom: 16px; text-align: left; }
+    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+    
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-option { flex: 1; min-width: 60px; padding: 10px 6px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 13px; }
+    .btn-option.active { border-color: #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
+    
+    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
+    
+    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
+    .btn-primary:hover { background-color: #2563eb; }
+    .btn-admin { background-color: #64748b; }
+    .btn-admin:hover { background-color: #475569; }
+    .btn-copy { background-color: #8b5cf6; }
+    .btn-copy:hover { background-color: #7c3aed; }
+    .btn-start { background-color: #10b981; }
+    .btn-start:hover { background-color: #059669; }
+
+    /* 回到遊戲大廳按鈕樣式 */
+    .btn-lobby {
+      width: 100%;
+      max-width: 250px;
+      margin: 16px auto 0 auto;
+      background-color: #00897b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 18px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
       text-align: center;
-      color: #ffffff;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
-
-    /* --- 3. 大廳標題 --- */
-    header h1 {
-      font-size: 2.2em;
-      margin-bottom: 35px;
-      color: #fff;
-      /* 加上黑陰影與藍紫色霓虹發光，確保在背景上文字清晰 */
-      text-shadow: 0 0 10px #00f0ff, 2px 2px 5px rgba(0, 0, 0, 0.8);
-    }
-
-    /* --- 4. 遊戲卡片容器 --- */
-    .game-container {
+      text-decoration: none;
       display: flex;
-      flex-wrap: wrap;
+      align-items: center;
       justify-content: center;
-      gap: 30px;
-      max-width: 1000px;
-      margin: 0 auto;
+      transition: background-color 0.2s;
+    }
+    .btn-lobby:hover { background-color: #00695c; }
+
+    /* 按鈕點擊成功狀態樣式 */
+    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
+
+    /* 房間號碼顯示區 */
+    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
+    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
+
+    /* 遊戲對戰區 */
+    .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
+    .grid-container { position: relative; margin-bottom: 16px; }
+    .grid { display: grid; gap: 8px; }
+
+    /* 格子樣式 */
+    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; color: #1e293b; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; }
+    .tile:hover { transform: scale(1.04); }
+    .tile.selected { background-color: #fde047; color: #854d0e; transform: scale(0.95); }
+    .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
+
+    /* 遊戲結束遮罩 */
+    .game-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.88); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 22px; font-weight: bold; z-index: 10; padding: 16px; text-align: center; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
     }
 
-    /* --- 5. 遊戲圖片連結區塊 --- */
-    .game-link {
-      display: block;
-      width: 220px;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 3px solid #ffcc00; /* 金黃色邊框 */
-      box-shadow: 0 0 15px rgba(255, 204, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.5);
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-      background-color: rgba(18, 12, 38, 0.85);
-    }
+    /* 排行榜 */
+    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
+    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
+    .leaderboard-item { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
+    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
 
-    /* 滑鼠懸停時圖片放大與發光效果 */
-    .game-link:hover {
-      transform: translateY(-8px) scale(1.03);
-      box-shadow: 0 0 25px rgba(255, 204, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.7);
-    }
+    /* 彈出視窗 (Modal) */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
+    
+    /* 活動結束專用卡片樣式 */
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
+    .ended-icon { font-size: 48px; margin-bottom: 12px; }
 
-    /* --- 6. 遊戲圖片樣式 --- */
-    .game-icon {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-    }
+    .hidden { display: none !important; }
+    .disabled-area { opacity: 0.5; pointer-events: none; }
   </style>
+
+  <!-- 🛡️ 防 F12 與開發者工具腳本 -->
+  <script>
+    // 1. 禁用右鍵選單
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // 2. 阻擋 F12 與相關開發者快捷鍵
+    document.addEventListener('keydown', (e) => {
+      // F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+I / Cmd+Option+I (檢查元素)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+J / Cmd+Option+J (開啟 Console)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+C / Cmd+Option+C (選擇元素)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+U (檢視原始碼)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    // 3. 防 F12 無窮 Debugger 卡死機制
+    setInterval(() => {
+      const startTime = performance.now();
+      (function() {
+        return false;
+      }).constructor("debugger")();
+      const endTime = performance.now();
+      
+      // 如果時間差太大，代表開著 DevTools 停在了 debugger 處
+      if (endTime - startTime > 100) {
+        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
+      }
+    }, 500);
+  </script>
+
+  <!-- JS 模組載入 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+      authDomain: "gogogame-ce8ba.firebaseapp.com",
+      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+      projectId: "gogogame-ce8ba",
+      storageBucket: "gogogame-ce8ba.firebasestorage.app",
+      messagingSenderId: "823932242561",
+      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let eventId = null;
+    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
+    let playerName = '';
+    let targetNumber = 10;
+    let gameMode = '60s';
+    let totalTiles = 25;
+    let endTimeStr = '';
+    let eventEndTimeMs = 0;
+    let myScore = 0;
+    let gridTiles = [];
+    let selectedIndices = [];
+    let timer = null;
+    let eventRef = null;
+    let currentLeaderboard = {};
+    let isGameActive = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
+      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
+      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
+      document.getElementById('create-event-btn').addEventListener('click', createEvent);
+      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
+      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
+      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
+      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
+
+      setupOptionGroup('target-options', (val) => targetNumber = parseInt(val));
+      setupOptionGroup('mode-options', (val) => gameMode = val);
+      setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
+
+      // 預設活動結束時間為今晚 23:59
+      const now = new Date();
+      now.setHours(23, 59, 0, 0);
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('admin-endtime-input').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+      // 解析網址參數
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventParam = urlParams.get('event');
+
+      if (eventParam) {
+        document.getElementById('main-setup-view').classList.add('hidden');
+        eventId = eventParam;
+        
+        // 先向 Firebase 檢查該活動狀態與結束時間
+        get(ref(db, 'events_v1/' + eventId)).then((snapshot) => {
+          if (!snapshot.exists()) {
+            alert('找不到該活動代號，請確認後重試！');
+            document.getElementById('main-setup-view').classList.remove('hidden');
+            return;
+          }
+
+          const data = snapshot.val();
+          const currentTime = Date.now();
+          
+          // 若目前時間已超過或等於活動結束時間，直接切換至「活動已結束」畫面
+          if (data.endTime && currentTime >= data.endTime) {
+            showEventEndedView();
+            return;
+          }
+
+          // 時間尚未結束，顯示玩家登入與挑戰視窗
+          document.getElementById('input-event-id').value = eventId;
+          document.getElementById('join-modal').classList.remove('hidden');
+        }).catch((error) => {
+          alert('讀取活動失敗：' + error.message);
+          document.getElementById('main-setup-view').classList.remove('hidden');
+        });
+      }
+    });
+
+    function showEventEndedView() {
+      document.getElementById('main-setup-view').classList.add('hidden');
+      document.getElementById('join-modal').classList.add('hidden');
+      document.getElementById('player-game-view').classList.add('hidden');
+      document.getElementById('event-ended-view').classList.remove('hidden');
+
+      // 載入最終排行榜
+      onValue(ref(db, `events_v1/${eventId}`), (snap) => {
+        const evData = snap.val();
+        if (evData) {
+          renderLeaderboard('ended-leaderboard-list', evData.scores || {});
+        }
+      });
+    }
+
+    function setupOptionGroup(groupId, callback) {
+      const group = document.getElementById(groupId);
+      group.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-option')) {
+          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
+          e.target.classList.add('active');
+          callback(e.target.dataset.val || e.target.dataset.mode);
+        }
+      });
+    }
+
+    /* ---------------- 管理者機制 ---------------- */
+    function openAdminModal() {
+      document.getElementById('pwd-modal').classList.remove('hidden');
+    }
+
+    function checkPassword() {
+      const pwd = document.getElementById('admin-pwd').value;
+      if (pwd === '17696969') {
+        document.getElementById('pwd-modal').classList.add('hidden');
+        // 解鎖設定欄位與隱藏的建立按鈕區塊
+        document.getElementById('setting-fields').classList.remove('disabled-area');
+        document.getElementById('admin-create-actions').classList.remove('hidden');
+        
+        const unlockBtn = document.getElementById('admin-unlock-btn');
+        unlockBtn.innerText = '✅ 管理者權限已解鎖';
+        unlockBtn.classList.add('btn-success-state');
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+
+    function createEvent() {
+      const customVal = parseInt(document.getElementById('custom-target-input').value);
+      if (!isNaN(customVal) && customVal >= 2) {
+        targetNumber = customVal;
+      }
+
+      endTimeStr = document.getElementById('admin-endtime-input').value;
+      if (!endTimeStr) {
+        alert('請先設定「活動結束時間」！');
+        return;
+      }
+
+      const noteText = document.getElementById('admin-note-input').value.trim();
+      const calculatedEndTimeMs = new Date(endTimeStr).getTime();
+
+      if (calculatedEndTimeMs <= Date.now()) {
+        alert('⚠️ 活動結束時間必須設定在「未來」！');
+        return;
+      }
+
+      eventId = Math.floor(100000 + Math.random() * 900000).toString();
+      eventRef = ref(db, 'events_v1/' + eventId);
+
+      set(eventRef, {
+        targetNumber: targetNumber,
+        gameMode: gameMode,
+        totalTiles: totalTiles,
+        endTime: calculatedEndTimeMs,
+        note: noteText,
+        scores: {}
+      }).then(() => {
+        document.getElementById('room-num-display').innerText = eventId;
+        document.getElementById('admin-action-area').classList.remove('hidden');
+        alert(`🎉 活動建立成功！活動代號為：${eventId}`);
+      }).catch((error) => {
+        alert('建立失敗，請檢查網路連線：' + error.message);
+      });
+
+      onValue(eventRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        currentLeaderboard = data.scores || {};
+        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
+      });
+    }
+
+    function copyEventLink(btn) {
+      if (!eventId) return;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const fullLink = `${baseUrl}?event=${eventId}`;
+      const timeText = gameMode.replace('s', ' 秒');
+      const formattedEndTime = endTimeStr ? endTimeStr.replace('T', ' ') : '無限制';
+      const noteText = document.getElementById('admin-note-input').value.trim() || '無';
+
+      let copyMsg = `🎮 數學燒腦遊戲\n`;
+      copyMsg += `🔗 挑戰連結：${fullLink}\n`;
+      copyMsg += `📍 活動代號：${eventId}\n`;
+      copyMsg += `⏳ 活動截止時間：${formattedEndTime}\n`;
+      copyMsg += `⏱️ 個人戰鬥時間：${timeText}\n`;
+      copyMsg += `🎯 設定目標：${targetNumber}\n`;
+      copyMsg += `💡 遊戲說明：不限格數將所選數字合計為 "${targetNumber}" 得分\n`;
+      copyMsg += `📝 備註：${noteText}\n`;
+
+      navigator.clipboard.writeText(copyMsg).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結與說明');
+      }).catch(() => {});
+    }
+
+    function copyScores(btn) {
+      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) {
+        return alert('目前尚無玩家回報成績！');
+      }
+      const sorted = Object.values(currentLeaderboard).sort((a, b) => b.score - a.score);
+      let text = `🏆【數學燒腦遊戲】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      sorted.forEach((p, idx) => { text += `第 ${idx + 1} 名: ${p.name} - ${p.score} 分\n`; });
+
+      navigator.clipboard.writeText(text).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製排行榜成績');
+      }).catch(() => {});
+    }
+
+    function triggerButtonFeedback(btnElement, activeText, originalText) {
+      if (!btnElement) return;
+      btnElement.innerText = activeText;
+      btnElement.classList.add('btn-success-state');
+      setTimeout(() => {
+        btnElement.innerText = originalText;
+        btnElement.classList.remove('btn-success-state');
+      }, 1200);
+    }
+
+    function openJoinModalNewTab() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const targetUrl = eventId ? `${baseUrl}?event=${eventId}` : baseUrl;
+      window.open(targetUrl, '_blank');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    /* ---------------- 玩家挑戰賽遊戲邏輯 ---------------- */
+    function joinIndividualGame() {
+      const inputEvent = document.getElementById('input-event-id').value.trim();
+      const inputName = document.getElementById('input-player-name').value.trim();
+
+      if (!inputEvent) return alert('請輸入活動代號！');
+      if (!inputName) return alert('請輸入暱稱！');
+
+      eventId = inputEvent;
+      playerName = inputName;
+      eventRef = ref(db, 'events_v1/' + eventId);
+
+      get(eventRef).then((snapshot) => {
+        if (!snapshot.exists()) {
+          alert('找不到該活動代號，請確認後重試！');
+          return;
+        }
+
+        const data = snapshot.val();
+        const now = Date.now();
+        eventEndTimeMs = data.endTime || 0;
+
+        // 次層保障：點擊加入時若時間已過，直接導向結束頁面
+        if (eventEndTimeMs && now >= eventEndTimeMs) {
+          showEventEndedView();
+          return;
+        }
+
+        targetNumber = data.targetNumber;
+        gameMode = data.gameMode;
+        totalTiles = data.totalTiles || 25;
+
+        document.getElementById('join-modal').classList.add('hidden');
+        document.getElementById('main-setup-view').classList.add('hidden');
+        document.getElementById('player-game-view').classList.remove('hidden');
+
+        onValue(eventRef, (snap) => {
+          const evData = snap.val();
+          if (evData) renderLeaderboard('player-leaderboard-list', evData.scores || {});
+        });
+
+        startPersonalGame();
+      }).catch((error) => {
+        alert('讀取活動失敗：' + error.message);
+      });
+    }
+
+    function startPersonalGame() {
+      isGameActive = true;
+      myScore = 0;
+      selectedIndices = [];
+      document.getElementById('game-over-mask').classList.add('hidden');
+
+      gridTiles = Array.from({ length: totalTiles }, () => Math.floor(Math.random() * (targetNumber - 1)) + 1);
+
+      document.getElementById('target-display').innerText = targetNumber;
+      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
+
+      renderGrid();
+
+      let seconds = parseInt(gameMode) || 60;
+      document.getElementById('time-display').innerText = seconds + 's';
+
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        const now = Date.now();
+
+        if (eventEndTimeMs && now >= eventEndTimeMs) {
+          clearInterval(timer);
+          timer = null;
+          endPersonalGame(true);
+          return;
+        }
+
+        seconds--;
+        document.getElementById('time-display').innerText = seconds + 's';
+
+        if (seconds <= 0) {
+          clearInterval(timer);
+          timer = null;
+          endPersonalGame(false);
+        }
+      }, 1000);
+    }
+
+    function endPersonalGame(isEventExpired = false) {
+      isGameActive = false;
+      document.getElementById('time-display').innerText = '0s';
+
+      if (isEventExpired) {
+        document.getElementById('final-score-text').innerText = `⏰ 活動時間已到達！強制結算：${myScore} 分`;
+      } else {
+        document.getElementById('final-score-text').innerText = `🎉 挑戰結束！獲得 ${myScore} 分`;
+      }
+
+      document.getElementById('game-over-mask').classList.remove('hidden');
+
+      update(ref(db, `events_v1/${eventId}/scores/${playerId}`), {
+        name: playerName,
+        score: myScore,
+        timestamp: Date.now()
+      });
+    }
+
+    function renderGrid() {
+      const gridEl = document.getElementById('grid');
+      gridEl.innerHTML = '';
+      
+      const cols = Math.sqrt(totalTiles);
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+      gridTiles.forEach((val, idx) => {
+        const tile = document.createElement('div');
+        let tileClass = 'tile';
+        if (selectedIndices.includes(idx)) tileClass += ' selected';
+
+        tile.className = tileClass;
+        tile.innerText = val;
+        tile.onclick = () => handleTileClick(idx);
+
+        gridEl.appendChild(tile);
+      });
+    }
+
+    function handleTileClick(index) {
+      if (!isGameActive) return;
+
+      if (eventEndTimeMs && Date.now() >= eventEndTimeMs) {
+        if (timer) clearInterval(timer);
+        endPersonalGame(true);
+        return;
+      }
+
+      if (selectedIndices.includes(index)) {
+        selectedIndices = selectedIndices.filter(i => i !== index);
+        renderGrid();
+        return;
+      }
+
+      selectedIndices.push(index);
+      renderGrid();
+
+      const sum = selectedIndices.reduce((acc, i) => acc + gridTiles[i], 0);
+
+      if (sum === targetNumber) {
+        myScore += 10;
+        
+        selectedIndices.forEach(i => {
+          gridTiles[i] = Math.floor(Math.random() * (targetNumber - 1)) + 1;
+        });
+
+        selectedIndices = [];
+        renderGrid();
+      } else if (sum > targetNumber) {
+        const tiles = document.querySelectorAll('.tile');
+        selectedIndices.forEach(i => tiles[i]?.classList.add('error'));
+        setTimeout(() => {
+          selectedIndices = [];
+          renderGrid();
+        }, 400);
+      }
+    }
+
+    function renderLeaderboard(elementId, scoresObj) {
+      const lbEl = document.getElementById(elementId);
+      if (!lbEl) return;
+
+      const sorted = Object.entries(scoresObj || {})
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => b.score - a.score);
+
+      lbEl.innerHTML = sorted.map((p, idx) => `
+        <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
+          <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
+          <span>${p.score} 分</span>
+        </div>
+      `).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
+    }
+  </script>
 </head>
 <body>
 
-  <!-- 背景圖片容器：自動適應任何裝置螢幕尺寸 -->
-  <img class="bg-layer" src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png" alt="背景圖">
+<!-- 彈窗 1：管理者驗證密碼彈窗 -->
+<div id="pwd-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom:12px; color:#1e293b;">管理者身分驗證</h3>
+    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
+    <button id="pwd-check-btn" class="btn-primary">確認驗證</button>
+    <button id="pwd-cancel-btn" class="btn-primary btn-admin" style="margin-top:8px;">取消</button>
+  </div>
+</div>
 
-  <header>
-    <h1>🎮 經典小遊戲大廳 🎮</h1>
-  </header>
+<!-- 彈窗 2：輸入活動代號 + 暱稱彈窗 -->
+<div id="join-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom:16px; color:#1e293b;">參加數學燒腦挑戰賽</h3>
+    <input type="text" id="input-event-id" class="input-box" placeholder="輸入 6 位數活動代號" maxlength="6">
+    <input type="text" id="input-player-name" class="input-box" placeholder="輸入你的暱稱" maxlength="10">
+    <button id="join-game-btn" class="btn-primary">開始個人挑戰</button>
+  </div>
+</div>
 
-  <main class="game-container">
-    <!-- 遊戲 1: GOGO 遊戲 -->
-    <a href="games/gogo/index.html" class="game-link">
-      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/gogo01.png" alt="GOGO 遊戲" class="game-icon">
-    </a>
+<!-- 畫面 1：活動已結束專用畫面 -->
+<div id="event-ended-view" class="ended-card hidden">
+  <div class="ended-icon">⌛</div>
+  <h2 style="color: #1e293b; margin-bottom: 8px;">本次活動已結束</h2>
+  <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">感謝您的關注與參與！該場次活動已過截止時間，遊戲已關閉進行。</p>
+  
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 該場次最終排行榜</div>
+    <div id="ended-leaderboard-list"></div>
+  </div>
+</div>
 
-    <!-- 遊戲 2: 賓果 BINGO -->
-    <a href="games/bingo/index.html" class="game-link">
-      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/bingo01.png" alt="賓果 BINGO" class="game-icon">
-    </a>
+<!-- 畫面 2：設定主控頁面 -->
+<div id="main-setup-view" class="container">
+  <h1>⚙️ 數學燒腦遊戲主控台</h1>
 
-    <!-- 遊戲 3: LALACA 遊戲 -->
-    <a href="games/lalaca/index.html" class="game-link">
-      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/lalaca01.png" alt="LALACA 遊戲" class="game-icon">
-    </a>
+  <div id="setting-fields" class="disabled-area">
+    <div class="menu-group">
+      <label>活動結束時間 ：</label>
+      <input type="datetime-local" id="admin-endtime-input" class="input-box">
+    </div>
 
-    <!-- 遊戲 4: 數字挑戰 -->
-    <a href="games/number/index.html" class="game-link">
-      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/number01.png" alt="數字挑戰" class="game-icon">
-    </a>
-  </main>
+    <div class="menu-group">
+      <label> 單局遊玩時間：</label>
+      <div class="btn-group" id="mode-options">
+        <button class="btn-option" data-mode="30s">30 秒</button>
+        <button class="btn-option active" data-mode="60s">60 秒</button>
+        <button class="btn-option" data-mode="120s">120 秒</button>
+        <button class="btn-option" data-mode="150s">150 秒</button>
+        <button class="btn-option" data-mode="180s">180 秒</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>目標數字設定：</label>
+      <div class="btn-group" id="target-options">
+        <button class="btn-option" data-val="5">5</button>
+        <button class="btn-option active" data-val="10">10</button>
+        <button class="btn-option" data-val="20">20</button>
+      </div>
+      <input type="number" id="custom-target-input" class="input-box" style="margin-top: 8px;" placeholder="自訂目標數 (例如 15)">
+    </div>
+
+    <div class="menu-group">
+      <label>盤面格子數量：</label>
+      <div class="btn-group" id="grid-options">
+        <button class="btn-option active" data-val="25">25 格 (5x5)</button>
+        <button class="btn-option" data-val="36">36 格 (6x6)</button>
+        <button class="btn-option" data-val="49">49 格 (7x7)</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>活動備註說明 (選填)：</label>
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例：暑期個人湊數挑戰賽" maxlength="30">
+    </div>
+  </div>
+
+  <button id="admin-unlock-btn" class="btn-primary btn-admin">🔑 解鎖管理者設定</button>
+
+  <!-- 建立活動區塊：管理者解鎖前預設隱藏 (hidden) -->
+  <div id="admin-create-actions" class="hidden">
+    <button id="create-event-btn" class="btn-primary">建立活動發布挑戰</button>
+    <button id="open-newtab-btn" class="btn-start btn-primary" style="margin-top:10px;">🎮 進入房間挑戰</button>
+  </div>
+
+  <div id="admin-action-area" class="hidden">
+    <div class="room-display-box">
+      <div style="font-size:13px; color:#64748b; font-weight:bold;">當前活動代號</div>
+      <div class="room-number" id="room-num-display">------</div>
+    </div>
+
+    <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
+    <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製排行榜成績</button>
+
+    <div class="leaderboard">
+      <div class="leaderboard-title">📊 玩家個人賽排行榜 (即時更新)</div>
+      <div id="admin-leaderboard-list"></div>
+    </div>
+  </div>
+
+  <!-- 回到遊戲大廳按鈕 (置中並在當前頁面轉跳) -->
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
+</div>
+
+<!-- 畫面 3：玩家個人挑戰畫面 -->
+<div id="player-game-view" class="container hidden">
+  <div class="status-bar">
+    <div>目標: <span id="target-display">10</span></div>
+    <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">活動: ---</div>
+    <div>剩餘時間: <span id="time-display">--</span></div>
+  </div>
+
+  <div class="grid-container">
+    <div class="grid" id="grid"></div>
+    <div id="game-over-mask" class="game-over-overlay hidden">
+      <div id="final-score-text">🎉 挑戰結束！</div>
+      <div style="font-size:14px; margin-top:8px; font-weight:normal;">成績已成功自動回報至主控台排行榜！</div>
+    </div>
+  </div>
+
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 當前活動即時排行榜</div>
+    <div id="player-leaderboard-list"></div>
+  </div>
+</div>
 
 </body>
 </html>
