@@ -6,10 +6,44 @@
   <title> 翻牌連連看 </title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    body { background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-    .container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 680px; text-align: center; position: relative; }
+    
+    /* 修正點 2：加入指定背景圖片並設定居中 cover 貼合 */
+    body { 
+      background-color: #f0f4f8; 
+      background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+    
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 680px; text-align: center; position: relative; }
     h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
     
+    /* 修正點 1：大廳按鈕專用置中樣式 */
+    .btn-lobby {
+      display: inline-block;
+      width: auto;
+      min-width: 180px;
+      padding: 10px 20px;
+      background-color: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 0 auto 16px auto;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-lobby:hover { background-color: #0369a1; }
+
     .menu-group { margin-bottom: 16px; text-align: left; }
     .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
     
@@ -167,6 +201,7 @@
     window.openJoinModalNewTab = openJoinModalNewTab;
     window.joinRoomGame = joinRoomGame;
     window.closeModal = closeModal;
+    window.goToLobby = goToLobby; // 修正點 1：綁定全域轉跳函式
 
     window.addEventListener('DOMContentLoaded', async () => {
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
@@ -189,6 +224,11 @@
 
       initSecurity();
     });
+
+    // 修正點 1：轉跳遊戲大廳函式（直接轉跳不另開新視窗）
+    function goToLobby() {
+      window.location.href = 'https://sile9999.github.io/all-in-one-games/';
+    }
 
     function showExpiredScreen() {
       document.getElementById('main-setup-view').classList.add('hidden');
@@ -550,6 +590,9 @@
 </div>
 
 <div id="main-setup-view" class="container">
+  <!-- 修正點 1：加入回到遊戲大廳按鈕 -->
+  <button class="btn-lobby" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+
   <h1>⚙️  成語翻牌連連看 </h1>
 
   <div id="setting-fields" class="disabled-area">
@@ -598,6 +641,9 @@
 </div>
 
 <div id="player-game-view" class="container hidden">
+  <!-- 修正點 1：個人遊戲頁面亦可擺放大廳按鈕 -->
+  <button class="btn-lobby" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+
   <div class="status-bar">
     <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">個人挑戰中</div>
     <div>已用時間: <span id="time-display">0.0s</span></div>
@@ -622,6 +668,9 @@
   <div class="expired-icon">⌛</div>
   <div class="expired-title">本次活動已結束</div>
   <div class="expired-desc">感謝您的關注！本房間的挑戰時間已過，目前已不再開放進入。</div>
+  <br>
+  <!-- 修正點 1：活動過期畫面亦有大廳轉跳按鈕 -->
+  <button class="btn-lobby" style="margin-bottom:0;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
 </div>
 
 </body>
