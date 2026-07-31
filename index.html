@@ -3,91 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>蕉蛙遊戲大廳 My Game Hub</title>
+  <title>經典小遊戲大廳 My Game Collection Hub</title>
   <style>
-    /* 這裡就是 style.css 的內容，直接包在 HTML 裡 */
+    /* --- 1. 背景與全域設定 --- */
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f6f9;
-      text-align: center;
+      font-family: Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 30px 20px;
+      text-align: center;
+      color: #ffffff;
+      
+      /* 設定農場背景圖：滿版、置中、固定不跟隨捲動 */
+      background: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/frog.png') no-repeat center center fixed;
+      background-size: cover;
+      min-height: 100vh;
     }
 
+    /* --- 2. 大廳標題 --- */
     header h1 {
-      color: #333;
+      font-size: 2.2em;
+      margin-bottom: 35px;
+      color: #fff;
+      /* 加上黑陰影與藍紫色霓虹發光，確保在農場背景上文字清晰 */
+      text-shadow: 0 0 10px #00f0ff, 2px 2px 5px rgba(0, 0, 0, 0.8);
     }
 
+    /* --- 3. 遊戲卡片容器 --- */
     .game-container {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 20px;
+      gap: 30px;
       max-width: 1000px;
-      margin: 30px auto;
+      margin: 0 auto;
     }
 
-    .game-card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 24px;
-      width: 200px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: transform 0.2s;
+    /* --- 4. 遊戲圖片連結區塊 --- */
+    .game-link {
+      display: block;
+      width: 220px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 3px solid #ffcc00; /* 金黃色邊框 */
+      box-shadow: 0 0 15px rgba(255, 204, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.5);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      background-color: rgba(18, 12, 38, 0.85);
     }
 
-    .game-card:hover {
-      transform: translateY(-5px);
+    /* 滑鼠懸停時圖片放大與發光效果 */
+    .game-link:hover {
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 0 25px rgba(255, 204, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.7);
     }
 
-    .btn {
-      display: inline-block;
-      padding: 10px 18px;
-      background-color: #007bff;
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-
-    .btn:hover {
-      background-color: #0056b3;
+    /* --- 5. 遊戲圖片樣式 --- */
+    .game-icon {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
     }
   </style>
 </head>
 <body>
+
   <header>
-    <h1>🎮 歡迎來到蕉蛙小遊戲大廳</h1>
-    <p>請選擇你想遊玩的遊戲：</p>
+    <h1>🎮 經典小遊戲大廳 My Game Collection Hub</h1>
   </header>
 
   <main class="game-container">
-    <div class="game-card">
-      <h2>戳戳樂遊戲</h2>
-      <p>快節奏冒險小遊戲</p>
-      <a href="games/gogo/index.html" class="btn">開始遊戲</a>
-    </div>
+    <!-- 遊戲 1: GOGO 遊戲 -->
+    <a href="games/gogo/index.html" class="game-link">
+      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/gogo.png" alt="GOGO 遊戲" class="game-icon">
+    </a>
 
-    <div class="game-card">
-      <h2>數字燒腦挑戰</h2>
-      <p>考驗腦力的數字遊戲</p>
-      <a href="games/number/index.html" class="btn">開始遊戲</a>
-    </div>
+    <!-- 遊戲 2: 賓果 BINGO -->
+    <a href="games/bingo/index.html" class="game-link">
+      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/bingo.png" alt="賓果 BINGO" class="game-icon">
+    </a>
 
-    <div class="game-card">
-      <h2>賓果連線</h2>
-      <p>經典賓果連線遊戲</p>
-      <a href="games/bingo/index.html" class="btn">開始遊戲</a>
-    </div>
+    <!-- 遊戲 3: LALACA 遊戲 -->
+    <a href="games/lalaca/index.html" class="game-link">
+      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/lalaca.png" alt="LALACA 遊戲" class="game-icon">
+    </a>
 
-    <div class="game-card">
-      <h2>成語翻牌遊戲</h2>
-      <p>趣味休閒小遊戲</p>
-      <a href="games/lalaca/index.html" class="btn">開始遊戲</a>
-    </div>
+    <!-- 遊戲 4: 數字挑戰 -->
+    <a href="games/number/index.html" class="game-link">
+      <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/number.png" alt="數字挑戰" class="game-icon">
+    </a>
   </main>
+
 </body>
 </html>
