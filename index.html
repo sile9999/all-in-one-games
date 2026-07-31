@@ -3,32 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>經典小遊戲大廳</title>
+  <title>經典小遊戲大廳 </title>
   <style>
-    /* --- 1. 背景與全域設定 --- */
+    /* --- 1. 背景獨立容器（跨裝置完美滿版縮放） --- */
+    .bg-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1; /* 放在最底層 */
+      object-fit: cover; /* 自動等比例填滿畫面，不變形 */
+      object-position: center center; /* 置中呈現 */
+    }
+
+    /* --- 2. 全域設定 --- */
     body {
       font-family: Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
       margin: 0;
       padding: 30px 20px;
       text-align: center;
       color: #ffffff;
-      
-      /* 設定農場背景圖：滿版、置中、固定不跟隨捲動 */
-      background: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/frog.png') no-repeat center center fixed;
-      background-size: cover;
       min-height: 100vh;
+      box-sizing: border-box;
     }
 
-    /* --- 2. 大廳標題 --- */
+    /* --- 3. 大廳標題 --- */
     header h1 {
       font-size: 2.2em;
       margin-bottom: 35px;
       color: #fff;
-      /* 加上黑陰影與藍紫色霓虹發光，確保在農場背景上文字清晰 */
+      /* 加上黑陰影與藍紫色霓虹發光，確保在背景上文字清晰 */
       text-shadow: 0 0 10px #00f0ff, 2px 2px 5px rgba(0, 0, 0, 0.8);
     }
 
-    /* --- 3. 遊戲卡片容器 --- */
+    /* --- 4. 遊戲卡片容器 --- */
     .game-container {
       display: flex;
       flex-wrap: wrap;
@@ -38,7 +47,7 @@
       margin: 0 auto;
     }
 
-    /* --- 4. 遊戲圖片連結區塊 --- */
+    /* --- 5. 遊戲圖片連結區塊 --- */
     .game-link {
       display: block;
       width: 220px;
@@ -56,7 +65,7 @@
       box-shadow: 0 0 25px rgba(255, 204, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.7);
     }
 
-    /* --- 5. 遊戲圖片樣式 --- */
+    /* --- 6. 遊戲圖片樣式 --- */
     .game-icon {
       width: 100%;
       height: 100%;
@@ -66,6 +75,9 @@
   </style>
 </head>
 <body>
+
+  <!-- 背景圖片容器：自動適應任何裝置螢幕尺寸 -->
+  <img class="bg-layer" src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png" alt="背景圖">
 
   <header>
     <h1>🎮 經典小遊戲大廳 🎮</h1>
