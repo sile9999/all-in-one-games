@@ -26,6 +26,10 @@
       color: #ffffff;
       min-height: 100vh;
       box-sizing: border-box;
+      /* 禁止選取文字，防止拖曳內容 */
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
     }
 
     /* --- 3. 大廳標題 --- */
@@ -71,6 +75,7 @@
       height: 100%;
       display: block;
       object-fit: cover;
+      pointer-events: none; /* 防止圖片被單獨右鍵存檔或拖曳 */
     }
   </style>
 </head>
@@ -104,6 +109,49 @@
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/number01.png" alt="數字挑戰" class="game-icon">
     </a>
   </main>
+
+  <!-- 防 F12 與開發者工具指令碼 -->
+  <script>
+    // 1. 禁用右鍵選單
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    // 2. 禁用快捷鍵 (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U)
+    document.addEventListener('keydown', function (e) {
+      // F12
+      if (e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C
+      if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+U (檢視原始碼)
+      if (e.ctrlKey && e.keyCode === 85) {
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+S (儲存網頁)
+      if (e.ctrlKey && e.keyCode === 83) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    // 3. 定時用 debugger 阻擋開啟控制台的使用者
+    setInterval(function() {
+      const startTime = performance.now();
+      (function() {}.constructor('debugger')());
+      const endTime = performance.now();
+      // 若開啟開發者工具，執行 debugger 會造成暫停，執行時間會顯著增加
+      if (endTime - startTime > 100) {
+        window.location.reload(); // 或可跳轉至其他頁面
+      }
+    }, 1000);
+  </script>
 
 </body>
 </html>
