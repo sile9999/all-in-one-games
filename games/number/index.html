@@ -6,8 +6,23 @@
   <title> 數學燒腦遊戲</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    body { background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-    .container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
+    
+    /* 背景圖片設置 */
+    body { 
+      background-color: #f0f4f8; 
+      background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
+      background-size: cover;
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
     h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
     
     .menu-group { margin-bottom: 16px; text-align: left; }
@@ -27,6 +42,29 @@
     .btn-copy:hover { background-color: #7c3aed; }
     .btn-start { background-color: #10b981; }
     .btn-start:hover { background-color: #059669; }
+
+    /* 回到遊戲大廳按鈕樣式 */
+    .btn-lobby {
+      width: 100%;
+      max-width: 250px;
+      margin: 16px auto 0 auto;
+      background-color: #00897b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 18px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+    .btn-lobby:hover { background-color: #00695c; }
 
     /* 按鈕點擊成功狀態樣式 */
     .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
@@ -66,7 +104,7 @@
     .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
     
     /* 活動結束專用卡片樣式 */
-    .ended-card { background: white; padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
     .ended-icon { font-size: 48px; margin-bottom: 12px; }
 
     .hidden { display: none !important; }
@@ -645,6 +683,9 @@
       <div id="admin-leaderboard-list"></div>
     </div>
   </div>
+
+  <!-- 回到遊戲大廳按鈕 (置中並在當前頁面轉跳) -->
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
 <!-- 畫面 3：玩家個人挑戰畫面 -->
