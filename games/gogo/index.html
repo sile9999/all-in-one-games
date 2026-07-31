@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>懷舊戳戳樂</title>
+    <!-- 引入 html2canvas 截圖函式庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 引入 Firebase SDK (Compat 版本) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "MicroSoft YaHei", "PingFang TC", sans-serif;
+        }
+
+        body {
+            background-color: #fce4ec;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px 10px;
+            overflow-x: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        h1 {
+            color: #d32f2f;
+            text-shadow: 2px 2px #ffcdd2;
+            margin-bottom: 12px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        /* 頁面分頁控制 */
+        .page {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        /* 設定區塊 */
+        .config-panel {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .config-panel h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .input-row label {
+            font-size: 0.85rem;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .input-group input[type="text"], 
+        .input-group input[type="password"] {
+            flex-grow: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 0;
+            height: 36px;
+            user-select: text;
+        }
+
+        /* 時間輸入框樣式 */
+        .input-group input[type="datetime-local"] {
+            flex-grow: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 0;
+            height: 36px;
+            user-select: text;
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .input-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            margin-right: 8px;
+            margin-left: 0;
+            cursor: pointer;
+        }
+
+        .input-group input[type="number"] {
+            width: 65px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+            height: 36px;
+            user-select: text;
+        }
+
+        /* 切換模式頁籤 (Tabs) */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #ffe0b2;
+            padding-bottom: 4px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background-color: #ffb74d;
+            color: #fff;
+        }
+
+        .mode-content {
+            display: none;
+            margin-bottom: 12px;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 0.85rem;
+            user-select: text;
+        }
+
+        .prize-item-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .prize-item-row .a-prize-name {
+            width: 170px;
+            flex-grow: 0;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            height: 36px; 
+            user-select: text;
+        }
+
+        .prize-item-row .a-prize-count {
+            width: 75px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+            height: 36px;
+            user-select: text;
+        }
+
+        .btn-add-item {
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        .btn-del-item {
+            background-color: #e53935;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-apply {
+            width: 100%;
+            padding: 10px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-apply:hover {
+            background-color: #b71c1c;
+        }
+
+        /* 按鈕群組通用樣式 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            flex: 1;
+            min-width: 140px;
+            max-width: 250px;
+            background-color: #0288d1;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+            text-align: center;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy-list { background-color: #2e7d32; }
+        .btn-purple { background-color: #7b1fa2; }
+        .btn-orange { background-color: #e65100; }
+
+        /* 截圖目標區塊 */
+        .capture-area {
+            background-color: #fce4ec;
+            padding: 10px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .event-title {
+            color: #d32f2f;
+            text-shadow: 2px 2px #ffcdd2;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .time-box {
+            background-color: #ffe0b2;
+            color: #e65100;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .prizes-count {
+            color: #d32f2f;
+            font-weight: 800;
+        }
+
+        /* 戳戳樂網格外框 */
+        .poke-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(max(70px, calc(10% - 6px)), 1fr));
+            gap: 6px;
+            background-color: #d32f2f;
+            padding: 8px;
+            border-radius: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 500px) {
+            .poke-box {
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 4px;
+                padding: 6px;
+            }
+        }
+
+        /* 戳開後的基礎底色設定 */
+        .cell {
+            position: relative;
+            aspect-ratio: 1;
+            background-color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            padding: 2px;
+            word-break: break-all;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.12);
+            overflow: hidden;
+        }
+
+        /* 得獎格：顯眼的亮金色漸層 + 亮眼邊框光芒 */
+        .cell.winning {
+            background: linear-gradient(135deg, #fff9c4, #ffe082);
+            color: #b71c1c;
+            border: 2px solid #ffa000;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.8);
+        }
+
+        /* 沒中獎（烏龜格）：柔和灰白 */
+        .cell.turtle {
+            background-color: #f1f3f4;
+            color: #546e7a;
+            border: 1px solid #cfd8dc;
+        }
+
+        .turtle-icon {
+            font-size: 1.7rem;
+            line-height: 1;
+        }
+
+        .winner-name {
+            color: #0d47a1;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 1px;
+            background-color: rgba(227, 242, 253, 0.95);
+            padding: 0px 4px;
+            border-radius: 3px;
+            border: 1px solid #90caf9;
+            line-height: 1.1;
+            max-width: 95%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 未開格 (封面) 樣式：Tiffany 藍漸層 + 白色問號 */
+        .paper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #80deea, #26c6da);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #ffffff;
+            cursor: pointer;
+            border: 2px solid #00acc1;
+            border-radius: 5px;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.7), 0 3px 6px rgba(0,0,0,0.2);
+            transition: transform 0.15s ease, filter 0.2s;
+            user-select: none;
+            z-index: 2;
+        }
+
+        .paper:hover {
+            transform: scale(1.08);
+            filter: brightness(1.08);
+        }
+
+        .paper.poked {
+            display: none;
+        }
+
+        .footer-row {
+            display: flex;
+            width: 100%;
+            margin-top: 8px;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
+
+        .note-display {
+            width: 66.66%;
+            color: #d84315;
+            font-size: 0.85rem;
+            font-weight: bold;
+            word-break: break-all;
+            text-align: left;
+        }
+
+        .copyright-display {
+            width: 33.33%;
+            color: #d84315;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* 登入面板通用卡片 */
+        .login-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .login-card h2 { color: #d32f2f; font-size: 1.3rem; text-align: center; }
+        .login-card input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            user-select: text;
+        }
+
+        /* 列表區塊 */
+        .winner-list-panel {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .winner-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .winner-table th, .winner-table td {
+            border: 1px solid #ffe0b2;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        .winner-table th { background-color: #fff3e0; color: #e65100; }
+        .no-data { color: #999; text-align: center; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- 主頁面頂部標題 -->
+    <h1 id="mainTitleHeader">🏮 懷舊戳戳樂 🏮</h1>
+
+    <!-- ==================== 頁面一：主控與設定頁面 ==================== -->
+    <div id="pageMain" class="page active">
+        <!-- 主頁面登入卡片 -->
+        <div id="adminLoginCard" class="login-card">
+            <h2>🔑 管理員登入</h2>
+            <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
+            <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
+        </div>
+
+        <!-- 管理員主要控制內容 (驗證成功後顯示) -->
+        <div id="adminContentArea" style="display: none; width: 100%;">
+            <div class="config-panel">
+                <h3>⚙️ 遊戲設定 (主控面版)</h3>
+                <div class="input-group">
+                    <div class="input-row">
+                        <label for="eventName">活動名稱：</label>
+                        <input type="text" id="eventName" placeholder="例如：小寶愛蛙">
+                    </div>
+                    <div class="input-row">
+                        <label for="endTime"> 結束時間：</label>
+                        <input type="datetime-local" id="endTime">
+                    </div>
+                    <div class="input-row">
+                        <label for="roomPassword"> 房間密碼：</label>
+                        <input type="text" id="roomPassword" value="8888" placeholder="設定玩家進入密碼">
+                    </div>
+                    <div class="input-row">
+                        <label for="totalCount">格子數量：</label>
+                        <input type="number" id="totalCount" value="36" min="5" step="1">
+                    </div>
+                    <div class="input-row">
+                        <label for="eventNote">備註說明：</label>
+                        <input type="text" id="eventNote" value="每人限抽一次">
+                    </div>
+                </div>
+                
+                <label style="font-size: 0.8rem; color: #333; font-weight: bold; display: block; margin-bottom: 4px;">
+                    🎁 獎品清單設定方式：
+                </label>
+                <div class="mode-tabs">
+                    <button class="tab-btn active" onclick="switchMode('A')">模式 A：品名 + 數量拆分</button>
+                    <button class="tab-btn" onclick="switchMode('B')">模式 B：自由文字輸入</button>
+                </div>
+
+                <div id="modeA" class="mode-content active">
+                    <div id="prizeListContainer">
+                        <div class="prize-item-row">
+                            <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                            <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                            <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
+                        </div>
+                    </div>
+                    <button class="btn-add-item" onclick="addPrizeRow()">＋ 新增獎品項目</button>
+                </div>
+
+                <div id="modeB" class="mode-content">
+                    <textarea id="prizeInput" placeholder="例如：禮盒, 特輯, 二獎"></textarea>
+                </div>
+
+                <button class="btn-apply" onclick="publishNewGame()">生成全新同步戳戳樂</button>
+                
+                <div class="button-group" style="margin-top: 12px;">
+                    <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
+                    <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
+                </div>
+            </div>
+
+            <!-- 截圖與即時開獎面板 -->
+            <div class="capture-area" id="captureArea">
+                <div class="event-title" id="eventTitleDisplay" style="display: none;"></div>
+                <div class="toolbar">
+                    <div class="time-box">
+                        <div>🕒 <span id="clock">載入時間...</span></div>
+                        <div>🎁 剩餘大獎：<span class="prizes-count" id="remainingPrizesCount">0 / 0</span></div>
+                    </div>
+                </div>
+                <div class="poke-box" id="mainPokeBox"></div>
+                <div class="footer-row">
+                    <div class="note-display" id="noteDisplay">※ 每人限抽一次 ※</div>
+                    <div class="copyright-display">©2026乳蕉四妻🐸</div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-action" id="screenshotBtn" onclick="copyScreenshot()">📋 複製截圖</button>
+                <button class="btn-action btn-copy-list" id="copyListBtn" onclick="copyWinnerList()">📝 複製得獎列表</button>
+            </div>
+
+            <div class="winner-list-panel">
+                <h3>🏆 開獎即時紀錄</h3>
+                <div id="winnerTableContainer"><div class="no-data">尚無開獎紀錄</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 頁面二：多人連線玩家頁面 ==================== -->
+    <div id="pagePlayer" class="page">
+        <!-- 登入卡片 -->
+        <div id="playerLoginCard" class="login-card">
+            <h2 id="loginCardTitle">🎮 加入連線戳戳樂</h2>
+            <input type="password" id="inputRoomPass" placeholder="請輸入房間密碼">
+            <input type="text" id="inputPlayerName" placeholder="請輸入您的暱稱">
+            <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
+        </div>
+
+        <!-- 玩家遊戲畫面 (登入後顯示) -->
+        <div id="playerGameArea" style="display: none; width: 100%;">
+            <div style="background: white; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div>👤 玩家：<strong id="displayName" style="color: #d32f2f;"></strong></div>
+                <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
+            </div>
+
+            <div class="capture-area">
+                <div class="event-title" id="playerEventTitle"></div>
+                
+                <div class="toolbar">
+                    <div class="time-box">
+                        <div>🕒 <span id="playerClock">載入時間...</span></div>
+                        <div>🎁 剩餘大獎：<span class="prizes-count" id="playerRemainingPrizesCount">0 / 0</span></div>
+                    </div>
+                </div>
+
+                <div class="poke-box" id="playerPokeBox"></div>
+                <div class="footer-row">
+                    <div class="note-display" id="playerNoteDisplay">※ 每人限抽一次 ※</div>
+                    <div class="copyright-display">©2026乳蕉四妻🐸</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 0. 防 F12 與盜取保護機制 ====================
+        // 禁用右鍵選單
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        // 禁用常見開發者工具快捷鍵
+        document.addEventListener('keydown', function (e) {
+            // 禁用 F12
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+Shift+I / J / C (Mac: Cmd+Alt+I / J / C)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+U (檢視原始碼)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+S (存檔)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Debugger 干擾（強行開啟 DevTools 時會觸發無限斷點卡死）
+        setInterval(function () {
+            const startTime = performance.now();
+            (function () {
+                return false;
+            })["constructor"]("debugger")();
+            const endTime = performance.now();
+            if (endTime - startTime > 100) {
+                // 可在此處執行卡死或自動跳轉
+            }
+        }, 500);
+
+        // ==================== 1. Firebase 設定 (已置換為全站全新專案) ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+            authDomain: "gogogame-ce8ba.firebaseapp.com",
+            databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+            projectId: "gogogame-ce8ba",
+            storageBucket: "gogogame-ce8ba.firebasestorage.app",
+            messagingSenderId: "823932242561",
+            appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const gameRef = db.ref("sharedPokeGame");
+
+        // 全域變數
+        let currentGameData = null;
+        let activeMode = 'A';
+        let currentPlayerName = "";
+        const ADMIN_DEFAULT_PASS = "594200"; // 主頁面管理者密碼
+
+        // 時間格式化工具 (YYYY-MM-DD HH:mm:ss)
+        function formatDate(timestamp) {
+            if (!timestamp) return "-";
+            const date = new Date(timestamp);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        // 時間格式化工具 (不含秒 YYYY-MM-DD HH:mm)
+        function formatShortDate(timestamp) {
+            if (!timestamp) return "";
+            const date = new Date(timestamp);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+        }
+
+        // 時鐘功能 (同步更新管理員與玩家介面)
+        function updateClock() {
+            const nowFormatted = formatDate(Date.now());
+            const adminEl = document.getElementById('clock');
+            const playerEl = document.getElementById('playerClock');
+            if(adminEl) adminEl.innerText = nowFormatted;
+            if(playerEl) playerEl.innerText = nowFormatted;
+        }
+        setInterval(updateClock, 1000);
+
+        // 管理員主頁面登入驗證
+        function loginAdmin() {
+            const pass = document.getElementById('inputAdminPass').value.trim();
+            if (pass === ADMIN_DEFAULT_PASS) {
+                document.getElementById('adminLoginCard').style.display = 'none';
+                document.getElementById('adminContentArea').style.display = 'block';
+            } else {
+                alert("管理員密碼錯誤！");
+            }
+        }
+
+        // 頁面切換機制
+        function switchView(viewName) {
+            const mainHeader = document.getElementById('mainTitleHeader');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            
+            if(viewName === 'player') {
+                document.getElementById('pagePlayer').classList.add('active');
+                if(mainHeader) mainHeader.style.display = 'none';
+            } else {
+                document.getElementById('pageMain').classList.add('active');
+                if(mainHeader) mainHeader.style.display = 'block';
+            }
+        }
+
+        // 一鍵複製玩家網址與完整活動資訊
+        async function copyPlayerInfo() {
+            const baseUrl = window.location.href.split('#')[0];
+            const playerUrl = baseUrl + "#player";
+            const pass = (currentGameData && currentGameData.password) ? currentGameData.password : document.getElementById('roomPassword').value.trim();
+            const note = (currentGameData && currentGameData.note !== undefined) ? currentGameData.note : document.getElementById('eventNote').value.trim();
+
+            let endStr = "未設定";
+            if (currentGameData && currentGameData.endTime) {
+                endStr = formatShortDate(currentGameData.endTime);
+            } else {
+                const rawTimeVal = document.getElementById('endTime').value;
+                if (rawTimeVal) {
+                    endStr = rawTimeVal.replace('T', ' ');
+                }
+            }
+
+            const textToCopy = `🎮 戳戳樂活動連結：\n${playerUrl}\n\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                const btn = document.getElementById('copyPlayerInfoBtn');
+                btn.innerText = "✅ 連結與資訊已複製！";
+                setTimeout(() => btn.innerText = "📋 複製戳戳網址", 2000);
+            } catch (err) {
+                alert("複製失敗，內容如下：\n\n" + textToCopy);
+            }
+        }
+
+        // 監聽網址 Hash 切換
+        window.onhashchange = function() {
+            if(location.hash === '#player') switchView('player');
+            else switchView('main');
+        };
+
+        // 切換模式 A / B
+        function switchMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll('.tab-btn')[0].classList.toggle('active', mode === 'A');
+            document.querySelectorAll('.tab-btn')[1].classList.toggle('active', mode === 'B');
+            document.getElementById('modeA').classList.toggle('active', mode === 'A');
+            document.getElementById('modeB').classList.toggle('active', mode === 'B');
+        }
+
+        // 新增獎品列並自動聚焦
+        function addPrizeRow() {
+            const container = document.getElementById('prizeListContainer');
+            const row = document.createElement('div');
+            row.className = 'prize-item-row';
+            row.innerHTML = `
+                <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
+            `;
+            container.appendChild(row);
+            
+            row.querySelector('.a-prize-name').focus();
+        }
+
+        function removePrizeRow(btn) {
+            const container = document.getElementById('prizeListContainer');
+            if (container.children.length > 1) btn.parentElement.remove();
+            else alert("至少需要保留一組獎品！");
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 主頁面：生成全新同步遊戲
+        function publishNewGame() {
+            const eventName = document.getElementById('eventName').value.trim();
+            const password = document.getElementById('roomPassword').value.trim();
+            const endTimeValue = document.getElementById('endTime').value;
+            const note = document.getElementById('eventNote').value.trim();
+            const totalCells = parseInt(document.getElementById('totalCount').value) || 36;
+
+            if(!password) {
+                alert("請務必設定玩家頁連線密碼！");
+                return;
+            }
+
+            const endTimeStamp = endTimeValue ? new Date(endTimeValue).getTime() : 0;
+
+            let prizeList = [];
+            if (activeMode === 'A') {
+                document.querySelectorAll('.prize-item-row').forEach(row => {
+                    const name = row.querySelector('.a-prize-name').value.trim();
+                    const count = parseInt(row.querySelector('.a-prize-count').value) || 0;
+                    if (name && count > 0) {
+                        for (let i = 0; i < count; i++) prizeList.push(name);
+                    }
+                });
+            } else {
+                const rawInput = document.getElementById('prizeInput').value;
+                prizeList = rawInput.split(/[,，\n]/).map(i => i.trim()).filter(i => i !== "");
+            }
+
+            while (prizeList.length < totalCells) prizeList.push("🐢 烏龜");
+            if (prizeList.length > totalCells) prizeList = prizeList.slice(0, totalCells);
+
+            const shuffledPrizes = shuffle(prizeList);
+
+            const cellsData = shuffledPrizes.map((prize, idx) => ({
+                id: idx + 1,
+                prize: prize,
+                isPoked: false,
+                winner: "",
+                pokedAt: 0,
+                coverEmoji: "👻"
+            }));
+
+            const gamePayload = {
+                eventName: eventName,
+                password: password,
+                endTime: endTimeStamp,
+                note: note,
+                totalCells: totalCells,
+                cells: cellsData,
+                updatedAt: Date.now()
+            };
+
+            gameRef.set(gamePayload).then(() => {
+                alert("全新同步戳戳樂已建立！");
+            });
+        }
+
+        // 實時連線監聽 (Firebase Listener)
+        gameRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            currentGameData = data;
+
+            renderMainBoard(data);
+            renderPlayerBoard(data);
+            renderWinnerTable(data);
+        });
+
+        // 渲染主控頁面
+        function renderMainBoard(data) {
+            const titleEl = document.getElementById('eventTitleDisplay');
+            if (data.eventName) {
+                titleEl.innerText = "🍌 " + data.eventName + " 戳戳樂 🍌";
+                titleEl.style.display = "block";
+            } else titleEl.style.display = "none";
+
+            document.getElementById('noteDisplay').innerText = data.note ? "※ " + data.note + " ※" : "";
+
+            const totalBigPrizes = data.cells.filter(c => !c.prize.includes("烏龜")).length;
+            const revealedBigPrizes = data.cells.filter(c => c.isPoked && !c.prize.includes("烏龜")).length;
+            document.getElementById('remainingPrizesCount').innerText = `${Math.max(0, totalBigPrizes - revealedBigPrizes)} / ${totalBigPrizes}`;
+
+            const pokeBox = document.getElementById('mainPokeBox');
+            pokeBox.innerHTML = "";
+
+            data.cells.forEach(cell => {
+                const cellEl = document.createElement('div');
+                const isTurtle = cell.prize.includes("烏龜");
+                cellEl.className = `cell ${cell.isPoked ? (isTurtle ? 'turtle' : 'winning') : ''}`;
+
+                if (cell.isPoked) {
+                    const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
+
+                    if (isTurtle) {
+                        cellEl.innerHTML = `<div class="turtle-icon">🐢</div>${winnerHtml}`;
+                    } else {
+                        cellEl.innerHTML = `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                    }
+                } else {
+                    const paper = document.createElement('div');
+                    paper.className = 'paper';
+                    paper.innerHTML = '👻';
+                    paper.onclick = () => handleAdminPoke(cell.id - 1, cell);
+                    cellEl.appendChild(paper);
+                }
+                pokeBox.appendChild(cellEl);
+            });
+        }
+
+        // 管理者主頁面代抽
+        function handleAdminPoke(index, cell) {
+            if (cell.isPoked) return;
+
+            db.ref(`sharedPokeGame/cells/${index}`).update({
+                isPoked: true,
+                winner: "",
+                pokedAt: Date.now()
+            });
+        }
+
+        // 渲染玩家頁面
+        function renderPlayerBoard(data) {
+            const titleEl = document.getElementById('playerEventTitle');
+            const loginTitleEl = document.getElementById('loginCardTitle');
+            
+            const displayTitle = data.eventName ? `🍌 ${data.eventName} 戳戳樂 🍌` : "🏮 懷舊戳戳樂 🏮";
+            
+            if (titleEl) {
+                titleEl.innerText = displayTitle;
+                titleEl.style.display = "block";
+            }
+            if (loginTitleEl) {
+                loginTitleEl.innerText = displayTitle;
+            }
+
+            document.getElementById('playerNoteDisplay').innerText = data.note ? "※ " + data.note + " ※" : "";
+
+            // 更新玩家頁面剩餘大獎數量
+            const totalBigPrizes = data.cells.filter(c => !c.prize.includes("烏龜")).length;
+            const revealedBigPrizes = data.cells.filter(c => c.isPoked && !c.prize.includes("烏龜")).length;
+            const playerRemEl = document.getElementById('playerRemainingPrizesCount');
+            if (playerRemEl) {
+                playerRemEl.innerText = `${Math.max(0, totalBigPrizes - revealedBigPrizes)} / ${totalBigPrizes}`;
+            }
+
+            const pokeBox = document.getElementById('playerPokeBox');
+            pokeBox.innerHTML = "";
+
+            const hasBigPrizesLeft = data.cells.some(c => !c.prize.includes("烏龜") && !c.isPoked);
+            const isExpired = data.endTime && Date.now() > data.endTime;
+            const hasPoked = currentPlayerName ? data.cells.some(c => c.isPoked && c.winner === currentPlayerName) : false;
+            
+            const statusTag = document.getElementById('playerStatusTag');
+            
+            if (!hasBigPrizesLeft) {
+                statusTag.innerText = "⛔ 活動已結束 (大獎已全數抽完)";
+                statusTag.style.color = "#d32f2f";
+            } else if (isExpired) {
+                statusTag.innerText = "⏰ 活動已截止";
+                statusTag.style.color = "#d32f2f";
+            } else if (hasPoked) {
+                statusTag.innerText = "❌ 您已完成抽獎 (每人限一次)";
+                statusTag.style.color = "#d32f2f";
+            } else {
+                statusTag.innerText = "✅ 可點擊挑選一格";
+                statusTag.style.color = "#2e7d32";
+            }
+
+            data.cells.forEach(cell => {
+                const cellEl = document.createElement('div');
+                const isTurtle = cell.prize.includes("烏龜");
+                cellEl.className = `cell ${cell.isPoked ? (isTurtle ? 'turtle' : 'winning') : ''}`;
+
+                if (cell.isPoked) {
+                    const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
+
+                    if (isTurtle) {
+                        cellEl.innerHTML = `<div class="turtle-icon">🐢</div>${winnerHtml}`;
+                    } else {
+                        cellEl.innerHTML = `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                    }
+                } else {
+                    const paper = document.createElement('div');
+                    paper.className = 'paper';
+                    paper.innerHTML = '👻';
+                    paper.onclick = () => handlePlayerPoke(cell.id - 1, cell, hasPoked, isExpired, hasBigPrizesLeft);
+                    cellEl.appendChild(paper);
+                }
+                pokeBox.appendChild(cellEl);
+            });
+        }
+
+        // 玩家進行點擊開獎
+        function handlePlayerPoke(index, cell, hasPoked, isExpired, hasBigPrizesLeft) {
+            if (!hasBigPrizesLeft) {
+                alert("⛔ 活動已結束，所有大獎都已經被抽完囉！");
+                return;
+            }
+
+            if (isExpired || (currentGameData.endTime && Date.now() > currentGameData.endTime)) {
+                alert("⏰ 活動時間已結束，無法再進行戳獎囉！");
+                return;
+            }
+
+            if (!currentPlayerName) {
+                alert("請先登入名字！");
+                return;
+            }
+            
+            const isNameAlreadyPoked = currentGameData.cells.some(c => c.isPoked && c.winner === currentPlayerName);
+            
+            if (hasPoked || isNameAlreadyPoked) {
+                alert(`玩家【${currentPlayerName}】已經戳過號碼囉！每人限戳一次。`);
+                return;
+            }
+
+            if (cell.isPoked) {
+                alert("這一格已經被別人戳破囉！請選擇其他圖案。");
+                return;
+            }
+
+            db.ref(`sharedPokeGame/cells/${index}`).update({
+                isPoked: true,
+                winner: currentPlayerName,
+                pokedAt: Date.now()
+            }).then(() => {
+                const isTurtle = cell.prize.includes("烏龜");
+                if (isTurtle) {
+                    alert(`🐢 沒中獎～ 戳中了烏龜！`);
+                } else {
+                    alert(`🎉 恭喜中獎！您戳中了：【${cell.prize}】`);
+                }
+            });
+        }
+
+        // 玩家登入驗證
+        function loginPlayer() {
+            const passInput = document.getElementById('inputRoomPass').value.trim();
+            const nameInput = document.getElementById('inputPlayerName').value.trim();
+
+            if (!currentGameData) {
+                alert("主持人尚未建立遊戲！");
+                return;
+            }
+            if (passInput !== currentGameData.password) {
+                alert("房間密碼錯誤！");
+                return;
+            }
+            if (!nameInput) {
+                alert("請輸入您的遊戲暱稱！");
+                return;
+            }
+
+            currentPlayerName = nameInput;
+            document.getElementById('displayName').innerText = currentPlayerName;
+            document.getElementById('playerLoginCard').style.display = 'none';
+            document.getElementById('playerGameArea').style.display = 'block';
+
+            if(currentGameData) renderPlayerBoard(currentGameData);
+        }
+
+        // 渲染得獎表格
+        function renderWinnerTable(data) {
+            const container = document.getElementById('winnerTableContainer');
+            const pokedCells = data.cells.filter(c => c.isPoked);
+
+            if (pokedCells.length === 0) {
+                container.innerHTML = '<div class="no-data">尚無開獎紀錄</div>';
+                return;
+            }
+
+            let html = `
+                <table class="winner-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">欄位</th>
+                            <th style="width: 35%;">獎品內容</th>
+                            <th style="width: 25%;">得獎者</th>
+                            <th style="width: 25%;">開獎時間</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            pokedCells.forEach(item => {
+                const isTurtle = item.prize.includes("烏龜");
+                const displayName = item.winner ? item.winner : "(管理者代抽)";
+                html += `
+                    <tr>
+                        <td><strong>第 ${item.id} 格</strong></td>
+                        <td>${item.prize}</td>
+                        <td style="color: ${isTurtle ? '#607d8b' : '#0d47a1'}; font-weight: bold;">${displayName}</td>
+                        <td style="color: #666; font-size: 0.75rem;">${formatDate(item.pokedAt)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // 複製得獎列表
+        async function copyWinnerList() {
+            if (!currentGameData) return;
+            const pokedCells = currentGameData.cells.filter(c => c.isPoked);
+
+            if (pokedCells.length === 0) {
+                alert("目前尚無任何開獎紀錄喔！");
+                return;
+            }
+
+            const winners = pokedCells.filter(c => !c.prize.includes("烏龜"));
+            const turtles = pokedCells.filter(c => c.prize.includes("烏龜"));
+
+            const eventName = currentGameData.eventName;
+            const titleText = eventName ? `${eventName}戳戳樂 - 開獎名單` : "戳戳樂開獎名單";
+            const currentTimeStr = formatDate(Date.now());
+
+            let text = `🏆【${titleText}】🏆\n`;
+            text += `🕒 時間：${currentTimeStr}\n`;
+            text += `-----------------------------\n`;
+            text += `🎁【中獎名單】\n`;
+
+            if (winners.length > 0) {
+                winners.forEach(item => {
+                    const name = item.winner ? item.winner : "管理者代抽";
+                    text += `• 第 ${item.id} 格: ${item.prize} ➔ @${name}\n`;
+                });
+            } else {
+                text += `(尚無中獎紀錄)\n`;
+            }
+
+            text += `\n🐢【未得獎/烏龜名單】\n`;
+            if (turtles.length > 0) {
+                turtles.forEach(item => {
+                    const name = item.winner ? item.winner : "管理者代抽";
+                    text += `• 第 ${item.id} 格: 烏龜 ➔ ${name}\n`;
+                });
+            } else {
+                text += `(尚無未得獎紀錄)\n`;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyListBtn');
+                btn.innerText = "✅ 列表已複製！";
+                setTimeout(() => btn.innerText = "📝 複製得獎列表", 2000);
+            } catch (err) {
+                alert("複製失敗，請手動複製！");
+            }
+        }
+
+        // 複製截圖
+        async function copyScreenshot() {
+            const captureArea = document.getElementById('captureArea');
+            const btn = document.getElementById('screenshotBtn');
+            const originalText = btn.innerText;
+
+            btn.innerText = "⏳ 截圖處理中...";
+            btn.disabled = true;
+
+            try {
+                const item = new ClipboardItem({
+                    "image/png": new Promise(async (resolve, reject) => {
+                        try {
+                            const canvas = await html2canvas(captureArea, {
+                                scale: 2,
+                                backgroundColor: '#fce4ec',
+                                useCORS: true
+                            });
+
+                            canvas.toBlob((blob) => {
+                                if (blob) resolve(blob);
+                                else reject(new Error("Canvas 轉圖片失敗"));
+                            }, 'image/png');
+                        } catch (err) {
+                            reject(err);
+                        }
+                    })
+                });
+
+                await navigator.clipboard.write([item]);
+
+                btn.innerText = "✅ 截圖已複製！";
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.disabled = false; 
+                }, 2000);
+
+            } catch (err) {
+                console.error("截圖複製失敗:", err);
+                btn.innerText = originalText;
+                btn.disabled = false;
+                alert("複製截圖失敗！\n請確認網頁是在安全連線 (https://) 或本機環境下執行，或請改用手動截圖。");
+            }
+        }
+
+        // 初始化檢查 URL Hash 決定顯示哪個頁面
+        window.onload = function() {
+            updateClock();
+            if (location.hash === '#player') {
+                switchView('player');
+            } else {
+                switchView('main');
+            }
+        };
+    </script>
+</body>
+</html>
