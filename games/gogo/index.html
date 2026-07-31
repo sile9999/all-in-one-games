@@ -20,7 +20,7 @@
 
         body {
             background-color: #fce4ec;
-            background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+            background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -33,6 +33,36 @@
             overflow-x: hidden;
             -webkit-user-select: none;
             user-select: none;
+        }
+
+        /* 回到遊戲大廳按鈕樣式 */
+        .lobby-btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .btn-lobby {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 0.95rem;
+            padding: 8px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+            border: 2px solid #ffffff;
+        }
+
+        .btn-lobby:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+            background: linear-gradient(135deg, #ffa726, #fb8c00);
         }
 
         h1 {
@@ -61,7 +91,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             width: 100%;
             margin-bottom: 15px;
         }
@@ -288,7 +318,6 @@
         .btn-copy-list { background-color: #2e7d32; }
         .btn-purple { background-color: #7b1fa2; }
         .btn-orange { background-color: #e65100; }
-        .btn-lobby { background-color: #388e3c; }
 
         /* 截圖目標區塊 */
         .capture-area {
@@ -300,6 +329,7 @@
             align-items: center;
             width: 100%;
             box-sizing: border-box;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         }
 
         .event-title {
@@ -481,7 +511,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             width: 100%;
             max-width: 400px;
             margin-top: 20px;
@@ -504,7 +534,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             width: 100%;
             margin-top: 12px;
         }
@@ -527,6 +557,11 @@
 </head>
 <body>
 
+    <!-- 頂部：回到遊戲大廳按鈕 -->
+    <div class="lobby-btn-container">
+        <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
+    </div>
+
     <!-- 主頁面頂部標題 -->
     <h1 id="mainTitleHeader">🏮 懷舊戳戳樂 🏮</h1>
 
@@ -537,7 +572,6 @@
             <h2>🔑 管理員登入</h2>
             <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
             <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
-            <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="margin-top: 10px; width: 100%;">🏠 回到遊戲大廳</a>
         </div>
 
         <!-- 管理員主要控制內容 (驗證成功後顯示) -->
@@ -595,7 +629,6 @@
                 <div class="button-group" style="margin-top: 12px;">
                     <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
                     <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
-                    <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby">🏠 回到遊戲大廳</a>
                 </div>
             </div>
 
@@ -635,17 +668,13 @@
             <input type="password" id="inputRoomPass" placeholder="請輸入房間密碼">
             <input type="text" id="inputPlayerName" placeholder="請輸入您的暱稱">
             <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
-            <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="margin-top: 10px; width: 100%;">🏠 回到遊戲大廳</a>
         </div>
 
         <!-- 玩家遊戲畫面 (登入後顯示) -->
         <div id="playerGameArea" style="display: none; width: 100%;">
-            <div style="background: white; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="background: rgba(255, 255, 255, 0.95); padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                 <div>👤 玩家：<strong id="displayName" style="color: #d32f2f;"></strong></div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
-                    <a href="https://sile9999.github.io/all-in-one-games/" target="_blank" class="btn-action btn-lobby" style="padding: 4px 10px; font-size: 0.75rem; min-width: auto;">🏠 回到大廳</a>
-                </div>
+                <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
             </div>
 
             <div class="capture-area">
