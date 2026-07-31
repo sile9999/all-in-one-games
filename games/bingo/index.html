@@ -1,923 +1,1280 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> 賓果連線遊戲 </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>懷舊戳戳樂</title>
+    <!-- 引入 html2canvas 截圖函式庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 引入 Firebase SDK (Compat 版本) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-  <!-- 引入 html2canvas 供玩家複製畫面 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    body { background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-    .container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
-    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
-    
-    .menu-group { margin-bottom: 16px; text-align: left; }
-    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
-    
-    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
-    .btn-option { flex: 1; min-width: 55px; padding: 10px 4px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 13px; }
-    .btn-option.active { border-color: #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
-    
-    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
-    
-    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
-    .btn-primary:hover { background-color: #2563eb; }
-    .btn-admin { background-color: #64748b; }
-    .btn-admin:hover { background-color: #475569; }
-    .btn-danger { background-color: #ef4444; }
-    .btn-danger:hover { background-color: #dc2626; }
-    .btn-copy { background-color: #8b5cf6; }
-    .btn-copy:hover { background-color: #7c3aed; }
-    .btn-start { background-color: #10b981; }
-    .btn-start:hover { background-color: #059669; }
-
-    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
-
-    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
-    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
-    .room-number.ended { color: #ef4444; font-size: 24px; letter-spacing: 0px; }
-
-    /* 遊戲對戰區 */
-    .status-bar { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; font-size: 14px; gap: 4px; }
-    .status-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    
-    /* 賓果叫號顯示區 / 遊戲結束置換區 */
-    .bingo-caller-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); min-height: 110px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    .caller-title { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-    
-    /* 叫號圖片及文字顯示容器 */
-    .current-number-display { font-size: 40px; font-weight: 900; line-height: 1.1; margin: 4px 0; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
-    .caller-img { height: 64px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
-
-    .grid-container { position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
-    .grid { display: grid; gap: 6px; }
-
-    /* 格子樣式 (改為可顯示圖片並維持圓角與置中) */
-    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; padding: 4px; }
-    .tile img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-    .tile:hover { transform: scale(1.04); }
-    
-    /* 修正點 2：玩家頁點擊對中的格子底色改成 Tiffany 藍 (#81d8d0) */
-    .tile.marked { background-color: #81d8d0; color: #0f172a; transform: scale(0.96); box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
-    .tile.marked img { filter: brightness(1.05); }
-    
-    .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-4px); }
-      40%, 80% { transform: translateX(4px); }
-    }
-
-    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
-    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
-    .leaderboard-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
-    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
-    .sub-info { font-size: 11px; color: #64748b; margin-left: 4px; }
-
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
-    
-    .ended-card { background: white; padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
-    .ended-icon { font-size: 48px; margin-bottom: 12px; }
-
-    .hidden { display: none !important; }
-    .disabled-area { opacity: 0.5; pointer-events: none; }
-  </style>
-
-  <!-- 防 F12 腳本 -->
-  <script>
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && ['U','u'].includes(e.key)) { e.preventDefault(); return false; }
-    });
-
-    setInterval(() => {
-      const startTime = performance.now();
-      (function() { return false; }).constructor("debugger")();
-      const endTime = performance.now();
-      if (endTime - startTime > 100) {
-        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
-      }
-    }, 500);
-  </script>
-
-  <!-- JS 模組載入 -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
-      authDomain: "gogogame-ce8ba.firebaseapp.com",
-      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
-      projectId: "gogogame-ce8ba",
-      storageBucket: "gogogame-ce8ba.firebasestorage.app",
-      messagingSenderId: "823932242561",
-      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // 建立 1~99 的數字與對應圖片 URL 對照字典
-    const numberImages = {};
-    for (let i = 1; i <= 99; i++) {
-      numberImages[i] = `https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images/farm (${i + 1}).png`;
-    }
-
-    let eventId = null;
-    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
-    let playerName = '';
-    let customGameDurationSec = 60; // 預設單局時間 (秒)
-    let totalTiles = 25; // 預設 5x5
-    let callIntervalMs = 2000; // 預設叫號頻率 2 秒
-    let startTimeMs = 0;
-    let matchStartTimestamp = 0; // 實際開始比賽時間點
-    let adminStatusTimer = null; // 控制頁面狀態自動比對計時器
-    
-    // 賓果狀態變數
-    let gridNumbers = [];
-    let markedIndices = new Set();
-    let currentDrawn = null;
-    let completedLineCount = 0;
-    let firstLineTimeSec = null;
-    
-    let timer = null;
-    let callerTimer = null;
-    let waitTimer = null;
-    let eventRef = null;
-    let currentLeaderboard = {};
-    let isGameActive = false;
-    let globalCallList = []; // 全國一致叫號順序
-
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
-      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
-      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
-      document.getElementById('create-event-btn').addEventListener('click', createEvent);
-      document.getElementById('force-end-btn').addEventListener('click', forceEndGameByAdmin);
-      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
-      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
-      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
-      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
-      document.getElementById('copy-board-btn').addEventListener('click', function() { copyBoardToClipboard(this); });
-
-      setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
-
-      // 預設開始時間為 1 分鐘後
-      const now = new Date();
-      const startDef = new Date(now.getTime() + 60000);
-      document.getElementById('admin-starttime-input').value = formatDateForInput(startDef);
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const eventParam = urlParams.get('event');
-
-      if (eventParam) {
-        document.getElementById('main-setup-view').classList.add('hidden');
-        eventId = eventParam;
-        
-        get(ref(db, 'events_bingo_v2/' + eventId)).then((snapshot) => {
-          if (!snapshot.exists()) {
-            alert('找不到該活動代號，請確認後重試！');
-            document.getElementById('main-setup-view').classList.remove('hidden');
-            return;
-          }
-
-          const data = snapshot.val();
-          const nowMs = Date.now();
-          const durationMs = (data.customGameDurationSec || 60) * 1000;
-          const endTimeMs = data.startTime + durationMs;
-          
-          if (data.isEnded || nowMs >= endTimeMs) {
-            showEventEndedView('本次賓果活動已結束');
-            return;
-          }
-
-          if (nowMs >= data.startTime) {
-            showEventEndedView('活動比賽已開始，下次請早');
-            return;
-          }
-
-          document.getElementById('input-event-id').value = eventId;
-          document.getElementById('join-modal').classList.remove('hidden');
-        }).catch((error) => {
-          alert('讀取活動失敗：' + error.message);
-          document.getElementById('main-setup-view').classList.remove('hidden');
-        });
-      }
-    });
-
-    function formatDateForInput(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-
-    function showEventEndedView(msg = '本次賓果活動已結束') {
-      document.getElementById('main-setup-view').classList.add('hidden');
-      document.getElementById('join-modal').classList.add('hidden');
-      document.getElementById('player-game-view').classList.add('hidden');
-      
-      document.getElementById('ended-title-text').innerText = msg;
-      document.getElementById('event-ended-view').classList.remove('hidden');
-
-      onValue(ref(db, `events_bingo_v2/${eventId}`), (snap) => {
-        const evData = snap.val();
-        if (evData) {
-          renderLeaderboard('ended-leaderboard-list', evData.scores || {});
-        }
-      });
-    }
-
-    function setupOptionGroup(groupId, callback) {
-      const group = document.getElementById(groupId);
-      group.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-option')) {
-          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
-          e.target.classList.add('active');
-          callback(e.target.dataset.val);
-        }
-      });
-    }
-
-    /* ---------------- 管理者機制 ---------------- */
-    function openAdminModal() {
-      document.getElementById('pwd-modal').classList.remove('hidden');
-    }
-
-    function checkPassword() {
-      const pwd = document.getElementById('admin-pwd').value;
-      if (pwd === '17696969') {
-        document.getElementById('pwd-modal').classList.add('hidden');
-        document.getElementById('setting-fields').classList.remove('disabled-area');
-        document.getElementById('admin-create-actions').classList.remove('hidden');
-        
-        const unlockBtn = document.getElementById('admin-unlock-btn');
-        unlockBtn.innerText = '✅ 管理者權限已解鎖';
-        unlockBtn.classList.add('btn-success-state');
-      } else {
-        alert('密碼錯誤！');
-      }
-    }
-
-    function createEvent() {
-      const startTimeStr = document.getElementById('admin-starttime-input').value;
-
-      if (!startTimeStr) {
-        alert('請先設定「活動開始時間」！');
-        return;
-      }
-
-      customGameDurationSec = parseInt(document.getElementById('admin-duration-input').value);
-      if (isNaN(customGameDurationSec) || customGameDurationSec <= 0) {
-        alert('請輸入有效的單局戰鬥秒數！');
-        return;
-      }
-
-      const speedSecInput = parseFloat(document.getElementById('admin-speed-input').value);
-      if (isNaN(speedSecInput) || speedSecInput <= 0) {
-        alert('請輸入有效的賓果叫號速度（大於 0 的秒數）！');
-        return;
-      }
-      callIntervalMs = Math.round(speedSecInput * 1000);
-
-      const noteText = document.getElementById('admin-note-input').value.trim();
-      const calculatedStartMs = new Date(startTimeStr).getTime();
-
-      eventId = Math.floor(100000 + Math.random() * 900000).toString();
-      eventRef = ref(db, 'events_bingo_v2/' + eventId);
-
-      const seed = Math.floor(Math.random() * 1000000);
-
-      set(eventRef, {
-        customGameDurationSec: customGameDurationSec,
-        totalTiles: totalTiles,
-        callIntervalMs: callIntervalMs,
-        startTime: calculatedStartMs,
-        seed: seed,
-        isEnded: false,
-        note: noteText,
-        scores: {}
-      }).then(() => {
-        const roomNumEl = document.getElementById('room-num-display');
-        roomNumEl.innerText = eventId;
-        roomNumEl.classList.remove('ended');
-        
-        document.getElementById('admin-action-area').classList.remove('hidden');
-        alert(`🎉 賓果活動建立成功！活動代號為：${eventId}`);
-      }).catch((error) => {
-        alert('建立失敗，請檢查網路連線：' + error.message);
-      });
-
-      onValue(eventRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        checkRoomStatus(data);
-        currentLeaderboard = data.scores || {};
-        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
-
-        // 開啟定時器持續比對「現在時間」是否已超過「該局結束時間」
-        if (adminStatusTimer) clearInterval(adminStatusTimer);
-        adminStatusTimer = setInterval(() => {
-          checkRoomStatus(data);
-        }, 1000);
-      });
-    }
-
-    // 檢查房間狀態 (比對「現在時間」與「結束時間」)
-    function checkRoomStatus(data) {
-      const roomNumEl = document.getElementById('room-num-display');
-      if (!roomNumEl) return;
-
-      const durationMs = (data.customGameDurationSec || 60) * 1000;
-      const endTime = data.startTime + durationMs;
-      const now = Date.now();
-
-      if (data.isEnded || now > endTime) {
-        roomNumEl.innerText = '該局結束';
-        roomNumEl.classList.add('ended');
-      } else {
-        roomNumEl.innerText = eventId;
-        roomNumEl.classList.remove('ended');
-      }
-    }
-
-    function forceEndGameByAdmin() {
-      if (!eventId) return;
-      if (confirm('⚠️ 確定要立即強制結束本局比賽嗎？所有玩家將會被強制結算！')) {
-        update(ref(db, 'events_bingo_v2/' + eventId), { isEnded: true }).then(() => {
-          const roomNumEl = document.getElementById('room-num-display');
-          roomNumEl.innerText = '該局結束';
-          roomNumEl.classList.add('ended');
-          alert('已成功結束本局遊戲！');
-        });
-      }
-    }
-
-    function copyEventLink(btn) {
-      if (!eventId) return;
-      const baseUrl = window.location.origin + window.location.pathname;
-      const fullLink = `${baseUrl}?event=${eventId}`;
-      const timeText = customGameDurationSec + ' 秒';
-      const speedText = (callIntervalMs / 1000) + ' 秒/個';
-      const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
-      const noteText = document.getElementById('admin-note-input').value.trim() || '無';
-
-      let copyMsg = `🎰 種菜賓果遊戲\n`;
-      copyMsg += `🔗 挑戰連結：${fullLink}\n`;
-      copyMsg += `⏰ 開賽時間：${startText}\n`;
-      copyMsg += `⏱️ 戰鬥時間：${timeText}\n`;
-      copyMsg += `⚡ 叫號速度：${speedText}\n`;
-      copyMsg += `💡 遊戲說明：大家同步對號！只有點擊「當前叫號」才算成功，看誰連線最多條！\n`;
-      copyMsg += `📝 備註：${noteText}\n`;
-
-      navigator.clipboard.writeText(copyMsg).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結');
-      }).catch(() => {});
-    }
-
-    function copyScores(btn) {
-      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) {
-        return alert('目前尚無玩家成績！');
-      }
-      const sorted = Object.values(currentLeaderboard).sort((a, b) => b.lines - a.lines || (a.firstLineTime || 999) - (b.firstLineTime || 999) || b.clicks - a.clicks);
-      let text = `🏆【 種菜賓果連線賽 - 總排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
-      sorted.forEach((p, idx) => { 
-        const lineTimeStr = p.firstLineTime !== null && p.firstLineTime !== undefined ? `${p.firstLineTime}s` : '--';
-        text += `第 ${idx + 1} 名: ${p.name} - ${p.lines || 0} 條線 (成功: ${p.clicks || 0} 格, 首連線: ${lineTimeStr})\n`; 
-      });
-
-      navigator.clipboard.writeText(text).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製總排行榜成績');
-      }).catch(() => {});
-    }
-
-    function triggerButtonFeedback(btnElement, activeText, originalText) {
-      if (!btnElement) return;
-      btnElement.innerText = activeText;
-      btnElement.classList.add('btn-success-state');
-      setTimeout(() => {
-        btnElement.innerText = originalText;
-        btnElement.classList.remove('btn-success-state');
-      }, 1200);
-    }
-
-    function openJoinModalNewTab() {
-      const baseUrl = window.location.origin + window.location.pathname;
-      const targetUrl = eventId ? `${baseUrl}?event=${eventId}` : baseUrl;
-      window.open(targetUrl, '_blank');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-    }
-
-    /* ---------------- 虛擬偽隨機算法 (全台統一叫號) ---------------- */
-    function pseudoRandom(seed) {
-      let value = seed;
-      return function() {
-        value = (value * 9301 + 49297) % 233280;
-        return value / 233280;
-      };
-    }
-
-    function generateGlobalCallList(seed) {
-      const rng = pseudoRandom(seed);
-      const list = Array.from({ length: 99 }, (_, i) => i + 1);
-      for (let i = list.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [list[i], list[j]] = [list[j], list[i]];
-      }
-      return list;
-    }
-
-    /* ---------------- 玩家賓果挑戰遊戲邏輯 ---------------- */
-    function joinIndividualGame() {
-      const inputEvent = document.getElementById('input-event-id').value.trim();
-      const inputName = document.getElementById('input-player-name').value.trim();
-
-      if (!inputEvent) return alert('請輸入活動代號！');
-      if (!inputName) return alert('請輸入暱稱！');
-
-      eventId = inputEvent;
-      playerName = inputName;
-      eventRef = ref(db, 'events_bingo_v2/' + eventId);
-
-      get(eventRef).then((snapshot) => {
-        if (!snapshot.exists()) {
-          alert('找不到該活動代號，請確認後重試！');
-          return;
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "MicroSoft YaHei", "PingFang TC", sans-serif;
         }
 
-        const data = snapshot.val();
-        const nowMs = Date.now();
-        const durationMs = (data.customGameDurationSec || 60) * 1000;
-        const endTimeMs = data.startTime + durationMs;
-        
-        if (data.isEnded || nowMs >= endTimeMs) {
-          showEventEndedView('本次賓果活動已結束');
-          return;
+        body {
+            background-color: #fce4ec;
+            background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px 10px;
+            overflow-x: hidden;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        if (nowMs >= data.startTime) {
-          showEventEndedView('活動比賽已開始，下次請早');
-          return;
+        h1 {
+            color: #d32f2f;
+            text-shadow: 2px 2px #ffcdd2;
+            margin-bottom: 12px;
+            font-size: 1.8rem;
+            text-align: center;
         }
 
-        customGameDurationSec = data.customGameDurationSec || 60;
-        totalTiles = data.totalTiles || 25;
-        callIntervalMs = data.callIntervalMs || 2000;
-        startTimeMs = data.startTime || Date.now();
-        
-        globalCallList = generateGlobalCallList(data.seed || 12345);
+        /* 頁面分頁控制 */
+        .page {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            flex-direction: column;
+            align-items: center;
+        }
 
-        document.getElementById('join-modal').classList.add('hidden');
-        document.getElementById('main-setup-view').classList.add('hidden');
-        document.getElementById('player-game-view').classList.remove('hidden');
+        .page.active {
+            display: flex;
+        }
 
-        document.getElementById('player-name-display').innerText = playerName;
+        /* 設定區塊 */
+        .config-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-bottom: 15px;
+        }
 
-        update(ref(db, `events_bingo_v2/${eventId}/scores/${playerId}`), {
-          name: playerName,
-          lines: 0,
-          clicks: 0,
-          firstLineTime: null,
-          timestamp: Date.now()
-        });
+        .config-panel h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
 
-        onValue(eventRef, (snap) => {
-          const evData = snap.val();
-          if (evData) {
-            renderLeaderboard('player-leaderboard-list', evData.scores || {});
-            if (evData.isEnded && isGameActive) {
-              endPersonalGame(true, '🛑 管理者已強制結束本局比賽！');
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .input-row label {
+            font-size: 0.85rem;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .input-group input[type="text"], 
+        .input-group input[type="password"] {
+            flex-grow: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 0;
+            height: 36px;
+            user-select: text;
+        }
+
+        /* 時間輸入框樣式 */
+        .input-group input[type="datetime-local"] {
+            flex-grow: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 0;
+            height: 36px;
+            user-select: text;
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .input-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            margin-right: 8px;
+            margin-left: 0;
+            cursor: pointer;
+        }
+
+        .input-group input[type="number"] {
+            width: 65px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+            height: 36px;
+            user-select: text;
+        }
+
+        /* 切換模式頁籤 (Tabs) */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #ffe0b2;
+            padding-bottom: 4px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background-color: #ffb74d;
+            color: #fff;
+        }
+
+        .mode-content {
+            display: none;
+            margin-bottom: 12px;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 0.85rem;
+            user-select: text;
+        }
+
+        .prize-item-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .prize-item-row .a-prize-name {
+            width: 170px;
+            flex-grow: 0;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            height: 36px; 
+            user-select: text;
+        }
+
+        .prize-item-row .a-prize-count {
+            width: 75px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+            height: 36px;
+            user-select: text;
+        }
+
+        .btn-add-item {
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        .btn-del-item {
+            background-color: #e53935;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-apply {
+            width: 100%;
+            padding: 10px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-apply:hover {
+            background-color: #b71c1c;
+        }
+
+        /* 按鈕群組通用樣式 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            flex: 1;
+            min-width: 140px;
+            max-width: 250px;
+            background-color: #0288d1;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+            text-align: center;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy-list { background-color: #2e7d32; }
+        .btn-purple { background-color: #7b1fa2; }
+        .btn-orange { background-color: #e65100; }
+        .btn-gray { background-color: #616161; }
+
+        /* 截圖目標區塊 */
+        .capture-area {
+            background-color: rgba(252, 228, 236, 0.9);
+            padding: 10px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .event-title {
+            color: #d32f2f;
+            text-shadow: 2px 2px #ffcdd2;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .time-box {
+            background-color: #ffe0b2;
+            color: #e65100;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .prizes-count {
+            color: #d32f2f;
+            font-weight: 800;
+        }
+
+        /* 戳戳樂網格外框 */
+        .poke-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(max(70px, calc(10% - 6px)), 1fr));
+            gap: 6px;
+            background-color: #d32f2f;
+            padding: 8px;
+            border-radius: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 500px) {
+            .poke-box {
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 4px;
+                padding: 6px;
             }
-          }
-        });
-
-        prepareBoardAndCountdown();
-      }).catch((error) => {
-        alert('讀取活動失敗：' + error.message);
-      });
-    }
-
-    function prepareBoardAndCountdown() {
-      completedLineCount = 0;
-      firstLineTimeSec = null;
-      markedIndices = new Set();
-
-      const personalPool = Array.from({ length: 99 }, (_, i) => i + 1);
-      shuffleArray(personalPool);
-      gridNumbers = personalPool.slice(0, totalTiles);
-      renderGrid();
-
-      document.getElementById('lines-display').innerText = '0';
-      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
-
-      const now = Date.now();
-      if (now < startTimeMs) {
-        document.getElementById('caller-title-label').innerText = 'COUNTDOWN 開賽倒數';
-        
-        if (waitTimer) clearInterval(waitTimer);
-        
-        waitTimer = setInterval(() => {
-          const current = Date.now();
-          const diffSec = Math.ceil((startTimeMs - current) / 1000);
-          if (diffSec <= 0) {
-            clearInterval(waitTimer);
-            document.getElementById('caller-title-label').innerText = 'CURRENT CALL 全國同步號碼';
-            startBingoGame();
-          } else {
-            document.getElementById('current-call-number').innerHTML = diffSec + 's';
-          }
-        }, 300);
-      } else {
-        document.getElementById('caller-title-label').innerText = 'CURRENT CALL 全國同步號碼';
-        startBingoGame();
-      }
-    }
-
-    function startBingoGame() {
-      isGameActive = true;
-      matchStartTimestamp = Date.now();
-      
-      document.getElementById('bingo-caller-block').classList.remove('hidden');
-      document.getElementById('ended-action-block').classList.add('hidden');
-
-      let seconds = customGameDurationSec;
-      document.getElementById('time-display').innerText = seconds + 's';
-
-      if (timer) clearInterval(timer);
-      timer = setInterval(() => {
-        seconds--;
-        document.getElementById('time-display').innerText = seconds + 's';
-
-        if (seconds <= 0) {
-          endPersonalGame(false, '⌛ 個人戰鬥時間結束！');
-        }
-      }, 1000);
-
-      if (callerTimer) clearInterval(callerTimer);
-      updateSynchronizedCall();
-      callerTimer = setInterval(updateSynchronizedCall, 200);
-    }
-
-    function updateSynchronizedCall() {
-      if (!isGameActive) return;
-      const elapsed = Date.now() - startTimeMs;
-      if (elapsed < 0) return;
-
-      const callIndex = Math.floor(elapsed / callIntervalMs);
-
-      if (callIndex < globalCallList.length) {
-        currentDrawn = globalCallList[callIndex];
-        
-        // 叫號改用圖片渲染 (修正：加上 crossOrigin = "anonymous" 允許 html2canvas 擷取)
-        const callContainer = document.getElementById('current-call-number');
-        if (numberImages[currentDrawn]) {
-          const img = document.createElement('img');
-          img.src = numberImages[currentDrawn];
-          img.alt = currentDrawn;
-          img.className = 'caller-img';
-          img.crossOrigin = "anonymous";
-          callContainer.innerHTML = '';
-          callContainer.appendChild(img);
-        } else {
-          callContainer.innerText = currentDrawn;
-        }
-      } else {
-        endPersonalGame(false, '🎉 所有號碼已叫完！');
-      }
-    }
-
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
-
-    function renderGrid() {
-      const gridEl = document.getElementById('grid');
-      gridEl.innerHTML = '';
-      
-      const sideLength = Math.sqrt(totalTiles);
-      gridEl.style.gridTemplateColumns = `repeat(${sideLength}, 1fr)`;
-
-      gridNumbers.forEach((val, idx) => {
-        const tile = document.createElement('div');
-        let tileClass = 'tile';
-        if (markedIndices.has(idx)) tileClass += ' marked';
-
-        tile.className = tileClass;
-        
-        // 盤面數字改用圖片渲染 (修正：加上 crossOrigin = "anonymous" 允許 html2canvas 擷取)
-        if (numberImages[val]) {
-          const img = document.createElement('img');
-          img.src = numberImages[val];
-          img.alt = val;
-          img.crossOrigin = "anonymous";
-          tile.appendChild(img);
-        } else {
-          tile.innerText = val;
         }
 
-        tile.onclick = () => handleTileClick(idx);
-        gridEl.appendChild(tile);
-      });
-    }
-
-    function handleTileClick(index) {
-      if (!isGameActive) return;
-      if (markedIndices.has(index)) return;
-
-      const clickedNum = gridNumbers[index];
-
-      if (clickedNum === currentDrawn) {
-        markedIndices.add(index);
-        checkBingoLines();
-        renderGrid();
-        
-        syncPlayerScoreToFirebase();
-      } else {
-        const tiles = document.querySelectorAll('.tile');
-        tiles[index]?.classList.add('error');
-        setTimeout(() => {
-          tiles[index]?.classList.remove('error');
-        }, 400);
-      }
-    }
-
-    function checkBingoLines() {
-      const N = Math.sqrt(totalTiles);
-      let linesFound = 0;
-
-      for (let r = 0; r < N; r++) {
-        let complete = true;
-        for (let c = 0; c < N; c++) {
-          if (!markedIndices.has(r * N + c)) complete = false;
+        /* 戳開後的基礎底色設定 */
+        .cell {
+            position: relative;
+            aspect-ratio: 1;
+            background-color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            padding: 2px;
+            word-break: break-all;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.12);
+            overflow: hidden;
         }
-        if (complete) linesFound++;
-      }
 
-      for (let c = 0; c < N; c++) {
-        let complete = true;
-        for (let r = 0; r < N; r++) {
-          if (!markedIndices.has(r * N + c)) complete = false;
+        /* 得獎格：顯眼的亮金色漸層 + 亮眼邊框光芒 */
+        .cell.winning {
+            background: linear-gradient(135deg, #fff9c4, #ffe082);
+            color: #b71c1c;
+            border: 2px solid #ffa000;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.8);
         }
-        if (complete) linesFound++;
-      }
 
-      let diag1Complete = true;
-      for (let i = 0; i < N; i++) {
-        if (!markedIndices.has(i * N + i)) diag1Complete = false;
-      }
-      if (diag1Complete) linesFound++;
+        /* 沒中獎（烏龜格）：柔和灰白 */
+        .cell.turtle {
+            background-color: #f1f3f4;
+            color: #546e7a;
+            border: 1px solid #cfd8dc;
+        }
 
-      let diag2Complete = true;
-      for (let i = 0; i < N; i++) {
-        if (!markedIndices.has(i * N + (N - 1 - i))) diag2Complete = false;
-      }
-      if (diag2Complete) linesFound++;
+        .turtle-icon {
+            font-size: 1.7rem;
+            line-height: 1;
+        }
 
-      if (linesFound > 0 && completedLineCount === 0 && firstLineTimeSec === null) {
-        firstLineTimeSec = Math.round((Date.now() - matchStartTimestamp) / 1000);
-      }
+        .winner-name {
+            color: #0d47a1;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 1px;
+            background-color: rgba(227, 242, 253, 0.95);
+            padding: 0px 4px;
+            border-radius: 3px;
+            border: 1px solid #90caf9;
+            line-height: 1.1;
+            max-width: 95%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-      completedLineCount = linesFound;
-      document.getElementById('lines-display').innerText = completedLineCount;
+        /* 未開格 (封面) 樣式：Tiffany 藍漸層 + 白色問號 */
+        .paper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #80deea, #26c6da);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #ffffff;
+            cursor: pointer;
+            border: 2px solid #00acc1;
+            border-radius: 5px;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.7), 0 3px 6px rgba(0,0,0,0.2);
+            transition: transform 0.15s ease, filter 0.2s;
+            user-select: none;
+            z-index: 2;
+        }
 
-      if (markedIndices.size === totalTiles) {
-        endPersonalGame(false, '🏆 全盤完成（Full House）！');
-      }
-    }
+        .paper:hover {
+            transform: scale(1.08);
+            filter: brightness(1.08);
+        }
 
-    function syncPlayerScoreToFirebase() {
-      update(ref(db, `events_bingo_v2/${eventId}/scores/${playerId}`), {
-        name: playerName,
-        lines: completedLineCount,
-        clicks: markedIndices.size,
-        firstLineTime: firstLineTimeSec,
-        timestamp: Date.now()
-      });
-    }
+        .paper.poked {
+            display: none;
+        }
 
-    function endPersonalGame(isEventExpired = false, reason = '') {
-      isGameActive = false;
-      if (timer) clearInterval(timer);
-      if (callerTimer) clearInterval(callerTimer);
-      
-      document.getElementById('bingo-caller-block').classList.add('hidden');
-      document.getElementById('ended-action-block').classList.remove('hidden');
-      document.getElementById('ended-reason-text').innerText = `${reason} 最終達成：${completedLineCount} 條連線 (點擊 ${markedIndices.size} 格)`;
+        .footer-row {
+            display: flex;
+            width: 100%;
+            margin-top: 8px;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
 
-      syncPlayerScoreToFirebase();
-    }
+        .note-display {
+            width: 66.66%;
+            color: #d84315;
+            font-size: 0.85rem;
+            font-weight: bold;
+            word-break: break-all;
+            text-align: left;
+        }
 
-    function copyBoardToClipboard(btnElement) {
-      const captureArea = document.getElementById('capture-board-area');
+        .copyright-display {
+            width: 33.33%;
+            color: #d84315;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: right;
+            white-space: nowrap;
+        }
 
-      // 修正：開啟 useCORS: true 與 allowTaint: true 以便截圖跨域 CDN 圖片
-      html2canvas(captureArea, { 
-        scale: 2,
-        useCORS: true,
-        allowTaint: true
-      }).then(canvas => {
-        canvas.toBlob(blob => {
-          if (!blob) return alert('複製畫面失敗！');
-          
-          try {
-            const item = new ClipboardItem({ 'image/png': blob });
-            navigator.clipboard.write([item]).then(() => {
-              triggerButtonFeedback(btnElement, '✅ 盤面畫面已成功複製！', '📋 複製盤面畫面');
-            }).catch(err => {
-              alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
-            });
-          } catch (e) {
-            alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
-          }
-        }, 'image/png');
-      });
-    }
+        /* 登入面板通用卡片 */
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
-    function renderLeaderboard(elementId, scoresObj) {
-      const lbEl = document.getElementById(elementId);
-      if (!lbEl) return;
+        .login-card h2 { color: #d32f2f; font-size: 1.3rem; text-align: center; }
+        .login-card input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            user-select: text;
+        }
 
-      const sorted = Object.entries(scoresObj || {})
-        .map(([id, p]) => ({ id, ...p }))
-        .sort((a, b) => {
-          if ((b.lines || 0) !== (a.lines || 0)) return (b.lines || 0) - (a.lines || 0);
-          const timeA = a.firstLineTime !== null && a.firstLineTime !== undefined ? a.firstLineTime : 999999;
-          const timeB = b.firstLineTime !== null && b.firstLineTime !== undefined ? b.firstLineTime : 999999;
-          if (timeA !== timeB) return timeA - timeB;
-          return (b.clicks || 0) - (a.clicks || 0);
-        });
+        /* 列表區塊 */
+        .winner-list-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            margin-top: 12px;
+        }
 
-      lbEl.innerHTML = sorted.map((p, idx) => {
-        const lineTimeStr = p.firstLineTime !== null && p.firstLineTime !== undefined ? `${p.firstLineTime}s` : '--';
-        return `
-          <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
-            <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
-            <div>
-              <span><b>${p.lines || 0}</b> 條線</span>
-              <span class="sub-info">(${p.clicks || 0}格 | ⚡${lineTimeStr})</span>
-            </div>
-          </div>
-        `;
-      }).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
-    }
-  </script>
+        .winner-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .winner-table th, .winner-table td {
+            border: 1px solid #ffe0b2;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        .winner-table th { background-color: #fff3e0; color: #e65100; }
+        .no-data { color: #999; text-align: center; padding: 10px; }
+    </style>
 </head>
 <body>
 
-<!-- 彈窗 1：管理者驗證密碼 -->
-<div id="pwd-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom: 12px; color: #1e293b;">🔒 解鎖管理者設定</h3>
-    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
-    <div style="display: flex; gap: 8px; margin-top: 8px;">
-      <button id="pwd-check-btn" class="btn-primary">確認</button>
-      <button id="pwd-cancel-btn" class="btn-primary btn-admin">取消</button>
-    </div>
-  </div>
-</div>
+    <!-- 主頁面頂部標題 -->
+    <h1 id="mainTitleHeader">🏮 懷舊戳戳樂 🏮</h1>
 
-<!-- 彈窗 2：玩家暱稱輸入 -->
-<div id="join-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom: 8px; color: #1e293b;">🎰 參加賓果挑戰賽</h3>
-    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">請輸入您的暱稱以加入連線賽</p>
-    <input type="text" id="input-event-id" class="input-box" placeholder="活動代號" style="display: none;">
-    <input type="text" id="input-player-name" class="input-box" placeholder="請輸入你的暱稱">
-    <button id="join-game-btn" class="btn-primary btn-start" style="margin-top: 8px;">進入遊戲盤面</button>
-  </div>
-</div>
+    <!-- ==================== 頁面一：主控與設定頁面 ==================== -->
+    <div id="pageMain" class="page active">
+        <!-- 主頁面登入卡片 -->
+        <div id="adminLoginCard" class="login-card">
+            <h2>🔑 管理員登入</h2>
+            <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
+            <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
+            <button class="btn-action btn-gray" style="width: 100%; max-width: 100%; margin-top: 4px;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+        </div>
 
-<!-- 視圖：活動結束頁面 -->
-<div id="event-ended-view" class="ended-card hidden">
-  <div class="ended-icon">🏁</div>
-  <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次賓果活動已結束</h2>
-  <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">感謝大家的熱烈參與！以下為本次比賽的終極總排行榜：</p>
-  
-  <div class="leaderboard" style="margin-top: 0;">
-    <div class="leaderboard-title">🏆 最終總排行榜</div>
-    <div id="ended-leaderboard-list"></div>
-  </div>
-</div>
+        <!-- 管理員主要控制內容 (驗證成功後顯示) -->
+        <div id="adminContentArea" style="display: none; width: 100%;">
+            <div class="config-panel">
+                <h3>⚙️ 遊戲設定 (主控面版)</h3>
+                <div class="input-group">
+                    <div class="input-row">
+                        <label for="eventName">活動名稱：</label>
+                        <input type="text" id="eventName" placeholder="例如：小寶愛蛙">
+                    </div>
+                    <div class="input-row">
+                        <label for="endTime"> 結束時間：</label>
+                        <input type="datetime-local" id="endTime">
+                    </div>
+                    <div class="input-row">
+                        <label for="roomPassword"> 房間密碼：</label>
+                        <input type="text" id="roomPassword" value="8888" placeholder="設定玩家進入密碼">
+                    </div>
+                    <div class="input-row">
+                        <label for="totalCount">格子數量：</label>
+                        <input type="number" id="totalCount" value="36" min="5" step="1">
+                    </div>
+                    <div class="input-row">
+                        <label for="eventNote">備註說明：</label>
+                        <input type="text" id="eventNote" value="每人限抽一次">
+                    </div>
+                </div>
+                
+                <label style="font-size: 0.8rem; color: #333; font-weight: bold; display: block; margin-bottom: 4px;">
+                    🎁 獎品清單設定方式：
+                </label>
+                <div class="mode-tabs">
+                    <button class="tab-btn active" onclick="switchMode('A')">模式 A：品名 + 數量拆分</button>
+                    <button class="tab-btn" onclick="switchMode('B')">模式 B：自由文字輸入</button>
+                </div>
 
-<!-- 主介面 1：管理者發起活動建立 -->
-<div id="main-setup-view" class="container">
-  <h1>🎰 Make 賓果連線賽 </h1>
+                <div id="modeA" class="mode-content active">
+                    <div id="prizeListContainer">
+                        <div class="prize-item-row">
+                            <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                            <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                            <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
+                        </div>
+                    </div>
+                    <button class="btn-add-item" onclick="addPrizeRow()">＋ 新增獎品項目</button>
+                </div>
 
-  <button id="admin-unlock-btn" class="btn-primary btn-admin" style="margin-bottom: 16px;">🔓 點此輸入密碼解鎖管理者設定</button>
+                <div id="modeB" class="mode-content">
+                    <textarea id="prizeInput" placeholder="例如：禮盒, 特輯, 二獎"></textarea>
+                </div>
 
-  <div id="setting-fields" class="disabled-area">
-    <div class="menu-group">
-      <label>1. 設定比賽盤面大小</label>
-      <!-- 修正點 1：新增 7x7, 8x8, 9x9 選項 -->
-      <div id="grid-options" class="btn-group">
-        <div class="btn-option" data-val="9">3x3</div>
-        <div class="btn-option" data-val="16">4x4</div>
-        <div class="btn-option active" data-val="25">5x5</div>
-        <div class="btn-option" data-val="36">6x6</div>
-        <div class="btn-option" data-val="49">7x7</div>
-        <div class="btn-option" data-val="64">8x8</div>
-        <div class="btn-option" data-val="81">9x9</div>
-      </div>
-    </div>
+                <button class="btn-apply" onclick="publishNewGame()">生成全新同步戳戳樂</button>
+                
+                <div class="button-group" style="margin-top: 12px;">
+                    <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
+                    <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
+                    <button class="btn-action btn-gray" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+                </div>
+            </div>
 
-    <div class="menu-group">
-      <label>2. 統一開賽時間</label>
-      <input type="datetime-local" id="admin-starttime-input" class="input-box">
-    </div>
+            <!-- 截圖與即時開獎面板 -->
+            <div class="capture-area" id="captureArea">
+                <div class="event-title" id="eventTitleDisplay" style="display: none;"></div>
+                <div class="toolbar">
+                    <div class="time-box">
+                        <div>🕒 <span id="clock">載入時間...</span></div>
+                        <div>🎁 剩餘大獎：<span class="prizes-count" id="remainingPrizesCount">0 / 0</span></div>
+                    </div>
+                </div>
+                <div class="poke-box" id="mainPokeBox"></div>
+                <div class="footer-row">
+                    <div class="note-display" id="noteDisplay">※ 每人限抽一次 ※</div>
+                    <div class="copyright-display">©2026乳蕉四妻🐸</div>
+                </div>
+            </div>
 
-    <div class="menu-group">
-      <label>3. 個人戰鬥時間 (秒)</label>
-      <input type="number" id="admin-duration-input" class="input-box" value="60" min="10" placeholder="例如: 60">
-    </div>
+            <div class="button-group">
+                <button class="btn-action" id="screenshotBtn" onclick="copyScreenshot()">📋 複製截圖</button>
+                <button class="btn-action btn-copy-list" id="copyListBtn" onclick="copyWinnerList()">📝 複製得獎列表</button>
+                <button class="btn-action btn-gray" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+            </div>
 
-    <div class="menu-group">
-      <label>4. 賓果叫號速度 (秒/個)</label>
-      <input type="number" step="0.5" id="admin-speed-input" class="input-box" value="2" min="0.5" placeholder="例如: 2">
-    </div>
-
-    <div class="menu-group">
-      <label>5. 比賽備註說明 (可不填)</label>
-      <input type="text" id="admin-note-input" class="input-box" placeholder="例如：前三名有小禮物！">
-    </div>
-  </div>
-
-  <div id="admin-create-actions" class="hidden">
-    <button id="create-event-btn" class="btn-primary btn-start">🚀 建立賓果賽事</button>
-  </div>
-
-  <div id="admin-action-area" class="hidden">
-    <div class="room-display-box">
-      <div style="font-size: 13px; color: #64748b;">房間號碼</div>
-      <div id="room-num-display" class="room-number">------</div>
-    </div>
-
-    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
-      <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
-      <button id="open-newtab-btn" class="btn-primary">↗️ 開啟對戰分頁</button>
-      <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製總排行榜成績</button>
-    </div>
-
-    <div class="leaderboard">
-      <div class="leaderboard-title">📊 玩家排行榜</div>
-      <div id="admin-leaderboard-list"></div>
-    </div>
-  </div>
-</div>
-
-<!-- 主介面 2：玩家挑戰對戰畫面 -->
-<div id="player-game-view" class="container hidden">
-  <!-- 可截圖複製區塊 -->
-  <div id="capture-board-area" style="background: white; padding: 12px; border-radius: 12px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-      <h1 style="margin-bottom: 0; font-size: 20px;">🎰 Make 賓果戰報</h1>
-      <span id="room-tag-display" style="font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-weight: bold; color: #475569;"></span>
+            <div class="winner-list-panel">
+                <h3>🏆 開獎即時紀錄</h3>
+                <div id="winnerTableContainer"><div class="no-data">尚無開獎紀錄</div></div>
+            </div>
+        </div>
     </div>
 
-    <div class="status-bar">
-      <div class="status-item">👤 玩家: <span id="player-name-display">--</span></div>
-      <div class="status-item">⏱️ 時間: <span id="time-display" style="color: #ef4444;">--s</span></div>
-      <div class="status-item">🎉 連線: <span id="lines-display" style="color: #10b981; font-size: 16px;">0</span> 條</div>
+    <!-- ==================== 頁面二：多人連線玩家頁面 ==================== -->
+    <div id="pagePlayer" class="page">
+        <!-- 登入卡片 -->
+        <div id="playerLoginCard" class="login-card">
+            <h2 id="loginCardTitle">🎮 加入連線戳戳樂</h2>
+            <input type="password" id="inputRoomPass" placeholder="請輸入房間密碼">
+            <input type="text" id="inputPlayerName" placeholder="請輸入您的暱稱">
+            <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
+            <button class="btn-action btn-gray" style="width: 100%; max-width: 100%; margin-top: 4px;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
+        </div>
+
+        <!-- 玩家遊戲畫面 (登入後顯示) -->
+        <div id="playerGameArea" style="display: none; width: 100%;">
+            <div style="background: rgba(255, 255, 255, 0.95); padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>👤 玩家：<strong id="displayName" style="color: #d32f2f;"></strong></div>
+                <div id="playerStatusTag" style="font-size: 0.85rem; font-weight: bold; color: #2e7d32;">✅ 可點擊挑選一格</div>
+                <button class="btn-action btn-gray" style="min-width: 110px; max-width: 140px; padding: 6px 10px; font-size: 0.8rem;" onclick="goToLobby()">🏠 回大廳</button>
+            </div>
+
+            <div class="capture-area">
+                <div class="event-title" id="playerEventTitle"></div>
+                
+                <div class="toolbar">
+                    <div class="time-box">
+                        <div>🕒 <span id="playerClock">載入時間...</span></div>
+                        <div>🎁 剩餘大獎：<span class="prizes-count" id="playerRemainingPrizesCount">0 / 0</span></div>
+                    </div>
+                </div>
+
+                <div class="poke-box" id="playerPokeBox"></div>
+                <div class="footer-row">
+                    <div class="note-display" id="playerNoteDisplay">※ 每人限抽一次 ※</div>
+                    <div class="copyright-display">©2026乳蕉四妻🐸</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="bingo-caller-block" class="bingo-caller-box">
-      <div id="caller-title-label" class="caller-title">CURRENT CALL 全國同步號碼</div>
-      <div id="current-call-number" class="current-number-display">--</div>
-    </div>
+    <script>
+        // ==================== 0. 防 F12 與盜取保護機制 ====================
+        // 禁用右鍵選單
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
 
-    <div id="ended-action-block" class="bingo-caller-box hidden" style="background: linear-gradient(135deg, #334155, #475569);">
-      <div id="ended-reason-text" style="font-size: 15px; font-weight: bold; color: #fde047;">比賽已結束</div>
-    </div>
+        // 禁用常見開發者工具快捷鍵
+        document.addEventListener('keydown', function (e) {
+            // 禁用 F12
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+Shift+I / J / C (Mac: Cmd+Alt+I / J / C)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+U (檢視原始碼)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+            // 禁用 Ctrl+S (存檔)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                return false;
+            }
+        });
 
-    <div class="grid-container">
-      <div id="grid" class="grid"></div>
-    </div>
-  </div>
+        // Debugger 干擾（強行開啟 DevTools 時會觸發無限斷點卡死）
+        setInterval(function () {
+            const startTime = performance.now();
+            (function () {
+                return false;
+            })["constructor"]("debugger")();
+            const endTime = performance.now();
+            if (endTime - startTime > 100) {
+                // 可在此處執行卡死或自動跳轉
+            }
+        }, 500);
 
-  <button id="copy-board-btn" class="btn-primary btn-copy" style="margin-top: 4px; margin-bottom: 12px;">📋 複製盤面畫面</button>
+        // ==================== 1. Firebase 設定 (已置換為全站全新專案) ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+            authDomain: "gogogame-ce8ba.firebaseapp.com",
+            databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+            projectId: "gogogame-ce8ba",
+            storageBucket: "gogogame-ce8ba.firebasestorage.app",
+            messagingSenderId: "823932242561",
+            appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+        };
 
-  <div class="leaderboard">
-    <div class="leaderboard-title">🏆 全國排行榜</div>
-    <div id="player-leaderboard-list"></div>
-  </div>
-</div>
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const gameRef = db.ref("sharedPokeGame");
 
+        // 全域變數
+        let currentGameData = null;
+        let activeMode = 'A';
+        let currentPlayerName = "";
+        const ADMIN_DEFAULT_PASS = "594200"; // 主頁面管理者密碼
+
+        // 回到遊戲大廳功能
+        function goToLobby() {
+            window.location.href = window.location.pathname;
+        }
+
+        // 時間格式化工具 (YYYY-MM-DD HH:mm:ss)
+        function formatDate(timestamp) {
+            if (!timestamp) return "-";
+            const date = new Date(timestamp);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        // 時間格式化工具 (不含秒 YYYY-MM-DD HH:mm)
+        function formatShortDate(timestamp) {
+            if (!timestamp) return "";
+            const date = new Date(timestamp);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+        }
+
+        // 時鐘功能 (同步更新管理員與玩家介面)
+        function updateClock() {
+            const nowFormatted = formatDate(Date.now());
+            const adminEl = document.getElementById('clock');
+            const playerEl = document.getElementById('playerClock');
+            if(adminEl) adminEl.innerText = nowFormatted;
+            if(playerEl) playerEl.innerText = nowFormatted;
+        }
+        setInterval(updateClock, 1000);
+
+        // 管理員主頁面登入驗證
+        function loginAdmin() {
+            const pass = document.getElementById('inputAdminPass').value.trim();
+            if (pass === ADMIN_DEFAULT_PASS) {
+                document.getElementById('adminLoginCard').style.display = 'none';
+                document.getElementById('adminContentArea').style.display = 'block';
+            } else {
+                alert("管理員密碼錯誤！");
+            }
+        }
+
+        // 頁面切換機制
+        function switchView(viewName) {
+            const mainHeader = document.getElementById('mainTitleHeader');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            
+            if(viewName === 'player') {
+                document.getElementById('pagePlayer').classList.add('active');
+                if(mainHeader) mainHeader.style.display = 'none';
+            } else {
+                document.getElementById('pageMain').classList.add('active');
+                if(mainHeader) mainHeader.style.display = 'block';
+            }
+        }
+
+        // 一鍵複製玩家網址與完整活動資訊
+        async function copyPlayerInfo() {
+            const baseUrl = window.location.href.split('#')[0];
+            const playerUrl = baseUrl + "#player";
+            const pass = (currentGameData && currentGameData.password) ? currentGameData.password : document.getElementById('roomPassword').value.trim();
+            const note = (currentGameData && currentGameData.note !== undefined) ? currentGameData.note : document.getElementById('eventNote').value.trim();
+
+            let endStr = "未設定";
+            if (currentGameData && currentGameData.endTime) {
+                endStr = formatShortDate(currentGameData.endTime);
+            } else {
+                const rawTimeVal = document.getElementById('endTime').value;
+                if (rawTimeVal) {
+                    endStr = rawTimeVal.replace('T', ' ');
+                }
+            }
+
+            const textToCopy = `🎮 戳戳樂活動連結：\n${playerUrl}\n\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                const btn = document.getElementById('copyPlayerInfoBtn');
+                btn.innerText = "✅ 連結與資訊已複製！";
+                setTimeout(() => btn.innerText = "📋 複製戳戳網址", 2000);
+            } catch (err) {
+                alert("複製失敗，內容如下：\n\n" + textToCopy);
+            }
+        }
+
+        // 監聽網址 Hash 切換
+        window.onhashchange = function() {
+            if(location.hash === '#player') switchView('player');
+            else switchView('main');
+        };
+
+        // 切換模式 A / B
+        function switchMode(mode) {
+            activeMode = mode;
+            document.querySelectorAll('.tab-btn')[0].classList.toggle('active', mode === 'A');
+            document.querySelectorAll('.tab-btn')[1].classList.toggle('active', mode === 'B');
+            document.getElementById('modeA').classList.toggle('active', mode === 'A');
+            document.getElementById('modeB').classList.toggle('active', mode === 'B');
+        }
+
+        // 新增獎品列並自動聚焦
+        function addPrizeRow() {
+            const container = document.getElementById('prizeListContainer');
+            const row = document.createElement('div');
+            row.className = 'prize-item-row';
+            row.innerHTML = `
+                <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
+            `;
+            container.appendChild(row);
+            
+            row.querySelector('.a-prize-name').focus();
+        }
+
+        function removePrizeRow(btn) {
+            const container = document.getElementById('prizeListContainer');
+            if (container.children.length > 1) btn.parentElement.remove();
+            else alert("至少需要保留一組獎品！");
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 主頁面：生成全新同步遊戲
+        function publishNewGame() {
+            const eventName = document.getElementById('eventName').value.trim();
+            const password = document.getElementById('roomPassword').value.trim();
+            const endTimeValue = document.getElementById('endTime').value;
+            const note = document.getElementById('eventNote').value.trim();
+            const totalCells = parseInt(document.getElementById('totalCount').value) || 36;
+
+            if(!password) {
+                alert("請務必設定玩家頁連線密碼！");
+                return;
+            }
+
+            const endTimeStamp = endTimeValue ? new Date(endTimeValue).getTime() : 0;
+
+            let prizeList = [];
+            if (activeMode === 'A') {
+                document.querySelectorAll('.prize-item-row').forEach(row => {
+                    const name = row.querySelector('.a-prize-name').value.trim();
+                    const count = parseInt(row.querySelector('.a-prize-count').value) || 0;
+                    if (name && count > 0) {
+                        for (let i = 0; i < count; i++) prizeList.push(name);
+                    }
+                });
+            } else {
+                const rawInput = document.getElementById('prizeInput').value;
+                prizeList = rawInput.split(/[,，\n]/).map(i => i.trim()).filter(i => i !== "");
+            }
+
+            while (prizeList.length < totalCells) prizeList.push("🐢 烏龜");
+            if (prizeList.length > totalCells) prizeList = prizeList.slice(0, totalCells);
+
+            const shuffledPrizes = shuffle(prizeList);
+
+            const cellsData = shuffledPrizes.map((prize, idx) => ({
+                id: idx + 1,
+                prize: prize,
+                isPoked: false,
+                winner: "",
+                pokedAt: 0,
+                coverEmoji: "👻"
+            }));
+
+            const gamePayload = {
+                eventName: eventName,
+                password: password,
+                endTime: endTimeStamp,
+                note: note,
+                totalCells: totalCells,
+                cells: cellsData,
+                updatedAt: Date.now()
+            };
+
+            gameRef.set(gamePayload).then(() => {
+                alert("全新同步戳戳樂已建立！");
+            });
+        }
+
+        // 實時連線監聽 (Firebase Listener)
+        gameRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            currentGameData = data;
+
+            renderMainBoard(data);
+            renderPlayerBoard(data);
+            renderWinnerTable(data);
+        });
+
+        // 渲染主控頁面
+        function renderMainBoard(data) {
+            const titleEl = document.getElementById('eventTitleDisplay');
+            if (data.eventName) {
+                titleEl.innerText = "🍌 " + data.eventName + " 戳戳樂 🍌";
+                titleEl.style.display = "block";
+            } else titleEl.style.display = "none";
+
+            document.getElementById('noteDisplay').innerText = data.note ? "※ " + data.note + " ※" : "";
+
+            const totalBigPrizes = data.cells.filter(c => !c.prize.includes("烏龜")).length;
+            const revealedBigPrizes = data.cells.filter(c => c.isPoked && !c.prize.includes("烏龜")).length;
+            document.getElementById('remainingPrizesCount').innerText = `${Math.max(0, totalBigPrizes - revealedBigPrizes)} / ${totalBigPrizes}`;
+
+            const pokeBox = document.getElementById('mainPokeBox');
+            pokeBox.innerHTML = "";
+
+            data.cells.forEach(cell => {
+                const cellEl = document.createElement('div');
+                const isTurtle = cell.prize.includes("烏龜");
+                cellEl.className = `cell ${cell.isPoked ? (isTurtle ? 'turtle' : 'winning') : ''}`;
+
+                if (cell.isPoked) {
+                    const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
+
+                    if (isTurtle) {
+                        cellEl.innerHTML = `<div class="turtle-icon">🐢</div>${winnerHtml}`;
+                    } else {
+                        cellEl.innerHTML = `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                    }
+                } else {
+                    const paper = document.createElement('div');
+                    paper.className = 'paper';
+                    paper.innerHTML = '👻';
+                    paper.onclick = () => handleAdminPoke(cell.id - 1, cell);
+                    cellEl.appendChild(paper);
+                }
+                pokeBox.appendChild(cellEl);
+            });
+        }
+
+        // 管理者主頁面代抽
+        function handleAdminPoke(index, cell) {
+            if (cell.isPoked) return;
+
+            db.ref(`sharedPokeGame/cells/${index}`).update({
+                isPoked: true,
+                winner: "",
+                pokedAt: Date.now()
+            });
+        }
+
+        // 渲染玩家頁面
+        function renderPlayerBoard(data) {
+            const titleEl = document.getElementById('playerEventTitle');
+            const loginTitleEl = document.getElementById('loginCardTitle');
+            
+            const displayTitle = data.eventName ? `🍌 ${data.eventName} 戳戳樂 🍌` : "🏮 懷舊戳戳樂 🏮";
+            
+            if (titleEl) {
+                titleEl.innerText = displayTitle;
+                titleEl.style.display = "block";
+            }
+            if (loginTitleEl) {
+                loginTitleEl.innerText = displayTitle;
+            }
+
+            document.getElementById('playerNoteDisplay').innerText = data.note ? "※ " + data.note + " ※" : "";
+
+            // 更新玩家頁面剩餘大獎數量
+            const totalBigPrizes = data.cells.filter(c => !c.prize.includes("烏龜")).length;
+            const revealedBigPrizes = data.cells.filter(c => c.isPoked && !c.prize.includes("烏龜")).length;
+            const playerRemEl = document.getElementById('playerRemainingPrizesCount');
+            if (playerRemEl) {
+                playerRemEl.innerText = `${Math.max(0, totalBigPrizes - revealedBigPrizes)} / ${totalBigPrizes}`;
+            }
+
+            const pokeBox = document.getElementById('playerPokeBox');
+            pokeBox.innerHTML = "";
+
+            const hasBigPrizesLeft = data.cells.some(c => !c.prize.includes("烏龜") && !c.isPoked);
+            const isExpired = data.endTime && Date.now() > data.endTime;
+            const hasPoked = currentPlayerName ? data.cells.some(c => c.isPoked && c.winner === currentPlayerName) : false;
+            
+            const statusTag = document.getElementById('playerStatusTag');
+            
+            if (!hasBigPrizesLeft) {
+                statusTag.innerText = "⛔ 活動已結束 (大獎已全數抽完)";
+                statusTag.style.color = "#d32f2f";
+            } else if (isExpired) {
+                statusTag.innerText = "⏰ 活動已截止";
+                statusTag.style.color = "#d32f2f";
+            } else if (hasPoked) {
+                statusTag.innerText = "❌ 您已完成抽獎 (每人限一次)";
+                statusTag.style.color = "#d32f2f";
+            } else {
+                statusTag.innerText = "✅ 可點擊挑選一格";
+                statusTag.style.color = "#2e7d32";
+            }
+
+            data.cells.forEach(cell => {
+                const cellEl = document.createElement('div');
+                const isTurtle = cell.prize.includes("烏龜");
+                cellEl.className = `cell ${cell.isPoked ? (isTurtle ? 'turtle' : 'winning') : ''}`;
+
+                if (cell.isPoked) {
+                    const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
+
+                    if (isTurtle) {
+                        cellEl.innerHTML = `<div class="turtle-icon">🐢</div>${winnerHtml}`;
+                    } else {
+                        cellEl.innerHTML = `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                    }
+                } else {
+                    const paper = document.createElement('div');
+                    paper.className = 'paper';
+                    paper.innerHTML = '👻';
+                    paper.onclick = () => handlePlayerPoke(cell.id - 1, cell, hasPoked, isExpired, hasBigPrizesLeft);
+                    cellEl.appendChild(paper);
+                }
+                pokeBox.appendChild(cellEl);
+            });
+        }
+
+        // 玩家進行點擊開獎
+        function handlePlayerPoke(index, cell, hasPoked, isExpired, hasBigPrizesLeft) {
+            if (!hasBigPrizesLeft) {
+                alert("⛔ 活動已結束，所有大獎都已經被抽完囉！");
+                return;
+            }
+
+            if (isExpired || (currentGameData.endTime && Date.now() > currentGameData.endTime)) {
+                alert("⏰ 活動時間已結束，無法再進行戳獎囉！");
+                return;
+            }
+
+            if (!currentPlayerName) {
+                alert("請先登入名字！");
+                return;
+            }
+            
+            const isNameAlreadyPoked = currentGameData.cells.some(c => c.isPoked && c.winner === currentPlayerName);
+            
+            if (hasPoked || isNameAlreadyPoked) {
+                alert(`玩家【${currentPlayerName}】已經戳過號碼囉！每人限戳一次。`);
+                return;
+            }
+
+            if (cell.isPoked) {
+                alert("這一格已經被別人戳破囉！請選擇其他圖案。");
+                return;
+            }
+
+            db.ref(`sharedPokeGame/cells/${index}`).update({
+                isPoked: true,
+                winner: currentPlayerName,
+                pokedAt: Date.now()
+            }).then(() => {
+                const isTurtle = cell.prize.includes("烏龜");
+                if (isTurtle) {
+                    alert(`🐢 沒中獎～ 戳中了烏龜！`);
+                } else {
+                    alert(`🎉 恭喜中獎！您戳中了：【${cell.prize}】`);
+                }
+            });
+        }
+
+        // 玩家登入驗證
+        function loginPlayer() {
+            const passInput = document.getElementById('inputRoomPass').value.trim();
+            const nameInput = document.getElementById('inputPlayerName').value.trim();
+
+            if (!currentGameData) {
+                alert("主持人尚未建立遊戲！");
+                return;
+            }
+            if (passInput !== currentGameData.password) {
+                alert("房間密碼錯誤！");
+                return;
+            }
+            if (!nameInput) {
+                alert("請輸入您的遊戲暱稱！");
+                return;
+            }
+
+            currentPlayerName = nameInput;
+            document.getElementById('displayName').innerText = currentPlayerName;
+            document.getElementById('playerLoginCard').style.display = 'none';
+            document.getElementById('playerGameArea').style.display = 'block';
+
+            if(currentGameData) renderPlayerBoard(currentGameData);
+        }
+
+        // 渲染得獎表格
+        function renderWinnerTable(data) {
+            const container = document.getElementById('winnerTableContainer');
+            const pokedCells = data.cells.filter(c => c.isPoked);
+
+            if (pokedCells.length === 0) {
+                container.innerHTML = '<div class="no-data">尚無開獎紀錄</div>';
+                return;
+            }
+
+            let html = `
+                <table class="winner-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">欄位</th>
+                            <th style="width: 35%;">獎品內容</th>
+                            <th style="width: 25%;">得獎者</th>
+                            <th style="width: 25%;">開獎時間</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            pokedCells.forEach(item => {
+                const isTurtle = item.prize.includes("烏龜");
+                const displayName = item.winner ? item.winner : "(管理者代抽)";
+                html += `
+                    <tr>
+                        <td><strong>第 ${item.id} 格</strong></td>
+                        <td>${item.prize}</td>
+                        <td style="color: ${isTurtle ? '#607d8b' : '#0d47a1'}; font-weight: bold;">${displayName}</td>
+                        <td style="color: #666; font-size: 0.75rem;">${formatDate(item.pokedAt)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // 複製得獎列表
+        async function copyWinnerList() {
+            if (!currentGameData) return;
+            const pokedCells = currentGameData.cells.filter(c => c.isPoked);
+
+            if (pokedCells.length === 0) {
+                alert("目前尚無任何開獎紀錄喔！");
+                return;
+            }
+
+            const winners = pokedCells.filter(c => !c.prize.includes("烏龜"));
+            const turtles = pokedCells.filter(c => c.prize.includes("烏龜"));
+
+            const eventName = currentGameData.eventName;
+            const titleText = eventName ? `${eventName}戳戳樂 - 開獎名單` : "戳戳樂開獎名單";
+            const currentTimeStr = formatDate(Date.now());
+
+            let text = `🏆【${titleText}】🏆\n`;
+            text += `🕒 時間：${currentTimeStr}\n`;
+            text += `-----------------------------\n`;
+            text += `🎁【中獎名單】\n`;
+
+            if (winners.length > 0) {
+                winners.forEach(item => {
+                    const name = item.winner ? item.winner : "管理者代抽";
+                    text += `• 第 ${item.id} 格: ${item.prize} ➔ @${name}\n`;
+                });
+            } else {
+                text += `(尚無中獎紀錄)\n`;
+            }
+
+            text += `\n🐢【未得獎/烏龜名單】\n`;
+            if (turtles.length > 0) {
+                turtles.forEach(item => {
+                    const name = item.winner ? item.winner : "管理者代抽";
+                    text += `• 第 ${item.id} 格: 烏龜 ➔ ${name}\n`;
+                });
+            } else {
+                text += `(尚無未得獎紀錄)\n`;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyListBtn');
+                btn.innerText = "✅ 列表已複製！";
+                setTimeout(() => btn.innerText = "📝 複製得獎列表", 2000);
+            } catch (err) {
+                alert("複製失敗，請手動複製！");
+            }
+        }
+
+        // 複製截圖
+        async function copyScreenshot() {
+            const captureArea = document.getElementById('captureArea');
+            const btn = document.getElementById('screenshotBtn');
+            const originalText = btn.innerText;
+
+            btn.innerText = "⏳ 截圖處理中...";
+            btn.disabled = true;
+
+            try {
+                const item = new ClipboardItem({
+                    "image/png": new Promise(async (resolve, reject) => {
+                        try {
+                            const canvas = await html2canvas(captureArea, {
+                                scale: 2,
+                                backgroundColor: '#fce4ec',
+                                useCORS: true
+                            });
+
+                            canvas.toBlob((blob) => {
+                                if (blob) resolve(blob);
+                                else reject(new Error("Canvas 轉圖片失敗"));
+                            }, 'image/png');
+                        } catch (err) {
+                            reject(err);
+                        }
+                    })
+                });
+
+                await navigator.clipboard.write([item]);
+
+                btn.innerText = "✅ 截圖已複製！";
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.disabled = false; 
+                }, 2000);
+
+            } catch (err) {
+                console.error("截圖複製失敗:", err);
+                btn.innerText = originalText;
+                btn.disabled = false;
+                alert("複製截圖失敗！\n請確認網頁是在安全連線 (https://) 或本機環境下執行，或請改用手動截圖。");
+            }
+        }
+
+        // 初始化檢查 URL Hash 決定顯示哪個頁面
+        window.onload = function() {
+            updateClock();
+            if (location.hash === '#player') {
+                switchView('player');
+            } else {
+                switchView('main');
+            }
+        };
+    </script>
 </body>
 </html>
