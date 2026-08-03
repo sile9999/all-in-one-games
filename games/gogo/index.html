@@ -443,7 +443,7 @@
             text-overflow: ellipsis;
         }
 
-        /* 未開格 (封面) 樣式：Tiffany 藍漸層 + 白色問號 */
+        /* 未開格 (封面) 樣式：Tiffany 藍漸層 + 白色問號 (修正渲染問題) */
         .paper {
             position: absolute;
             top: 0;
@@ -455,6 +455,7 @@
             align-items: center;
             justify-content: center;
             font-size: 1.8rem;
+            line-height: 1;
             color: #ffffff;
             cursor: pointer;
             border: 2px solid #00acc1;
@@ -463,6 +464,7 @@
             transition: transform 0.15s ease, filter 0.2s;
             user-select: none;
             z-index: 2;
+            transform: translateZ(0);
         }
 
         .paper:hover {
@@ -562,7 +564,6 @@
             <h2>🔑 管理員登入</h2>
             <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
             <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
-            <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
         </div>
 
         <!-- 管理員主要控制內容 (驗證成功後顯示) -->
@@ -585,6 +586,11 @@
                     <div class="input-row">
                         <label for="totalCount">格子數量：</label>
                         <input type="number" id="totalCount" value="36" min="5" step="1">
+                    </div>
+                    <!-- 新增限制每人戳的次數設定 -->
+                    <div class="input-row">
+                        <label for="maxPokesPerUser">每人次數：</label>
+                        <input type="number" id="maxPokesPerUser" value="1" min="1" step="1">
                     </div>
                     <div class="input-row">
                         <label for="eventNote">備註說明：</label>
@@ -623,7 +629,7 @@
                 </div>
 
                 <!-- 回到遊戲大廳按鈕 -->
-                
+                <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
             </div>
 
             <!-- 截圖與即時開獎面板 -->
@@ -894,6 +900,7 @@
             const endTimeValue = document.getElementById('endTime').value;
             const note = document.getElementById('eventNote').value.trim();
             const totalCells = parseInt(document.getElementById('totalCount').value) || 36;
+            const maxPokesPerUser = Math.max(1, parseInt(document.getElementById('maxPokesPerUser').value) || 1);
 
             if(!password) {
                 alert("請務必設定玩家頁連線密碼！");
@@ -936,6 +943,7 @@
                 endTime: endTimeStamp,
                 note: note,
                 totalCells: totalCells,
+                maxPokesPerUser: maxPokesPerUser,
                 cells: cellsData,
                 updatedAt: Date.now()
             };
@@ -1038,8 +1046,12 @@
 
             const hasBigPrizesLeft = data.cells.some(c => !c.prize.includes("烏龜") && !c.isPoked);
             const isExpired = data.endTime && Date.now() > data.endTime;
-            const hasPoked = currentPlayerName ? data.cells.some(c => c.isPoked && c.winner === currentPlayerName) : false;
             
+            // 計算目前玩家已戳幾次
+            const maxPokes = data.maxPokesPerUser || 1;
+            const userPokedCount = currentPlayerName ? data.cells.filter(c => c.isPoked && c.winner === currentPlayerName).length : 0;
+            const hasReachedLimit = userPokedCount >= maxPokes;
+
             const statusTag = document.getElementById('playerStatusTag');
             
             if (!hasBigPrizesLeft) {
@@ -1048,11 +1060,11 @@
             } else if (isExpired) {
                 statusTag.innerText = "⏰ 活動已截止";
                 statusTag.style.color = "#d32f2f";
-            } else if (hasPoked) {
-                statusTag.innerText = "❌ 您已完成抽獎 (每人限一次)";
+            } else if (hasReachedLimit) {
+                statusTag.innerText = `❌ 您已完成抽獎 (已達限額 ${maxPokes} 次)`;
                 statusTag.style.color = "#d32f2f";
             } else {
-                statusTag.innerText = "✅ 可點擊挑選一格";
+                statusTag.innerText = `✅ 可點擊挑選一格 (已戳 ${userPokedCount}/${maxPokes} 次)`;
                 statusTag.style.color = "#2e7d32";
             }
 
@@ -1073,7 +1085,7 @@
                     const paper = document.createElement('div');
                     paper.className = 'paper';
                     paper.innerHTML = '👻';
-                    paper.onclick = () => handlePlayerPoke(cell.id - 1, cell, hasPoked, isExpired, hasBigPrizesLeft);
+                    paper.onclick = () => handlePlayerPoke(cell.id - 1, cell, hasReachedLimit, isExpired, hasBigPrizesLeft, maxPokes);
                     cellEl.appendChild(paper);
                 }
                 pokeBox.appendChild(cellEl);
@@ -1081,7 +1093,7 @@
         }
 
         // 玩家進行點擊開獎
-        function handlePlayerPoke(index, cell, hasPoked, isExpired, hasBigPrizesLeft) {
+        function handlePlayerPoke(index, cell, hasReachedLimit, isExpired, hasBigPrizesLeft, maxPokes) {
             if (!hasBigPrizesLeft) {
                 alert("⛔ 活動已結束，所有大獎都已經被抽完囉！");
                 return;
@@ -1097,10 +1109,10 @@
                 return;
             }
             
-            const isNameAlreadyPoked = currentGameData.cells.some(c => c.isPoked && c.winner === currentPlayerName);
-            
-            if (hasPoked || isNameAlreadyPoked) {
-                alert(`玩家【${currentPlayerName}】已經戳過號碼囉！每人限戳一次。`);
+            // 計算最新的已戳次數
+            const userPokedCount = currentGameData.cells.filter(c => c.isPoked && c.winner === currentPlayerName).length;
+            if (userPokedCount >= maxPokes) {
+                alert(`玩家【${currentPlayerName}】已經達到戳獎上限囉！每人限戳 ${maxPokes} 次。`);
                 return;
             }
 
@@ -1240,7 +1252,7 @@
             }
         }
 
-        // 複製截圖
+        // 複製截圖 (優化渲染，確保完整圖片不切半)
         async function copyScreenshot() {
             const captureArea = document.getElementById('captureArea');
             const btn = document.getElementById('screenshotBtn');
@@ -1256,7 +1268,17 @@
                             const canvas = await html2canvas(captureArea, {
                                 scale: 2,
                                 backgroundColor: '#fce4ec',
-                                useCORS: true
+                                useCORS: true,
+                                allowTaint: true,
+                                onclone: (clonedDoc) => {
+                                    // 解除 user-select 避免 html2canvas 渲染文字/圖層切半
+                                    clonedDoc.body.style.userSelect = 'auto';
+                                    clonedDoc.body.style.webkitUserSelect = 'auto';
+                                    const clonedTarget = clonedDoc.getElementById('captureArea');
+                                    if (clonedTarget) {
+                                        clonedTarget.style.transform = 'none';
+                                    }
+                                }
                             });
 
                             canvas.toBlob((blob) => {
