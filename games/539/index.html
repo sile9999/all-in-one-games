@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今彩539 圖片挑戰賽</title>
+
+  <!-- 引入 html2canvas 供玩家複製畫面 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    
+    body { 
+      background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-color: #f0f4f8; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; backdrop-filter: blur(4px); }
+    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
+    
+    .menu-group { margin-bottom: 16px; text-align: left; }
+    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+    
+    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
+    
+    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; display: inline-block; text-decoration: none; }
+    .btn-primary:hover { background-color: #2563eb; }
+    .btn-admin { background-color: #64748b; }
+    .btn-admin:hover { background-color: #475569; }
+    .btn-danger { background-color: #ef4444; }
+    .btn-danger:hover { background-color: #dc2626; }
+    .btn-copy { background-color: #8b5cf6; }
+    .btn-copy:hover { background-color: #7c3aed; }
+    .btn-start { background-color: #10b981; }
+    .btn-start:hover { background-color: #059669; }
+    
+    .btn-lobby { background-color: #0284c7; width: auto; min-width: 200px; margin: 16px auto 0 auto; display: block; }
+    .btn-lobby:hover { background-color: #0369a1; }
+
+    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
+
+    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
+    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
+    .room-number.ended { color: #ef4444; font-size: 24px; letter-spacing: 0px; }
+
+    .status-bar { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; font-size: 14px; gap: 4px; }
+    .status-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    .bingo-caller-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); min-height: 110px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .caller-title { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .current-number-display { font-size: 32px; font-weight: 900; line-height: 1.1; margin: 4px 0; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .caller-img { height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); border-radius: 4px; }
+
+    .grid-container { position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
+    .grid { display: grid; gap: 6px; grid-template-columns: repeat(5, 1fr); }
+
+    .tile { aspect-ratio: 1; background-color: #e2e8f0; border: 2px dashed #94a3b8; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; padding: 4px; }
+    .tile img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+    .tile:hover { transform: scale(1.04); }
+    .tile.selected { border: 3px solid #3b82f6; background-color: #eff6ff; }
+    
+    .tile.hit { background-color: #10b981; border: 3px solid #059669; transform: scale(0.96); box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
+    .tile.miss { background-color: #f1f5f9; opacity: 0.6; }
+
+    .picker-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 6px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 8px; }
+    .picker-item { aspect-ratio: 1; background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px; cursor: pointer; }
+    .picker-item img { width: 100%; height: 100%; object-fit: contain; }
+    .picker-item.picked { border: 2px solid #ef4444; opacity: 0.4; pointer-events: none; }
+
+    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
+    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
+    .leaderboard-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
+    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
+    .sub-info { font-size: 11px; color: #64748b; margin-left: 4px; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
+    
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; backdrop-filter: blur(4px); }
+    .ended-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .hidden { display: none !important; }
+    .disabled-area { opacity: 0.5; pointer-events: none; }
+  </style>
+
+  <!-- 防 F12 腳本 -->
+  <script>
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && ['U','u'].includes(e.key)) { e.preventDefault(); return false; }
+    });
+
+    setInterval(() => {
+      const startTime = performance.now();
+      (function() { return false; }).constructor("debugger")();
+      const endTime = performance.now();
+      if (endTime - startTime > 100) {
+        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
+      }
+    }, 500);
+  </script>
+
+  <!-- JS 模組載入 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+      authDomain: "gogogame-ce8ba.firebaseapp.com",
+      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+      projectId: "gogogame-ce8ba",
+      storageBucket: "gogogame-ce8ba.firebasestorage.app",
+      messagingSenderId: "823932242561",
+      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 建立 1~99 圖片字典
+    const numberImages = {};
+    for (let i = 1; i <= 99; i++) {
+      numberImages[i] = `https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images/farm (${i + 1}).png`;
+    }
+
+    let eventId = null;
+    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
+    let playerName = '';
+    let totalRounds = 1; // 總局數
+    let currentRound = 1; // 當前局數
+    let roundIntervalSec = 60; // 局間隔 (秒)
+    let callIntervalMs = 2000; // 叫號速度
+    let startTimeMs = 0;
+    
+    // 今彩 539 狀態
+    let selectedPicks = []; // 玩家選的 5 張圖 ID
+    let currentDrawnPicks = []; // 叫號開出的 5 張圖 ID
+    let isLockedIn = false;
+    let activeSlotIndex = -1;
+    
+    let callerTimer = null;
+    let waitTimer = null;
+    let roundTimer = null;
+    let eventRef = null;
+    let currentLeaderboard = {};
+    let isGameActive = false;
+    let globalCallList = []; // 全國一致的 5 個開獎圖
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
+      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
+      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
+      document.getElementById('create-event-btn').addEventListener('click', createEvent);
+      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
+      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
+      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
+      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
+      document.getElementById('copy-board-btn').addEventListener('click', function() { copyBoardToClipboard(this); });
+      document.getElementById('lock-picks-btn').addEventListener('click', lockUserPicks);
+
+      // 預設開賽時間為 1 分鐘後
+      const now = new Date();
+      const startDef = new Date(now.getTime() + 60000);
+      document.getElementById('admin-starttime-input').value = formatDateForInput(startDef);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventParam = urlParams.get('event');
+
+      if (eventParam) {
+        document.getElementById('main-setup-view').classList.add('hidden');
+        eventId = eventParam;
+        
+        get(ref(db, 'events_539_v1/' + eventId)).then((snapshot) => {
+          if (!snapshot.exists()) {
+            alert('找不到該活動代號！');
+            document.getElementById('main-setup-view').classList.remove('hidden');
+            return;
+          }
+
+          const data = snapshot.val();
+          
+          // 檢查活動是否結束
+          if (data.isEnded) {
+            showEventEndedView('本次今彩539活動已結束');
+            return;
+          }
+
+          // 判斷是否已超過開賽時間
+          if (data.startTime && Date.now() > data.startTime) {
+            showEventEndedView('比賽已開始，下次請早');
+            return;
+          }
+
+          document.getElementById('input-event-id').value = eventId;
+          document.getElementById('join-modal').classList.remove('hidden');
+        }).catch((error) => {
+          alert('讀取活動失敗：' + error.message);
+          document.getElementById('main-setup-view').classList.remove('hidden');
+        });
+      }
+      
+      renderPickerOptions();
+    });
+
+    function formatDateForInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function showEventEndedView(msg = '本次活動已結束') {
+      document.getElementById('main-setup-view').classList.add('hidden');
+      document.getElementById('join-modal').classList.add('hidden');
+      document.getElementById('player-game-view').classList.add('hidden');
+      
+      document.getElementById('ended-title-text').innerText = msg;
+      document.getElementById('event-ended-view').classList.remove('hidden');
+
+      onValue(ref(db, `events_539_v1/${eventId}`), (snap) => {
+        const evData = snap.val();
+        if (evData) {
+          renderLeaderboard('ended-leaderboard-list', evData.scores || {});
+        }
+      });
+    }
+
+    /* ---------------- 管理者機制 ---------------- */
+    function openAdminModal() {
+      document.getElementById('pwd-modal').classList.remove('hidden');
+    }
+
+    function checkPassword() {
+      const pwd = document.getElementById('admin-pwd').value;
+      if (pwd === '17696969') {
+        document.getElementById('pwd-modal').classList.add('hidden');
+        document.getElementById('setting-fields').classList.remove('disabled-area');
+        document.getElementById('admin-create-actions').classList.remove('hidden');
+        
+        const unlockBtn = document.getElementById('admin-unlock-btn');
+        unlockBtn.innerText = '✅ 管理者權限已解鎖';
+        unlockBtn.classList.add('btn-success-state');
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+
+    function createEvent() {
+      const startTimeStr = document.getElementById('admin-starttime-input').value;
+
+      if (!startTimeStr) return alert('請先設定「活動開始時間」！');
+
+      totalRounds = parseInt(document.getElementById('admin-rounds-input').value) || 1;
+      roundIntervalSec = parseInt(document.getElementById('admin-interval-input').value) || 60;
+
+      const speedSecInput = parseFloat(document.getElementById('admin-speed-input').value);
+      if (isNaN(speedSecInput) || speedSecInput <= 0) return alert('請輸入有效的叫號速度！');
+      callIntervalMs = Math.round(speedSecInput * 1000);
+
+      const noteText = document.getElementById('admin-note-input').value.trim();
+      const calculatedStartMs = new Date(startTimeStr).getTime();
+
+      eventId = Math.floor(100000 + Math.random() * 900000).toString();
+      eventRef = ref(db, 'events_539_v1/' + eventId);
+
+      const seed = Math.floor(Math.random() * 1000000);
+
+      set(eventRef, {
+        totalRounds: totalRounds,
+        currentRound: 1,
+        roundIntervalSec: roundIntervalSec,
+        callIntervalMs: callIntervalMs,
+        startTime: calculatedStartMs,
+        seed: seed,
+        isEnded: false,
+        note: noteText,
+        scores: {}
+      }).then(() => {
+        const roomNumEl = document.getElementById('room-num-display');
+        roomNumEl.innerText = eventId;
+        roomNumEl.classList.remove('ended');
+        
+        document.getElementById('admin-action-area').classList.remove('hidden');
+        alert(`🎉 今彩539賽事建立成功！代號：${eventId}`);
+      }).catch((error) => {
+        alert('建立失敗：' + error.message);
+      });
+
+      onValue(eventRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        checkRoomStatus(data);
+        currentLeaderboard = data.scores || {};
+        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
+      });
+    }
+
+    function checkRoomStatus(data) {
+      const roomNumEl = document.getElementById('room-num-display');
+      if (!roomNumEl) return;
+
+      const now = Date.now();
+      const totalRoundsNum = data.totalRounds || 1;
+      const intervalSec = data.roundIntervalSec || 60;
+      const callMs = data.callIntervalMs || 2000;
+      const totalCallSecPerRound = 5 * (callMs / 1000); // 一局 5 張牌總叫號時間
+
+      const totalEndTimeMs = (data.startTime || now) + (totalRoundsNum * intervalSec * 1000) + (totalRoundsNum * totalCallSecPerRound * 1000);
+
+      if (data.isEnded || now > totalEndTimeMs) {
+        roomNumEl.innerText = '比賽結束';
+        roomNumEl.classList.add('ended');
+      } else {
+        roomNumEl.innerText = `${eventId} (第${data.currentRound || 1}/${data.totalRounds || 1}局)`;
+        roomNumEl.classList.remove('ended');
+      }
+    }
+
+    function copyEventLink(btn) {
+      if (!eventId) return;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const fullLink = `${baseUrl}?event=${eventId}`;
+      const speedText = (callIntervalMs / 1000) + ' 秒/張';
+      const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
+      const noteText = document.getElementById('admin-note-input').value.trim() || '無';
+
+      let copyMsg = `🎰 今彩539 圖片對獎賽\n`;
+      copyMsg += `🔗 挑戰連結：${fullLink}\n`;
+      copyMsg += `⏰ 開賽時間：${startText}\n`;
+      copyMsg += `🎲 賽事局數：總共 ${totalRounds} 局 (每局間隔 ${roundIntervalSec} 秒)\n`;
+      copyMsg += `⚡ 叫號速度：${speedText}\n`;
+      copyMsg += `💡 規則：從圖庫選5張圖片，統一開賽隨機叫號5張，對中越多張分數越高！\n`;
+      copyMsg += `📝 備註：${noteText}\n`;
+
+      navigator.clipboard.writeText(copyMsg).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結');
+      }).catch(() => {});
+    }
+
+    function copyScores(btn) {
+      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) {
+        return alert('目前尚無玩家成績！');
+      }
+      const sorted = Object.values(currentLeaderboard).sort((a, b) => (b.hits || 0) - (a.hits || 0));
+      let text = `🏆【今彩539 圖片賽 - 排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      sorted.forEach((p, idx) => { 
+        text += `第 ${idx + 1} 名: ${p.name} - 中獎: ${p.hits || 0} 張圖\n`; 
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製總成績！', '🏆 複製總排行榜成績');
+      }).catch(() => {});
+    }
+
+    function triggerButtonFeedback(btnElement, activeText, originalText) {
+      if (!btnElement) return;
+      btnElement.innerText = activeText;
+      btnElement.classList.add('btn-success-state');
+      setTimeout(() => {
+        btnElement.innerText = originalText;
+        btnElement.classList.remove('btn-success-state');
+      }, 1200);
+    }
+
+    function openJoinModalNewTab() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const targetUrl = eventId ? `${baseUrl}?event=${eventId}` : baseUrl;
+      window.open(targetUrl, '_blank');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    /* ---------------- 虛擬偽隨機算法 (生成每局 5 張開獎圖) ---------------- */
+    function pseudoRandom(seed) {
+      let value = seed;
+      return function() {
+        value = (value * 9301 + 49297) % 233280;
+        return value / 233280;
+      };
+    }
+
+    function generateRoundCalls(seed, roundIndex) {
+      const rng = pseudoRandom(seed + roundIndex * 999);
+      const list = Array.from({ length: 99 }, (_, i) => i + 1);
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [list[i], list[j]] = [list[j], list[i]];
+      }
+      return list.slice(0, 5); // 開出前 5 張
+    }
+
+    /* ---------------- 玩家對對樂邏輯 ---------------- */
+    function joinIndividualGame() {
+      const inputEvent = document.getElementById('input-event-id').value.trim();
+      const inputName = document.getElementById('input-player-name').value.trim();
+
+      if (!inputEvent) return alert('請輸入活動代號！');
+      if (!inputName) return alert('請輸入暱稱！');
+
+      eventId = inputEvent;
+      playerName = inputName;
+      eventRef = ref(db, 'events_539_v1/' + eventId);
+
+      get(eventRef).then((snapshot) => {
+        if (!snapshot.exists()) return alert('找不到該活動代號！');
+
+        const data = snapshot.val();
+        
+        if (data.isEnded) {
+          showEventEndedView('本次今彩539活動已結束');
+          return;
+        }
+
+        if (data.startTime && Date.now() > data.startTime) {
+          showEventEndedView('比賽已開始，下次請早');
+          return;
+        }
+
+        totalRounds = data.totalRounds || 1;
+        currentRound = data.currentRound || 1;
+        roundIntervalSec = data.roundIntervalSec || 60;
+        callIntervalMs = data.callIntervalMs || 2000;
+        startTimeMs = data.startTime || Date.now();
+
+        document.getElementById('join-modal').classList.add('hidden');
+        document.getElementById('main-setup-view').classList.add('hidden');
+        document.getElementById('player-game-view').classList.remove('hidden');
+
+        document.getElementById('player-name-display').innerText = playerName;
+
+        onValue(eventRef, (snap) => {
+          const evData = snap.val();
+          if (evData) {
+            renderLeaderboard('player-leaderboard-list', evData.scores || {});
+            if (evData.isEnded) {
+              endGameEntirely('🛑 比賽已全部結束！');
+            }
+          }
+        });
+
+        initPlayerRound(data);
+      }).catch((error) => {
+        alert('讀取活動失敗：' + error.message);
+      });
+    }
+
+    function initPlayerRound(data) {
+      selectedPicks = []; // 改為空白，不預設圖片
+      isLockedIn = false;
+      activeSlotIndex = -1;
+      currentDrawnPicks = [];
+      
+      globalCallList = generateRoundCalls(data.seed || 12345, data.currentRound || 1);
+
+      document.getElementById('round-tag-display').innerText = `第 ${data.currentRound}/${data.totalRounds} 局`;
+      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
+      document.getElementById('hits-display').innerText = '0';
+      
+      document.getElementById('lock-picks-btn').classList.remove('hidden');
+      document.getElementById('picker-area').classList.remove('hidden');
+
+      renderPlayerBoard();
+      renderPickerOptions();
+
+      // 監控倒數與開賽
+      monitorGameStart();
+    }
+
+    function renderPlayerBoard() {
+      const gridEl = document.getElementById('grid');
+      gridEl.innerHTML = '';
+
+      for (let i = 0; i < 5; i++) {
+        const val = selectedPicks[i];
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        if (i === activeSlotIndex && !isLockedIn) tile.classList.add('selected');
+
+        if (currentDrawnPicks.length > 0 && val) {
+          if (currentDrawnPicks.includes(val)) {
+            tile.classList.add('hit');
+          } else {
+            tile.classList.add('miss');
+          }
+        }
+
+        if (val && numberImages[val]) {
+          const img = document.createElement('img');
+          img.src = numberImages[val];
+          img.alt = val;
+          img.crossOrigin = "anonymous";
+          tile.appendChild(img);
+        }
+
+        tile.onclick = () => {
+          if (isLockedIn || isGameActive) return;
+          activeSlotIndex = i;
+          renderPlayerBoard();
+        };
+
+        gridEl.appendChild(tile);
+      }
+    }
+
+    function renderPickerOptions() {
+      const pickerEl = document.getElementById('picker-grid');
+      pickerEl.innerHTML = '';
+
+      for (let i = 1; i <= 99; i++) {
+        const item = document.createElement('div');
+        item.className = 'picker-item';
+        if (selectedPicks.includes(i)) item.classList.add('picked');
+
+        const img = document.createElement('img');
+        img.src = numberImages[i];
+        img.alt = i;
+        img.crossOrigin = "anonymous";
+        item.appendChild(img);
+
+        item.onclick = () => {
+          if (isLockedIn || isGameActive) return;
+
+          if (activeSlotIndex === -1) {
+            // 自動尋找第一個空的槽位
+            const nextEmptyIndex = Array.from({ length: 5 }, (_, k) => k).find(idx => !selectedPicks[idx]);
+            activeSlotIndex = nextEmptyIndex !== undefined ? nextEmptyIndex : 0;
+          }
+
+          selectedPicks[activeSlotIndex] = i;
+          
+          // 自動推進至下一個空槽位
+          const nextEmptyIndex = Array.from({ length: 5 }, (_, k) => k).find(idx => !selectedPicks[idx]);
+          activeSlotIndex = nextEmptyIndex !== undefined ? nextEmptyIndex : -1;
+
+          renderPlayerBoard();
+          renderPickerOptions();
+        };
+
+        pickerEl.appendChild(item);
+      }
+    }
+
+    function lockUserPicks() {
+      const validPicks = selectedPicks.filter(val => val !== undefined && val !== null);
+      if (validPicks.length < 5 || new Set(validPicks).size < 5) return alert('請選擇 5 張不重複的圖片！');
+      isLockedIn = true;
+      document.getElementById('lock-picks-btn').classList.add('hidden');
+      document.getElementById('picker-area').classList.add('hidden');
+      // 已取消 alert 彈窗提示
+    }
+
+    function monitorGameStart() {
+      if (waitTimer) clearInterval(waitTimer);
+
+      waitTimer = setInterval(() => {
+        const now = Date.now();
+        const diffSec = Math.ceil((startTimeMs - now) / 1000);
+
+        if (diffSec <= 0) {
+          clearInterval(waitTimer);
+          if (!isLockedIn) lockUserPicks(); // 強制鎖定
+          startRoundCalling();
+        } else {
+          document.getElementById('caller-title-label').innerText = 'COUNTDOWN 開賽倒數';
+          document.getElementById('current-call-number').innerText = diffSec + 's';
+        }
+      }, 500);
+    }
+
+    function startRoundCalling() {
+      isGameActive = true;
+      document.getElementById('caller-title-label').innerText = 'START CALLING 開獎號碼';
+      document.getElementById('current-call-number').innerHTML = '';
+
+      let drawIndex = 0;
+      currentDrawnPicks = [];
+
+      if (callerTimer) clearInterval(callerTimer);
+
+      callerTimer = setInterval(() => {
+        if (drawIndex < globalCallList.length) {
+          const drawnVal = globalCallList[drawIndex];
+          currentDrawnPicks.push(drawnVal);
+
+          // 顯示目前開出的圖片列表
+          const callDisplay = document.getElementById('current-call-number');
+          const img = document.createElement('img');
+          img.src = numberImages[drawnVal];
+          img.className = 'caller-img';
+          img.crossOrigin = "anonymous";
+          callDisplay.appendChild(img);
+
+          drawIndex++;
+        } else {
+          clearInterval(callerTimer);
+          evaluateRoundResult();
+        }
+      }, callIntervalMs);
+    }
+
+    function evaluateRoundResult() {
+      isGameActive = false;
+      let hits = 0;
+
+      selectedPicks.forEach(val => {
+        if (currentDrawnPicks.includes(val)) hits++;
+      });
+
+      document.getElementById('hits-display').innerText = hits;
+      renderPlayerBoard();
+
+      // 上傳分數
+      get(ref(db, `events_539_v1/${eventId}/scores/${playerId}`)).then((snap) => {
+        const oldHits = snap.exists() ? (snap.val().hits || 0) : 0;
+        update(ref(db, `events_539_v1/${eventId}/scores/${playerId}`), {
+          name: playerName,
+          hits: oldHits + hits,
+          timestamp: Date.now()
+        });
+      });
+
+      // 檢查下一局或結束
+      if (currentRound < totalRounds) {
+        let prepareNextSec = roundIntervalSec;
+        document.getElementById('caller-title-label').innerText = 'NEXT ROUND 下局倒數';
+
+        // 重置選號狀態，讓玩家在倒數期間即可重新挑選圖片
+        isLockedIn = false;
+        selectedPicks = [];
+        activeSlotIndex = -1;
+        currentDrawnPicks = [];
+        
+        document.getElementById('lock-picks-btn').classList.remove('hidden');
+        document.getElementById('picker-area').classList.remove('hidden');
+        renderPlayerBoard();
+        renderPickerOptions();
+
+        if (roundTimer) clearInterval(roundTimer);
+
+        roundTimer = setInterval(() => {
+          document.getElementById('current-call-number').innerText = `${prepareNextSec}s`;
+
+          if (prepareNextSec <= 0) {
+            clearInterval(roundTimer);
+            currentRound++;
+            
+            // 間隔倒數完直接開賽
+            if (!isLockedIn) {
+              const validPicks = selectedPicks.filter(val => val !== undefined && val !== null);
+              if (validPicks.length < 5 || new Set(validPicks).size < 5) {
+                // 若選號未滿 5 張，自動隨機補滿
+                while (selectedPicks.length < 5) {
+                  const rand = Math.floor(Math.random() * 99) + 1;
+                  if (!selectedPicks.includes(rand)) selectedPicks.push(rand);
+                }
+              }
+              isLockedIn = true;
+            }
+
+            document.getElementById('lock-picks-btn').classList.add('hidden');
+            document.getElementById('picker-area').classList.add('hidden');
+            document.getElementById('round-tag-display').innerText = `第 ${currentRound}/${totalRounds} 局`;
+            
+            globalCallList = generateRoundCalls(Date.now(), currentRound);
+            startRoundCalling();
+          }
+
+          prepareNextSec--;
+        }, 1000);
+      } else {
+        endGameEntirely('🎉 所有局數均已比賽完畢！');
+      }
+    }
+
+    function endGameEntirely(msg) {
+      document.getElementById('bingo-caller-block').classList.add('hidden');
+      document.getElementById('ended-action-block').classList.remove('hidden');
+      document.getElementById('ended-reason-text').innerText = msg;
+    }
+
+    function copyBoardToClipboard(btnElement) {
+      const captureArea = document.getElementById('capture-board-area');
+
+      html2canvas(captureArea, { 
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      }).then(canvas => {
+        canvas.toBlob(blob => {
+          if (!blob) return alert('複製畫面失敗！');
+          
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            navigator.clipboard.write([item]).then(() => {
+              triggerButtonFeedback(btnElement, '✅ 盤面畫面已成功複製！', '📋 複製盤面畫面');
+            }).catch(err => {
+              alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
+            });
+          } catch (e) {
+            alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
+          }
+        }, 'image/png');
+      });
+    }
+
+    function renderLeaderboard(elementId, scoresObj) {
+      const lbEl = document.getElementById(elementId);
+      if (!lbEl) return;
+
+      const sorted = Object.entries(scoresObj || {})
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => (b.hits || 0) - (a.hits || 0));
+
+      lbEl.innerHTML = sorted.map((p, idx) => {
+        return `
+          <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
+            <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
+            <div>
+              <span>中獎: <b>${p.hits || 0}</b> 張</span>
+            </div>
+          </div>
+        `;
+      }).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
+    }
+  </script>
+</head>
+<body>
+
+<!-- 彈窗 1：管理者驗證密碼 -->
+<div id="pwd-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom: 12px; color: #1e293b;">🔒 解鎖管理者設定</h3>
+    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button id="pwd-check-btn" class="btn-primary">確認</button>
+      <button id="pwd-cancel-btn" class="btn-primary btn-admin">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 彈窗 2：玩家暱稱輸入 -->
+<div id="join-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom: 8px; color: #1e293b;">🎰 參加今彩539對對樂</h3>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">請輸入您的暱稱以加入賽事</p>
+    <input type="text" id="input-event-id" class="input-box" placeholder="活動代號" style="display: none;">
+    <input type="text" id="input-player-name" class="input-box" placeholder="請輸入你的暱稱">
+    <button id="join-game-btn" class="btn-primary btn-start" style="margin-top: 8px;">進入選號盤面</button>
+  </div>
+</div>
+
+<!-- 視圖：活動結束頁面 -->
+<div id="event-ended-view" class="ended-card hidden">
+  <div class="ended-icon">🏁</div>
+  <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次今彩539活動已結束</h2>
+  <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">感謝大家的熱烈參與！以下為本次比賽總排行榜：</p>
+  
+  <div class="leaderboard" style="margin-top: 0;">
+    <div class="leaderboard-title">🏆 最終總排行榜</div>
+    <div id="ended-leaderboard-list"></div>
+  </div>
+</div>
+
+<!-- 主介面 1：管理者發起活動建立 -->
+<div id="main-setup-view" class="container">
+  <h1>🎰 今彩539 圖片對獎賽</h1>
+
+  <button id="admin-unlock-btn" class="btn-primary btn-admin" style="margin-bottom: 16px;">🔓 點此輸入密碼解鎖管理者設定</button>
+
+  <div id="setting-fields" class="disabled-area">
+    <div class="menu-group">
+      <label>1. 統一開賽時間</label>
+      <input type="datetime-local" id="admin-starttime-input" class="input-box">
+    </div>
+
+    <div class="menu-group">
+      <label>2. 設定總局數 (可進行多局累積總分)</label>
+      <input type="number" id="admin-rounds-input" class="input-box" value="3" min="1" placeholder="例如: 3">
+    </div>
+
+    <div class="menu-group">
+      <label>3. 每局間隔時間 (秒)</label>
+      <input type="number" id="admin-interval-input" class="input-box" value="60" min="10" placeholder="例如: 60">
+    </div>
+
+    <div class="menu-group">
+      <label>4. 叫號速度 (秒/張)</label>
+      <input type="number" step="0.5" id="admin-speed-input" class="input-box" value="2" min="0.5" placeholder="例如: 2">
+    </div>
+
+    <div class="menu-group">
+      <label>5. 比賽備註說明 (可不填)</label>
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例如：猜中5張獲贈大獎！">
+    </div>
+  </div>
+
+  <div id="admin-create-actions" class="hidden">
+    <button id="create-event-btn" class="btn-primary btn-start">🚀 建立今彩539賽事</button>
+  </div>
+
+  <div id="admin-action-area" class="hidden">
+    <div class="room-display-box">
+      <div style="font-size: 13px; color: #64748b;">房間號碼與進度</div>
+      <div id="room-num-display" class="room-number">------</div>
+    </div>
+
+    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+      <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
+      <button id="open-newtab-btn" class="btn-primary">↗️ 開啟對戰分頁</button>
+      <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製總排行榜成績</button>
+    </div>
+
+    <div class="leaderboard">
+      <div class="leaderboard-title">📊 玩家排行榜</div>
+      <div id="admin-leaderboard-list"></div>
+    </div>
+  </div>
+
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
+</div>
+
+<!-- 主介面 2：玩家挑戰對戰畫面 -->
+<div id="player-game-view" class="container hidden">
+  <div id="capture-board-area" style="background: white; padding: 12px; border-radius: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h1 style="margin-bottom: 0; font-size: 20px;">🎰 今彩539 戰報</h1>
+      <span id="room-tag-display" style="font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-weight: bold; color: #475569;"></span>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item">👤 玩家: <span id="player-name-display">--</span></div>
+      <div class="status-item">🎲 局數: <span id="round-tag-display" style="color: #2563eb;">--</span></div>
+      <div class="status-item">🎯 命中: <span id="hits-display" style="color: #10b981; font-size: 16px;">0</span> 張</div>
+    </div>
+
+    <div id="bingo-caller-block" class="bingo-caller-box">
+      <div id="caller-title-label" class="caller-title">CURRENT CALL 開獎號碼</div>
+      <div id="current-call-number" class="current-number-display">--</div>
+    </div>
+
+    <div id="ended-action-block" class="bingo-caller-box hidden" style="background: linear-gradient(135deg, #334155, #475569);">
+      <div id="ended-reason-text" style="font-size: 15px; font-weight: bold; color: #fde047;">比賽已結束</div>
+    </div>
+
+    <!-- 玩家選號 5 張盤面 -->
+    <div class="grid-container">
+      <div id="grid" class="grid"></div>
+    </div>
+
+    <!-- 選擇圖庫區塊 -->
+    <div id="picker-area">
+      <div style="font-size: 13px; font-weight: bold; color: #475569; text-align: left; margin-top: 8px;">請選擇下方圖庫替換上方圖片：</div>
+      <div id="picker-grid" class="picker-grid"></div>
+      <button id="lock-picks-btn" class="btn-primary btn-start" style="margin-top: 8px;">🔒 準備完畢 (鎖定選號)</button>
+    </div>
+  </div>
+
+  <button id="copy-board-btn" class="btn-primary btn-copy" style="margin-top: 12px; margin-bottom: 12px;">📋 複製盤面畫面</button>
+
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 全國總排行榜</div>
+    <div id="player-leaderboard-list"></div>
+  </div>
+</div>
+
+</body>
+</html>
