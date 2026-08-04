@@ -409,6 +409,7 @@
 
         /* 得獎格：顯眼的亮金色漸層 + 亮眼邊框光芒 */
         .cell.winning {
+            background: #ffe082;
             background: linear-gradient(135deg, #fff9c4, #ffe082);
             color: #b71c1c;
             border: 2px solid #ffa000;
@@ -443,13 +444,14 @@
             text-overflow: ellipsis;
         }
 
-        /* 未開格 (封面) 樣式：Tiffany 藍漸層 + 白色問號 (修正渲染問題) */
+        /* 未開格 (封面) 樣式：修正色差問題 (移除非必要的 translateZ 與硬體加速渲染問題) */
         .paper {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            background-color: #4dd0e1;
             background: linear-gradient(135deg, #80deea, #26c6da);
             display: flex;
             align-items: center;
@@ -464,7 +466,6 @@
             transition: transform 0.15s ease, filter 0.2s;
             user-select: none;
             z-index: 2;
-            transform: translateZ(0);
         }
 
         .paper:hover {
@@ -474,6 +475,59 @@
 
         .paper.poked {
             display: none;
+        }
+
+        /* 未開出獎品清單樣式：一列二欄呈現 */
+        .unopened-prizes-box {
+            width: 100%;
+            background: #ffffff;
+            border: 2px dashed #ffb74d;
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .unopened-prizes-title {
+            font-size: 0.88rem;
+            font-weight: bold;
+            color: #e65100;
+            margin-bottom: 8px;
+            text-align: center;
+            border-bottom: 1px dashed #ffe0b2;
+            padding-bottom: 4px;
+        }
+
+        .unopened-prizes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px 12px;
+        }
+
+        .unopened-prize-item {
+            font-size: 0.8rem;
+            color: #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff8e1;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #ffe082;
+        }
+
+        .unopened-prize-name {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+        }
+
+        .unopened-prize-count {
+            color: #d32f2f;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
         .footer-row {
@@ -589,7 +643,6 @@
                         <label for="totalCount">格子數量：</label>
                         <input type="number" id="totalCount" value="36" min="5" step="1">
                     </div>
-                    <!-- 新增限制每人戳的次數設定 -->
                     <div class="input-row">
                         <label for="maxPokesPerUser">每人次數：</label>
                         <input type="number" id="maxPokesPerUser" value="1" min="1" step="1">
@@ -597,6 +650,11 @@
                     <div class="input-row">
                         <label for="eventNote">備註說明：</label>
                         <input type="text" id="eventNote" value="每人限抽一次">
+                    </div>
+                    <!-- 新增是否顯示未開出獎品清單選項 -->
+                    <div class="input-row" style="margin-top: 4px;">
+                        <input type="checkbox" id="showUnopenedPrizes" checked style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="showUnopenedPrizes" style="font-weight: bold; color: #d32f2f; cursor: pointer;">顯示未開出獎品清單</label>
                     </div>
                 </div>
                 
@@ -629,8 +687,6 @@
                     <a href="#player" target="_blank" class="btn-action btn-orange">🚀 開啟玩家連線頁</a>
                     <button class="btn-action btn-purple" id="copyPlayerInfoBtn" onclick="copyPlayerInfo()">📋 複製戳戳網址</button>
                 </div>
-
-              
             </div>
 
             <!-- 截圖與即時開獎面板 -->
@@ -642,7 +698,16 @@
                         <div>🎁 剩餘大獎：<span class="prizes-count" id="remainingPrizesCount">0 / 0</span></div>
                     </div>
                 </div>
+                
+                <!-- 戳戳樂主區塊 -->
                 <div class="poke-box" id="mainPokeBox"></div>
+
+                <!-- 開獎區塊下方：未開出獎品清單 (一列二欄) -->
+                <div class="unopened-prizes-box" id="mainUnopenedBox" style="display: none;">
+                    <div class="unopened-prizes-title">🎁 未開出獎品清單</div>
+                    <div class="unopened-prizes-grid" id="mainUnopenedList"></div>
+                </div>
+
                 <div class="footer-row">
                     <div class="note-display" id="noteDisplay">※ 每人限抽一次 ※</div>
                     <div class="copyright-display">©2026乳蕉四妻🐸</div>
@@ -657,7 +722,6 @@
             <div class="winner-list-panel">
                 <h3>🏆 開獎即時紀錄</h3>
                 <div id="winnerTableContainer"><div class="no-data">尚無開獎紀錄</div></div>
-                 <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
             </div>
         </div>
     </div>
@@ -689,7 +753,15 @@
                     </div>
                 </div>
 
+                <!-- 戳戳樂主區塊 -->
                 <div class="poke-box" id="playerPokeBox"></div>
+
+                <!-- 開獎區塊下方：未開出獎品清單 (一列二欄) -->
+                <div class="unopened-prizes-box" id="playerUnopenedBox" style="display: none;">
+                    <div class="unopened-prizes-title">🎁 未開出獎品清單</div>
+                    <div class="unopened-prizes-grid" id="playerUnopenedList"></div>
+                </div>
+
                 <div class="footer-row">
                     <div class="note-display" id="playerNoteDisplay">※ 每人限抽一次 ※</div>
                     <div class="copyright-display">©2026乳蕉四妻🐸</div>
@@ -700,48 +772,39 @@
 
     <script>
         // ==================== 0. 防 F12 與盜取保護機制 ====================
-        // 禁用右鍵選單
         document.addEventListener('contextmenu', function (e) {
             e.preventDefault();
         });
 
-        // 禁用常見開發者工具快捷鍵
         document.addEventListener('keydown', function (e) {
-            // 禁用 F12
             if (e.key === 'F12' || e.keyCode === 123) {
                 e.preventDefault();
                 return false;
             }
-            // 禁用 Ctrl+Shift+I / J / C (Mac: Cmd+Alt+I / J / C)
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
                 e.preventDefault();
                 return false;
             }
-            // 禁用 Ctrl+U (檢視原始碼)
             if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
                 e.preventDefault();
                 return false;
             }
-            // 禁用 Ctrl+S (存檔)
             if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's')) {
                 e.preventDefault();
                 return false;
             }
         });
 
-        // Debugger 干擾（強行開啟 DevTools 時會觸發無限斷點卡死）
         setInterval(function () {
             const startTime = performance.now();
             (function () {
                 return false;
             })["constructor"]("debugger")();
             const endTime = performance.now();
-            if (endTime - startTime > 100) {
-                // 可在此處執行卡死或自動跳轉
-            }
+            if (endTime - startTime > 100) {}
         }, 500);
 
-        // ==================== 1. Firebase 設定 (已置換為全站全新專案) ====================
+        // ==================== 1. Firebase 設定 ====================
         const firebaseConfig = {
             apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
             authDomain: "gogogame-ce8ba.firebaseapp.com",
@@ -762,7 +825,7 @@
         let currentPlayerName = "";
         const ADMIN_DEFAULT_PASS = "594200"; // 主頁面管理者密碼
 
-        // 時間格式化工具 (YYYY-MM-DD HH:mm:ss)
+        // 時間格式化工具
         function formatDate(timestamp) {
             if (!timestamp) return "-";
             const date = new Date(timestamp);
@@ -775,7 +838,6 @@
             return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
         }
 
-        // 時間格式化工具 (不含秒 YYYY-MM-DD HH:mm)
         function formatShortDate(timestamp) {
             if (!timestamp) return "";
             const date = new Date(timestamp);
@@ -787,7 +849,6 @@
             return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
         }
 
-        // 時鐘功能 (同步更新管理員與玩家介面)
         function updateClock() {
             const nowFormatted = formatDate(Date.now());
             const adminEl = document.getElementById('clock');
@@ -797,7 +858,6 @@
         }
         setInterval(updateClock, 1000);
 
-        // 管理員主頁面登入驗證
         function loginAdmin() {
             const pass = document.getElementById('inputAdminPass').value.trim();
             if (pass === ADMIN_DEFAULT_PASS) {
@@ -808,7 +868,6 @@
             }
         }
 
-        // 頁面切換機制
         function switchView(viewName) {
             const mainHeader = document.getElementById('mainTitleHeader');
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -822,7 +881,6 @@
             }
         }
 
-        // 一鍵複製玩家網址與完整活動資訊
         async function copyPlayerInfo() {
             const baseUrl = window.location.href.split('#')[0];
             const playerUrl = baseUrl + "#player";
@@ -851,13 +909,11 @@
             }
         }
 
-        // 監聽網址 Hash 切換
         window.onhashchange = function() {
             if(location.hash === '#player') switchView('player');
             else switchView('main');
         };
 
-        // 切換模式 A / B
         function switchMode(mode) {
             activeMode = mode;
             document.querySelectorAll('.tab-btn')[0].classList.toggle('active', mode === 'A');
@@ -866,7 +922,6 @@
             document.getElementById('modeB').classList.toggle('active', mode === 'B');
         }
 
-        // 新增獎品列並自動聚焦
         function addPrizeRow() {
             const container = document.getElementById('prizeListContainer');
             const row = document.createElement('div');
@@ -877,7 +932,6 @@
                 <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
             `;
             container.appendChild(row);
-            
             row.querySelector('.a-prize-name').focus();
         }
 
@@ -903,6 +957,7 @@
             const note = document.getElementById('eventNote').value.trim();
             const totalCells = parseInt(document.getElementById('totalCount').value) || 36;
             const maxPokesPerUser = Math.max(1, parseInt(document.getElementById('maxPokesPerUser').value) || 1);
+            const showUnopenedPrizes = document.getElementById('showUnopenedPrizes').checked;
 
             if(!password) {
                 alert("請務必設定玩家頁連線密碼！");
@@ -946,6 +1001,7 @@
                 note: note,
                 totalCells: totalCells,
                 maxPokesPerUser: maxPokesPerUser,
+                showUnopenedPrizes: showUnopenedPrizes,
                 cells: cellsData,
                 updatedAt: Date.now()
             };
@@ -965,6 +1021,46 @@
             renderPlayerBoard(data);
             renderWinnerTable(data);
         });
+
+        // 核心功能：計算未開出的大獎清單
+        function calculateUnopenedPrizes(cells) {
+            const unopenedMap = {};
+            cells.forEach(cell => {
+                if (!cell.isPoked && !cell.prize.includes("烏龜")) {
+                    unopenedMap[cell.prize] = (unopenedMap[cell.prize] || 0) + 1;
+                }
+            });
+            return unopenedMap;
+        }
+
+        // 渲染未開出大獎清單（一列二欄）
+        function renderUnopenedBox(boxEl, listEl, showFlag, cells) {
+            if (!showFlag) {
+                boxEl.style.display = "none";
+                return;
+            }
+
+            const unopenedMap = calculateUnopenedPrizes(cells);
+            const prizeKeys = Object.keys(unopenedMap);
+
+            if (prizeKeys.length === 0) {
+                boxEl.style.display = "block";
+                listEl.innerHTML = `<div style="grid-column: span 2; text-align: center; color: #888; font-size: 0.8rem;">🎉 所有大獎已全部開出！</div>`;
+                return;
+            }
+
+            boxEl.style.display = "block";
+            let html = "";
+            prizeKeys.forEach(name => {
+                html += `
+                    <div class="unopened-prize-item">
+                        <span class="unopened-prize-name" title="${name}">🎁 ${name}</span>
+                        <span class="unopened-prize-count">剩 ${unopenedMap[name]} 份</span>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
 
         // 渲染主控頁面
         function renderMainBoard(data) {
@@ -1005,6 +1101,15 @@
                 }
                 pokeBox.appendChild(cellEl);
             });
+
+            // 渲染未開出獎品清單
+            const showFlag = data.showUnopenedPrizes !== false;
+            renderUnopenedBox(
+                document.getElementById('mainUnopenedBox'),
+                document.getElementById('mainUnopenedList'),
+                showFlag,
+                data.cells
+            );
         }
 
         // 管理者主頁面代抽
@@ -1035,7 +1140,6 @@
 
             document.getElementById('playerNoteDisplay').innerText = data.note ? "※ " + data.note + " ※" : "";
 
-            // 更新玩家頁面剩餘大獎數量
             const totalBigPrizes = data.cells.filter(c => !c.prize.includes("烏龜")).length;
             const revealedBigPrizes = data.cells.filter(c => c.isPoked && !c.prize.includes("烏龜")).length;
             const playerRemEl = document.getElementById('playerRemainingPrizesCount');
@@ -1049,7 +1153,6 @@
             const hasBigPrizesLeft = data.cells.some(c => !c.prize.includes("烏龜") && !c.isPoked);
             const isExpired = data.endTime && Date.now() > data.endTime;
             
-            // 計算目前玩家已戳幾次
             const maxPokes = data.maxPokesPerUser || 1;
             const userPokedCount = currentPlayerName ? data.cells.filter(c => c.isPoked && c.winner === currentPlayerName).length : 0;
             const hasReachedLimit = userPokedCount >= maxPokes;
@@ -1092,9 +1195,18 @@
                 }
                 pokeBox.appendChild(cellEl);
             });
+
+            // 渲染玩家頁未開出獎品清單
+            const showFlag = data.showUnopenedPrizes !== false;
+            renderUnopenedBox(
+                document.getElementById('playerUnopenedBox'),
+                document.getElementById('playerUnopenedList'),
+                showFlag,
+                data.cells
+            );
         }
 
-        // 玩家進行點擊開獎
+        // 玩家點擊開獎
         function handlePlayerPoke(index, cell, hasReachedLimit, isExpired, hasBigPrizesLeft, maxPokes) {
             if (!hasBigPrizesLeft) {
                 alert("⛔ 活動已結束，所有大獎都已經被抽完囉！");
@@ -1111,7 +1223,6 @@
                 return;
             }
             
-            // 計算最新的已戳次數
             const userPokedCount = currentGameData.cells.filter(c => c.isPoked && c.winner === currentPlayerName).length;
             if (userPokedCount >= maxPokes) {
                 alert(`玩家【${currentPlayerName}】已經達到戳獎上限囉！每人限戳 ${maxPokes} 次。`);
@@ -1137,7 +1248,6 @@
             });
         }
 
-        // 玩家登入驗證
         function loginPlayer() {
             const passInput = document.getElementById('inputRoomPass').value.trim();
             const nameInput = document.getElementById('inputPlayerName').value.trim();
@@ -1163,7 +1273,6 @@
             if(currentGameData) renderPlayerBoard(currentGameData);
         }
 
-        // 渲染得獎表格
         function renderWinnerTable(data) {
             const container = document.getElementById('winnerTableContainer');
             const pokedCells = data.cells.filter(c => c.isPoked);
@@ -1203,7 +1312,6 @@
             container.innerHTML = html;
         }
 
-        // 複製得獎列表
         async function copyWinnerList() {
             if (!currentGameData) return;
             const pokedCells = currentGameData.cells.filter(c => c.isPoked);
@@ -1254,7 +1362,7 @@
             }
         }
 
-        // 複製截圖 (優化渲染，確保完整圖片不切半)
+        // 複製截圖 (優化渲染與色差修正)
         async function copyScreenshot() {
             const captureArea = document.getElementById('captureArea');
             const btn = document.getElementById('screenshotBtn');
@@ -1273,7 +1381,6 @@
                                 useCORS: true,
                                 allowTaint: true,
                                 onclone: (clonedDoc) => {
-                                    // 解除 user-select 避免 html2canvas 渲染文字/圖層切半
                                     clonedDoc.body.style.userSelect = 'auto';
                                     clonedDoc.body.style.webkitUserSelect = 'auto';
                                     const clonedTarget = clonedDoc.getElementById('captureArea');
@@ -1309,7 +1416,6 @@
             }
         }
 
-        // 初始化檢查 URL Hash 決定顯示哪個頁面
         window.onload = function() {
             updateClock();
             if (location.hash === '#player') {
