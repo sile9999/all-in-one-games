@@ -160,7 +160,7 @@
     let callIntervalMs = 2000; // 叫號速度
     let startTimeMs = 0;
     
-    // 今彩 539 狀態
+    // 種菜 539 狀態
     let selectedPicks = []; // 玩家選的 5 張圖 ID
     let currentDrawnPicks = []; // 叫號開出的 5 張圖 ID
     let isLockedIn = false;
@@ -209,7 +209,7 @@
           
           // 檢查活動是否結束
           if (data.isEnded) {
-            showEventEndedView('本次今彩539活動已結束');
+            showEventEndedView('本次種菜539活動已結束');
             return;
           }
 
@@ -311,7 +311,7 @@
         roomNumEl.classList.remove('ended');
         
         document.getElementById('admin-action-area').classList.remove('hidden');
-        alert(`🎉 今彩539賽事建立成功！代號：${eventId}`);
+        alert(`🎉 種菜539賽事建立成功！代號：${eventId}`);
       }).catch((error) => {
         alert('建立失敗：' + error.message);
       });
@@ -355,7 +355,7 @@
       const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
 
-      let copyMsg = `🎰 今彩539 圖片對獎賽\n`;
+      let copyMsg = `🎰 種菜539 圖片對獎賽\n`;
       copyMsg += `🔗 挑戰連結：${fullLink}\n`;
       copyMsg += `⏰ 開賽時間：${startText}\n`;
       copyMsg += `🎲 賽事局數：總共 ${totalRounds} 局 (每局間隔 ${roundIntervalSec} 秒)\n`;
@@ -373,7 +373,7 @@
         return alert('目前尚無玩家成績！');
       }
       const sorted = Object.values(currentLeaderboard).sort((a, b) => (b.hits || 0) - (a.hits || 0));
-      let text = `🏆【今彩539 圖片賽 - 排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      let text = `🏆【種菜539 圖片賽 - 排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
       sorted.forEach((p, idx) => { 
         text += `第 ${idx + 1} 名: ${p.name} - 中獎: ${p.hits || 0} 張圖\n`; 
       });
@@ -440,7 +440,7 @@
         const data = snapshot.val();
         
         if (data.isEnded) {
-          showEventEndedView('本次今彩539活動已結束');
+          showEventEndedView('本次種菜539活動已結束');
           return;
         }
 
@@ -791,7 +791,7 @@
 <!-- 視圖：活動結束頁面 -->
 <div id="event-ended-view" class="ended-card hidden">
   <div class="ended-icon">🏁</div>
-  <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次今彩539活動已結束</h2>
+  <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次種菜539活動已結束</h2>
   <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">感謝大家的熱烈參與！以下為本次比賽總排行榜：</p>
   
   <div class="leaderboard" style="margin-top: 0;">
@@ -802,7 +802,7 @@
 
 <!-- 主介面 1：管理者發起活動建立 -->
 <div id="main-setup-view" class="container">
-  <h1>🎰 今彩539 圖片對獎賽</h1>
+  <h1>🎰 種菜539 圖片對獎賽</h1>
 
   <button id="admin-unlock-btn" class="btn-primary btn-admin" style="margin-bottom: 16px;">🔓 點此輸入密碼解鎖管理者設定</button>
 
