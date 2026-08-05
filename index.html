@@ -41,26 +41,35 @@
       text-shadow: 0 0 10px #00f0ff, 2px 2px 5px rgba(0, 0, 0, 0.8);
     }
 
-    /* --- 4. 遊戲卡片容器 --- */
+    /* --- 4. 遊戲卡片容器 (改用 CSS Grid 鎖定一列二格) --- */
     .game-container {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, 280px); /* 桌上型/平板預設一列二格 (每格寬度 280px) */
       justify-content: center;
       gap: 30px;
       max-width: 1000px;
       margin: 0 auto;
     }
 
+    /* RWD 手機規格：當螢幕寬度小於 600px 時，切換回一列一格 */
+    @media (max-width: 600px) {
+      .game-container {
+        grid-template-columns: repeat(1, 100%); /* 手機單欄顯示 */
+        max-width: 320px;
+      }
+    }
+
     /* --- 5. 遊戲圖片連結區塊 --- */
     .game-link {
       display: block;
-      width: 220px;
+      width: 100%; /* 寬度自動填滿 Grid 格子 */
       border-radius: 16px;
       overflow: hidden;
       border: 3px solid #ffcc00; /* 金黃色邊框 */
       box-shadow: 0 0 15px rgba(255, 204, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.5);
       transition: transform 0.25s ease, box-shadow 0.25s ease;
       background-color: rgba(18, 12, 38, 0.85);
+      box-sizing: border-box;
     }
 
     /* 滑鼠懸停時圖片放大與發光效果 */
