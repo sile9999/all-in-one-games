@@ -72,7 +72,16 @@
     
     /* 泡泡射擊 Canvas 容器 */
     .game-canvas-container { position: relative; width: 100%; max-width: 440px; margin: 0 auto 16px auto; }
-    canvas { background: #0f172a; border-radius: 16px; display: block; width: 100%; height: auto; cursor: crosshair; box-shadow: inset 0 0 12px rgba(255,255,255,0.05); }
+    canvas { 
+      background: #0f172a; 
+      border-radius: 16px; 
+      display: block; 
+      width: 100%; 
+      height: auto; 
+      cursor: crosshair; 
+      box-shadow: inset 0 0 12px rgba(255,255,255,0.05); 
+      touch-action: none; /* 防止行動裝置滑動網頁 */
+    }
 
     .game-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.88); border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 22px; font-weight: bold; z-index: 10; padding: 16px; text-align: center; }
 
@@ -372,7 +381,6 @@
       canvas = document.getElementById('bubbleCanvas');
       ctx = canvas.getContext('2d');
 
-      // 🎯 修正 1：重新計算泡泡半徑，確保奇數列向右偏移時最後一顆泡泡不會溢出 Canvas 邊界
       BUBBLE_RADIUS = canvas.width / (COLS * 2 + 1);
 
       grid = [];
@@ -390,33 +398,66 @@
       nextBubbleValue = getRandomVal();
       prepareNextShootBubble();
 
+      // 滑鼠控制
       canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        mousePos.x = e.clientX - rect.left;
-        mousePos.y = e.clientY - rect.top;
+        updatePointerPos(e.clientX, e.clientY);
       });
 
       canvas.addEventListener('click', () => {
-        if (!isGameActive || shootingBubble) return;
-        
-        const startX = canvas.width / 2;
-        const startY = canvas.height - 40;
-        const angle = Math.atan2(mousePos.y - startY, mousePos.x - startX);
-
-        if (angle < 0) {
-          shootingBubble = {
-            x: startX,
-            y: startY,
-            vx: Math.cos(angle) * 12,
-            vy: Math.sin(angle) * 12,
-            value: currentBubble.value
-          };
-          prepareNextShootBubble();
-        }
+        shootBubble();
       });
+
+      // 📱 觸控控制（手機、平板）
+      const handleTouch = (e) => {
+        if (e.touches && e.touches.length > 0) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          updatePointerPos(touch.clientX, touch.clientY);
+        }
+      };
+
+      canvas.addEventListener('touchstart', (e) => {
+        handleTouch(e);
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        handleTouch(e);
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        shootBubble();
+      }, { passive: false });
 
       startPersonalGame();
       requestAnimationFrame(gameLoop);
+    }
+
+    function updatePointerPos(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      mousePos.x = (clientX - rect.left) * scaleX;
+      mousePos.y = (clientY - rect.top) * scaleY;
+    }
+
+    function shootBubble() {
+      if (!isGameActive || shootingBubble) return;
+      
+      const startX = canvas.width / 2;
+      const startY = canvas.height - 40;
+      const angle = Math.atan2(mousePos.y - startY, mousePos.x - startX);
+
+      if (angle < 0) {
+        shootingBubble = {
+          x: startX,
+          y: startY,
+          vx: Math.cos(angle) * 12,
+          vy: Math.sin(angle) * 12,
+          value: currentBubble.value
+        };
+        prepareNextShootBubble();
+      }
     }
 
     function prepareNextShootBubble() {
@@ -439,11 +480,9 @@
         grid[0][c] = { value: getRandomVal() };
       }
 
-      // 下降後檢查是否接觸到射擊區
       checkTouchShootingArea();
     }
 
-    // 🎯 修正 2：檢查上方泡泡是否累積接觸到射擊區域（射擊區 Y 軸約在 canvas.height - 80 附近）
     function checkTouchShootingArea() {
       const dangerYThreshold = canvas.height - 80;
       for (let r = 0; r < ROWS; r++) {
@@ -534,7 +573,6 @@
       }
     }
 
-    // 🎯 修正 1 輔助：計算網格座標時加入半徑安全邊距，確保右側泡泡永遠不出界
     function getBubblePos(row, col) {
       const offset = (row % 2 === 1) ? BUBBLE_RADIUS : 0;
       const x = col * BUBBLE_RADIUS * 2 + BUBBLE_RADIUS * 1.5 + offset;
@@ -655,17 +693,14 @@
 
       grid[closestRow][closestCol] = { value: bubble.value };
 
-      // 附著後檢查是否觸及射擊區
       if (checkTouchShootingArea()) return;
 
       checkMatches(closestRow, closestCol);
     }
 
-    /* 🎯 精準控制：僅搜尋包含落點泡泡、且物理幾何上緊密相連的相鄰組合 */
     function checkMatches(startR, startC) {
       const startVal = grid[startR][startC].value;
 
-      // 🎯 修正 3：單顆即可消除時，加 10 分（一次消除算 10 分）
       if (startVal === targetNumber) {
         grid[startR][startC] = null;
         myScore += 10;
@@ -725,7 +760,6 @@
       let initialVisited = new Set([`${startR},${startC}`]);
       findAdjacentMatch([{ r: startR, c: startC, val: startVal }], startVal, initialVisited);
 
-      // 🎯 修正 3：成功消除多顆泡泡時，一次消除固定加 10 分（非依顆數加分）
       if (matchedGroup) {
         myScore += 10;
         document.getElementById('score-display').innerText = myScore;
