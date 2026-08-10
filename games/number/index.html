@@ -192,6 +192,7 @@
     let targetNumber = 10;
     let gameMode = '60s';
     let totalTiles = 25;
+    let showDifference = true; // 是否顯示差值設定
     let endTimeStr = '';
     let eventEndTimeMs = 0;
     let myScore = 0;
@@ -215,6 +216,7 @@
       setupOptionGroup('target-options', (val) => targetNumber = parseInt(val));
       setupOptionGroup('mode-options', (val) => gameMode = val);
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
+      setupOptionGroup('diff-hint-options', (val) => showDifference = (val === 'true'));
 
       // 預設活動結束時間為今晚 23:59
       const now = new Date();
@@ -335,6 +337,7 @@
         targetNumber: targetNumber,
         gameMode: gameMode,
         totalTiles: totalTiles,
+        showDifference: showDifference,
         endTime: calculatedEndTimeMs,
         note: noteText,
         scores: {}
@@ -440,6 +443,7 @@
         targetNumber = data.targetNumber;
         gameMode = data.gameMode;
         totalTiles = data.totalTiles || 25;
+        showDifference = (data.showDifference !== undefined) ? data.showDifference : true;
 
         document.getElementById('join-modal').classList.add('hidden');
         document.getElementById('main-setup-view').classList.add('hidden');
@@ -467,7 +471,7 @@
 
       gridTiles = Array.from({ length: totalTiles }, () => Math.floor(Math.random() * (targetNumber - 1)) + 1);
 
-      document.getElementById('target-display').innerText = targetNumber;
+      updateTargetDisplay();
       document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
 
       renderGrid();
@@ -495,6 +499,18 @@
           endPersonalGame(false);
         }
       }, 1000);
+    }
+
+    // 更新目標值 / 差值提示
+    function updateTargetDisplay() {
+      const targetEl = document.getElementById('target-display');
+      if (showDifference && selectedIndices.length > 0) {
+        const sum = selectedIndices.reduce((acc, i) => acc + gridTiles[i], 0);
+        const diff = targetNumber - sum;
+        targetEl.innerText = `${targetNumber} (差值: ${diff})`;
+      } else {
+        targetEl.innerText = targetNumber;
+      }
     }
 
     // 💡 即時同步成績至 Firebase
@@ -541,6 +557,8 @@
 
         gridEl.appendChild(tile);
       });
+
+      updateTargetDisplay();
     }
 
     function handleTileClick(index) {
@@ -673,6 +691,14 @@
         <button class="btn-option active" data-val="25">25 格 (5x5)</button>
         <button class="btn-option" data-val="36">36 格 (6x6)</button>
         <button class="btn-option" data-val="49">49 格 (7x7)</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>玩家頁提示目前差值：</label>
+      <div class="btn-group" id="diff-hint-options">
+        <button class="btn-option active" data-val="true">顯示差值</button>
+        <button class="btn-option" data-val="false">隱藏差值</button>
       </div>
     </div>
 
