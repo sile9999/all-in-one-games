@@ -43,6 +43,21 @@
     .btn-start { background-color: #10b981; }
     .btn-start:hover { background-color: #059669; }
 
+    /* 洗牌按鈕樣式 */
+    .btn-shuffle {
+      background-color: #f59e0b;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .btn-shuffle:hover { background-color: #d97706; }
+    .btn-shuffle:active { transform: scale(0.95); }
+
     /* 回到遊戲大廳按鈕樣式 */
     .btn-lobby {
       width: 100%;
@@ -74,7 +89,7 @@
     .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
 
     /* 遊戲對戰區 */
-    .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
+    .status-bar { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
     .grid-container { position: relative; margin-bottom: 16px; }
     .grid { display: grid; gap: 8px; }
 
@@ -212,6 +227,7 @@
       document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
       document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
       document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
+      document.getElementById('shuffle-btn').addEventListener('click', shuffleTiles);
 
       setupOptionGroup('target-options', (val) => targetNumber = parseInt(val));
       setupOptionGroup('mode-options', (val) => gameMode = val);
@@ -501,6 +517,14 @@
       }, 1000);
     }
 
+    // 洗牌功能：更換全新的數字組合
+    function shuffleTiles() {
+      if (!isGameActive) return;
+      gridTiles = Array.from({ length: totalTiles }, () => Math.floor(Math.random() * (targetNumber - 1)) + 1);
+      selectedIndices = [];
+      renderGrid();
+    }
+
     // 更新目標值 / 差值提示
     function updateTargetDisplay() {
       const targetEl = document.getElementById('target-display');
@@ -740,6 +764,7 @@
   <div class="status-bar">
     <div>目標: <span id="target-display">10</span></div>
     <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">活動: ---</div>
+    <button id="shuffle-btn" class="btn-shuffle">洗牌 🔀</button>
     <div>剩餘時間: <span id="time-display">--</span></div>
   </div>
 
