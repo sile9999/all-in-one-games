@@ -79,9 +79,17 @@
     .grid { display: grid; gap: 8px; }
 
     /* 格子樣式 */
-    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; color: #1e293b; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; }
+    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; color: #1e293b; cursor: pointer; transition: transform 0.1s, background-color 0.2s, border 0.2s; position: relative; border: 2px solid transparent; }
     .tile:hover { transform: scale(1.04); }
-    .tile.selected { background-color: #fde047; color: #854d0e; transform: scale(0.95); }
+    
+    /* 點選格子樣式：Tiffany藍背景 + 深綠色虛線邊框 */
+    .tile.selected { 
+      background-color: #81e6d9; 
+      color: #004d40; 
+      border: 3px dashed #00766c;
+      transform: scale(0.96); 
+      box-shadow: 0 0 8px rgba(79, 209, 197, 0.6);
+    }
     .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
 
     /* 遊戲結束遮罩 */
@@ -454,6 +462,9 @@
       selectedIndices = [];
       document.getElementById('game-over-mask').classList.add('hidden');
 
+      // 初始化上傳 0 分，建立該玩家在資料庫的位置
+      saveRealtimeScore();
+
       gridTiles = Array.from({ length: totalTiles }, () => Math.floor(Math.random() * (targetNumber - 1)) + 1);
 
       document.getElementById('target-display').innerText = targetNumber;
@@ -486,6 +497,16 @@
       }, 1000);
     }
 
+    // 💡 即時同步成績至 Firebase
+    function saveRealtimeScore() {
+      if (!eventId || !playerId) return;
+      update(ref(db, `events_v1/${eventId}/scores/${playerId}`), {
+        name: playerName,
+        score: myScore,
+        timestamp: Date.now()
+      });
+    }
+
     function endPersonalGame(isEventExpired = false) {
       isGameActive = false;
       document.getElementById('time-display').innerText = '0s';
@@ -498,11 +519,8 @@
 
       document.getElementById('game-over-mask').classList.remove('hidden');
 
-      update(ref(db, `events_v1/${eventId}/scores/${playerId}`), {
-        name: playerName,
-        score: myScore,
-        timestamp: Date.now()
-      });
+      // 遊戲結束時再次確保最新分數寫入
+      saveRealtimeScore();
     }
 
     function renderGrid() {
@@ -548,6 +566,9 @@
       if (sum === targetNumber) {
         myScore += 10;
         
+        // 💡 答對即時同步資料庫，達到即時更新成績效果
+        saveRealtimeScore();
+
         selectedIndices.forEach(i => {
           gridTiles[i] = Math.floor(Math.random() * (targetNumber - 1)) + 1;
         });
