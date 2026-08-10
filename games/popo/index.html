@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泡泡消消樂 - 數學燒腦版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    
+    body { 
+      background-color: #f0f4f8; 
+      background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
+      background-size: cover;
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
+    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
+    
+    .menu-group { margin-bottom: 16px; text-align: left; }
+    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+    
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-option { flex: 1; min-width: 60px; padding: 10px 6px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 13px; }
+    .btn-option.active { border-color: #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
+    
+    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
+    
+    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
+    .btn-primary:hover { background-color: #2563eb; }
+    .btn-admin { background-color: #64748b; }
+    .btn-admin:hover { background-color: #475569; }
+    .btn-copy { background-color: #8b5cf6; }
+    .btn-copy:hover { background-color: #7c3aed; }
+    .btn-start { background-color: #10b981; }
+    .btn-start:hover { background-color: #059669; }
+
+    .btn-lobby {
+      width: 100%;
+      max-width: 250px;
+      margin: 16px auto 0 auto;
+      background-color: #00897b;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 18px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+    .btn-lobby:hover { background-color: #00695c; }
+    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
+
+    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
+    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
+
+    .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
+    
+    /* 泡泡射擊 Canvas 容器 */
+    .game-canvas-container { position: relative; width: 100%; max-width: 440px; margin: 0 auto 16px auto; }
+    canvas { background: #0f172a; border-radius: 16px; display: block; width: 100%; height: auto; cursor: crosshair; box-shadow: inset 0 0 12px rgba(255,255,255,0.05); }
+
+    .game-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.88); border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 22px; font-weight: bold; z-index: 10; padding: 16px; text-align: center; }
+
+    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
+    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
+    .leaderboard-item { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
+    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
+    
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
+    .ended-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .hidden { display: none !important; }
+    .disabled-area { opacity: 0.5; pointer-events: none; }
+  </style>
+
+  <!-- 防 F12 與開發者工具腳本 -->
+  <script>
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) { e.preventDefault(); return false; }
+    });
+
+    setInterval(() => {
+      const startTime = performance.now();
+      (function() { return false; }).constructor("debugger")();
+      const endTime = performance.now();
+      if (endTime - startTime > 100) {
+        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
+      }
+    }, 500);
+  </script>
+
+  <!-- JS 模組載入 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+      authDomain: "gogogame-ce8ba.firebaseapp.com",
+      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+      projectId: "gogogame-ce8ba",
+      storageBucket: "gogogame-ce8ba.firebasestorage.app",
+      messagingSenderId: "823932242561",
+      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let eventId = null;
+    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
+    let playerName = '';
+    let targetNumber = 10;
+    let gameMode = '60s';
+    let dropIntervalSec = 15;
+    let dropTimer = null;
+    let endTimeStr = '';
+    let eventEndTimeMs = 0;
+    let myScore = 0;
+    let timer = null;
+    let eventRef = null;
+    let currentLeaderboard = {};
+    let isGameActive = false;
+
+    // 泡泡龍 Canvas 核心變數
+    let canvas, ctx;
+    const COLS = 8;
+    const ROWS = 10;
+    let BUBBLE_RADIUS = 22;
+    let grid = [];
+    let currentBubble = null;
+    let nextBubbleValue = 1;
+    let shootingBubble = null;
+    let mousePos = { x: 200, y: 500 };
+
+    const BUBBLE_COLORS = {
+      1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#10b981',
+      5: '#06b6d4', 6: '#3b82f6', 7: '#6366f1', 8: '#8b5cf6',
+      9: '#ec4899', 10: '#f43f5e'
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
+      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
+      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
+      document.getElementById('create-event-btn').addEventListener('click', createEvent);
+      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
+      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
+      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
+      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
+
+      setupOptionGroup('target-options', (val) => targetNumber = parseInt(val));
+      setupOptionGroup('mode-options', (val) => gameMode = val);
+      setupOptionGroup('drop-options', (val) => dropIntervalSec = parseInt(val));
+
+      const now = new Date();
+      now.setHours(23, 59, 0, 0);
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('admin-endtime-input').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventParam = urlParams.get('event');
+
+      if (eventParam) {
+        document.getElementById('main-setup-view').classList.add('hidden');
+        eventId = eventParam;
+        
+        get(ref(db, 'events_v1/' + eventId)).then((snapshot) => {
+          if (!snapshot.exists()) {
+            alert('找不到該活動代號，請確認後重試！');
+            document.getElementById('main-setup-view').classList.remove('hidden');
+            return;
+          }
+
+          const data = snapshot.val();
+          if (data.endTime && Date.now() >= data.endTime) {
+            showEventEndedView();
+            return;
+          }
+
+          document.getElementById('input-event-id').value = eventId;
+          document.getElementById('join-modal').classList.remove('hidden');
+        }).catch((error) => {
+          alert('讀取活動失敗：' + error.message);
+          document.getElementById('main-setup-view').classList.remove('hidden');
+        });
+      }
+    });
+
+    function showEventEndedView() {
+      document.getElementById('main-setup-view').classList.add('hidden');
+      document.getElementById('join-modal').classList.add('hidden');
+      document.getElementById('player-game-view').classList.add('hidden');
+      document.getElementById('event-ended-view').classList.remove('hidden');
+
+      onValue(ref(db, `events_v1/${eventId}`), (snap) => {
+        const evData = snap.val();
+        if (evData) renderLeaderboard('ended-leaderboard-list', evData.scores || {});
+      });
+    }
+
+    function setupOptionGroup(groupId, callback) {
+      const group = document.getElementById(groupId);
+      group.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-option')) {
+          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
+          e.target.classList.add('active');
+          callback(e.target.dataset.val || e.target.dataset.mode || e.target.dataset.drop);
+        }
+      });
+    }
+
+    function openAdminModal() { document.getElementById('pwd-modal').classList.remove('hidden'); }
+
+    function checkPassword() {
+      if (document.getElementById('admin-pwd').value === '17696969') {
+        document.getElementById('pwd-modal').classList.add('hidden');
+        document.getElementById('setting-fields').classList.remove('disabled-area');
+        document.getElementById('admin-create-actions').classList.remove('hidden');
+        const unlockBtn = document.getElementById('admin-unlock-btn');
+        unlockBtn.innerText = '✅ 管理者權限已解鎖';
+        unlockBtn.classList.add('btn-success-state');
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+
+    function createEvent() {
+      const customVal = parseInt(document.getElementById('custom-target-input').value);
+      if (!isNaN(customVal) && customVal >= 2) targetNumber = customVal;
+
+      endTimeStr = document.getElementById('admin-endtime-input').value;
+      if (!endTimeStr) return alert('請先設定「活動結束時間」！');
+
+      const noteText = document.getElementById('admin-note-input').value.trim();
+      const calculatedEndTimeMs = new Date(endTimeStr).getTime();
+
+      if (calculatedEndTimeMs <= Date.now()) return alert('⚠️ 活動結束時間必須設定在「未來」！');
+
+      eventId = Math.floor(100000 + Math.random() * 900000).toString();
+      eventRef = ref(db, 'events_v1/' + eventId);
+
+      set(eventRef, {
+        targetNumber: targetNumber,
+        gameMode: gameMode,
+        dropIntervalSec: dropIntervalSec,
+        endTime: calculatedEndTimeMs,
+        note: noteText,
+        scores: {}
+      }).then(() => {
+        document.getElementById('room-num-display').innerText = eventId;
+        document.getElementById('admin-action-area').classList.remove('hidden');
+        alert(`🎉 活動建立成功！活動代號為：${eventId}`);
+      });
+
+      onValue(eventRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        currentLeaderboard = data.scores || {};
+        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
+      });
+    }
+
+    function copyEventLink(btn) {
+      if (!eventId) return;
+      const fullLink = `${window.location.origin}${window.location.pathname}?event=${eventId}`;
+      let copyMsg = `🎮 泡泡消消樂 - 數學燒腦版\n🔗 挑戰連結：${fullLink}\n📍 活動代號：${eventId}\n🎯 目標合數：${targetNumber}\n`;
+
+      navigator.clipboard.writeText(copyMsg).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結與說明');
+      });
+    }
+
+    function copyScores(btn) {
+      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) return alert('目前尚無玩家回報成績！');
+      const sorted = Object.values(currentLeaderboard).sort((a, b) => b.score - a.score);
+      let text = `🏆【泡泡消消樂】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      sorted.forEach((p, idx) => { text += `第 ${idx + 1} 名: ${p.name} - ${p.score} 分\n`; });
+
+      navigator.clipboard.writeText(text).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製排行榜成績');
+      });
+    }
+
+    function triggerButtonFeedback(btnElement, activeText, originalText) {
+      btnElement.innerText = activeText;
+      btnElement.classList.add('btn-success-state');
+      setTimeout(() => {
+        btnElement.innerText = originalText;
+        btnElement.classList.remove('btn-success-state');
+      }, 1200);
+    }
+
+    function openJoinModalNewTab() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      window.open(eventId ? `${baseUrl}?event=${eventId}` : baseUrl, '_blank');
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    /* ---------------- 泡泡龍遊戲邏輯 ---------------- */
+    function joinIndividualGame() {
+      const inputEvent = document.getElementById('input-event-id').value.trim();
+      const inputName = document.getElementById('input-player-name').value.trim();
+
+      if (!inputEvent || !inputName) return alert('請填寫完整代號與暱稱！');
+
+      eventId = inputEvent;
+      playerName = inputName;
+      eventRef = ref(db, 'events_v1/' + eventId);
+
+      get(eventRef).then((snapshot) => {
+        if (!snapshot.exists()) return alert('找不到該活動代號！');
+
+        const data = snapshot.val();
+        eventEndTimeMs = data.endTime || 0;
+
+        if (eventEndTimeMs && Date.now() >= eventEndTimeMs) {
+          showEventEndedView();
+          return;
+        }
+
+        targetNumber = data.targetNumber;
+        gameMode = data.gameMode;
+        dropIntervalSec = data.dropIntervalSec || 15;
+
+        document.getElementById('join-modal').classList.add('hidden');
+        document.getElementById('main-setup-view').classList.add('hidden');
+        document.getElementById('player-game-view').classList.remove('hidden');
+
+        onValue(eventRef, (snap) => {
+          const evData = snap.val();
+          if (evData) renderLeaderboard('player-leaderboard-list', evData.scores || {});
+        });
+
+        initCanvasGame();
+      });
+    }
+
+    function getRandomVal() {
+      return Math.floor(Math.random() * (targetNumber - 1)) + 1;
+    }
+
+    function initCanvasGame() {
+      canvas = document.getElementById('bubbleCanvas');
+      ctx = canvas.getContext('2d');
+
+      // 🎯 修正 1：重新計算泡泡半徑，確保奇數列向右偏移時最後一顆泡泡不會溢出 Canvas 邊界
+      BUBBLE_RADIUS = canvas.width / (COLS * 2 + 1);
+
+      grid = [];
+      for (let r = 0; r < ROWS; r++) {
+        grid[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          if (r < 3) {
+            grid[r][c] = { value: getRandomVal() };
+          } else {
+            grid[r][c] = null;
+          }
+        }
+      }
+
+      nextBubbleValue = getRandomVal();
+      prepareNextShootBubble();
+
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mousePos.x = e.clientX - rect.left;
+        mousePos.y = e.clientY - rect.top;
+      });
+
+      canvas.addEventListener('click', () => {
+        if (!isGameActive || shootingBubble) return;
+        
+        const startX = canvas.width / 2;
+        const startY = canvas.height - 40;
+        const angle = Math.atan2(mousePos.y - startY, mousePos.x - startX);
+
+        if (angle < 0) {
+          shootingBubble = {
+            x: startX,
+            y: startY,
+            vx: Math.cos(angle) * 12,
+            vy: Math.sin(angle) * 12,
+            value: currentBubble.value
+          };
+          prepareNextShootBubble();
+        }
+      });
+
+      startPersonalGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function prepareNextShootBubble() {
+      currentBubble = { value: nextBubbleValue };
+      nextBubbleValue = getRandomVal();
+    }
+
+    function pushNewRow() {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[ROWS - 1][c]) {
+          endPersonalGame(false);
+          return;
+        }
+      }
+      for (let r = ROWS - 1; r > 0; r--) {
+        grid[r] = [...grid[r - 1]];
+      }
+      grid[0] = [];
+      for (let c = 0; c < COLS; c++) {
+        grid[0][c] = { value: getRandomVal() };
+      }
+
+      // 下降後檢查是否接觸到射擊區
+      checkTouchShootingArea();
+    }
+
+    // 🎯 修正 2：檢查上方泡泡是否累積接觸到射擊區域（射擊區 Y 軸約在 canvas.height - 80 附近）
+    function checkTouchShootingArea() {
+      const dangerYThreshold = canvas.height - 80;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c]) {
+            const pos = getBubblePos(r, c);
+            if (pos.y + BUBBLE_RADIUS >= dangerYThreshold) {
+              endPersonalGame(false);
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function updateScoreToFirebase() {
+      if (!eventId || !playerId) return;
+      update(ref(db, `events_v1/${eventId}/scores/${playerId}`), {
+        name: playerName,
+        score: myScore,
+        timestamp: Date.now()
+      });
+    }
+
+    function startPersonalGame() {
+      isGameActive = true;
+      myScore = 0;
+      updateScoreToFirebase();
+
+      document.getElementById('game-over-mask').classList.add('hidden');
+      document.getElementById('target-display').innerText = targetNumber;
+      document.getElementById('score-display').innerText = myScore;
+      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
+
+      let seconds = parseInt(gameMode) || 60;
+      document.getElementById('time-display').innerText = seconds + 's';
+
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        if (eventEndTimeMs && Date.now() >= eventEndTimeMs) {
+          clearInterval(timer);
+          if (dropTimer) clearInterval(dropTimer);
+          endPersonalGame(true);
+          return;
+        }
+
+        seconds--;
+        document.getElementById('time-display').innerText = seconds + 's';
+
+        if (seconds <= 0) {
+          clearInterval(timer);
+          if (dropTimer) clearInterval(dropTimer);
+          endPersonalGame(false);
+        }
+      }, 1000);
+
+      if (dropTimer) clearInterval(dropTimer);
+      if (dropIntervalSec > 0) {
+        dropTimer = setInterval(() => {
+          if (isGameActive) {
+            pushNewRow();
+          }
+        }, dropIntervalSec * 1000);
+      }
+    }
+
+    function endPersonalGame(isEventExpired = false) {
+      isGameActive = false;
+      if (dropTimer) clearInterval(dropTimer);
+      document.getElementById('time-display').innerText = '0s';
+      document.getElementById('final-score-text').innerText = isEventExpired ? 
+        `⏰ 活動時間到達！結算：${myScore} 分` : `🎉 挑戰結束！獲得 ${myScore} 分`;
+      
+      document.getElementById('game-over-mask').classList.remove('hidden');
+      updateScoreToFirebase();
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGrid();
+      updateShootingBubble();
+      drawLauncher();
+
+      if (isGameActive) {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // 🎯 修正 1 輔助：計算網格座標時加入半徑安全邊距，確保右側泡泡永遠不出界
+    function getBubblePos(row, col) {
+      const offset = (row % 2 === 1) ? BUBBLE_RADIUS : 0;
+      const x = col * BUBBLE_RADIUS * 2 + BUBBLE_RADIUS * 1.5 + offset;
+      const y = row * BUBBLE_RADIUS * 1.732 + BUBBLE_RADIUS * 1.5;
+      return { x, y };
+    }
+
+    function drawBubble(x, y, value) {
+      const r = BUBBLE_RADIUS - 2;
+      const baseColor = BUBBLE_COLORS[value] || '#3b82f6';
+
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = baseColor;
+      ctx.fill();
+
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.stroke();
+
+      ctx.font = '900 18px "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.strokeText(value, x, y);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(value, x, y);
+    }
+
+    function drawGrid() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c]) {
+            const pos = getBubblePos(r, c);
+            drawBubble(pos.x, pos.y, grid[r][c].value);
+          }
+        }
+      }
+    }
+
+    function drawLauncher() {
+      const startX = canvas.width / 2;
+      const startY = canvas.height - 40;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(mousePos.x, mousePos.y);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (currentBubble) drawBubble(startX, startY, currentBubble.value);
+      drawBubble(30, canvas.height - 30, nextBubbleValue);
+      
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('下一個', 30, canvas.height - 55);
+    }
+
+    function updateShootingBubble() {
+      if (!shootingBubble) return;
+
+      shootingBubble.x += shootingBubble.vx;
+      shootingBubble.y += shootingBubble.vy;
+
+      if (shootingBubble.x - BUBBLE_RADIUS <= 0 || shootingBubble.x + BUBBLE_RADIUS >= canvas.width) {
+        shootingBubble.vx *= -1;
+      }
+
+      let hasCollided = false;
+      if (shootingBubble.y - BUBBLE_RADIUS <= 0) {
+        hasCollided = true;
+      } else {
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (grid[r][c]) {
+              const pos = getBubblePos(r, c);
+              const dist = Math.hypot(shootingBubble.x - pos.x, shootingBubble.y - pos.y);
+              if (dist < BUBBLE_RADIUS * 1.8) {
+                hasCollided = true;
+                break;
+              }
+            }
+          }
+          if (hasCollided) break;
+        }
+      }
+
+      if (hasCollided) {
+        snapToGrid(shootingBubble);
+        shootingBubble = null;
+      } else {
+        drawBubble(shootingBubble.x, shootingBubble.y, shootingBubble.value);
+      }
+    }
+
+    function snapToGrid(bubble) {
+      let closestRow = 0, closestCol = 0, minDist = Infinity;
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (!grid[r][c]) {
+            const pos = getBubblePos(r, c);
+            const dist = Math.hypot(bubble.x - pos.x, bubble.y - pos.y);
+            if (dist < minDist) {
+              minDist = dist;
+              closestRow = r;
+              closestCol = c;
+            }
+          }
+        }
+      }
+
+      grid[closestRow][closestCol] = { value: bubble.value };
+
+      // 附著後檢查是否觸及射擊區
+      if (checkTouchShootingArea()) return;
+
+      checkMatches(closestRow, closestCol);
+    }
+
+    /* 🎯 精準控制：僅搜尋包含落點泡泡、且物理幾何上緊密相連的相鄰組合 */
+    function checkMatches(startR, startC) {
+      const startVal = grid[startR][startC].value;
+
+      // 🎯 修正 3：單顆即可消除時，加 10 分（一次消除算 10 分）
+      if (startVal === targetNumber) {
+        grid[startR][startC] = null;
+        myScore += 10;
+        document.getElementById('score-display').innerText = myScore;
+        updateScoreToFirebase();
+        return;
+      }
+
+      function getNeighbors(r, c) {
+        const isOdd = (r % 2 === 1);
+        const dirs = [
+          { r: r - 1, c: c }, { r: r + 1, c: c },
+          { r: r, c: c - 1 }, { r: r, c: c + 1 },
+          { r: r - 1, c: isOdd ? c + 1 : c - 1 },
+          { r: r + 1, c: isOdd ? c + 1 : c - 1 }
+        ];
+        return dirs.filter(n => n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS && grid[n.r][n.c]);
+      }
+
+      let matchedGroup = null;
+
+      function findAdjacentMatch(currentGroup, currentSum, visited) {
+        if (matchedGroup) return; 
+
+        if (currentSum === targetNumber) {
+          matchedGroup = [...currentGroup];
+          return;
+        }
+
+        if (currentSum > targetNumber) return;
+
+        let candidateNeighbors = [];
+        currentGroup.forEach(node => {
+          let nbs = getNeighbors(node.r, node.c);
+          nbs.forEach(nb => {
+            let key = `${nb.r},${nb.c}`;
+            if (!visited.has(key) && !candidateNeighbors.some(c => c.r === nb.r && c.c === nb.c)) {
+              candidateNeighbors.push({ r: nb.r, c: nb.c, val: grid[nb.r][nb.c].value });
+            }
+          });
+        });
+
+        for (let candidate of candidateNeighbors) {
+          let key = `${candidate.r},${candidate.c}`;
+          visited.add(key);
+          currentGroup.push(candidate);
+
+          findAdjacentMatch(currentGroup, currentSum + candidate.val, visited);
+
+          currentGroup.pop();
+          visited.delete(key);
+
+          if (matchedGroup) return;
+        }
+      }
+
+      let initialVisited = new Set([`${startR},${startC}`]);
+      findAdjacentMatch([{ r: startR, c: startC, val: startVal }], startVal, initialVisited);
+
+      // 🎯 修正 3：成功消除多顆泡泡時，一次消除固定加 10 分（非依顆數加分）
+      if (matchedGroup) {
+        myScore += 10;
+        document.getElementById('score-display').innerText = myScore;
+        updateScoreToFirebase();
+
+        matchedGroup.forEach(p => {
+          grid[p.r][p.c] = null;
+        });
+      }
+    }
+
+    function renderLeaderboard(elementId, scoresObj) {
+      const lbEl = document.getElementById(elementId);
+      if (!lbEl) return;
+
+      const sorted = Object.entries(scoresObj || {})
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => b.score - a.score);
+
+      lbEl.innerHTML = sorted.map((p, idx) => `
+        <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
+          <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
+          <span>${p.score} 分</span>
+        </div>
+      `).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
+    }
+  </script>
+</head>
+<body>
+
+<div id="pwd-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom:12px; color:#1e293b;">管理者身分驗證</h3>
+    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
+    <button id="pwd-check-btn" class="btn-primary">確認驗證</button>
+    <button id="pwd-cancel-btn" class="btn-primary btn-admin" style="margin-top:8px;">取消</button>
+  </div>
+</div>
+
+<div id="join-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom:16px; color:#1e293b;">參加泡泡消消樂賽</h3>
+    <input type="text" id="input-event-id" class="input-box" placeholder="輸入 6 位數活動代號" maxlength="6">
+    <input type="text" id="input-player-name" class="input-box" placeholder="輸入你的暱稱" maxlength="10">
+    <button id="join-game-btn" class="btn-primary">開始個人挑戰</button>
+  </div>
+</div>
+
+<div id="event-ended-view" class="ended-card hidden">
+  <div class="ended-icon">⌛</div>
+  <h2 style="color: #1e293b; margin-bottom: 8px;">本次活動已結束</h2>
+  <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">感謝您的關注與參與！</p>
+  
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 該場次最終排行榜</div>
+    <div id="ended-leaderboard-list"></div>
+  </div>
+</div>
+
+<div id="main-setup-view" class="container">
+  <h1>⚙️ 泡泡消消樂 - 主控台</h1>
+
+  <div id="setting-fields" class="disabled-area">
+    <div class="menu-group">
+      <label>活動結束時間 ：</label>
+      <input type="datetime-local" id="admin-endtime-input" class="input-box">
+    </div>
+
+    <div class="menu-group">
+      <label>單局遊玩時間：</label>
+      <div class="btn-group" id="mode-options">
+        <button class="btn-option" data-mode="30s">30 秒</button>
+        <button class="btn-option active" data-mode="60s">60 秒</button>
+        <button class="btn-option" data-mode="120s">120 秒</button>
+        <button class="btn-option" data-mode="180s">180 秒</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>泡泡下降速度 (每幾秒下降一排)：</label>
+      <div class="btn-group" id="drop-options">
+        <button class="btn-option" data-drop="10">10 秒</button>
+        <button class="btn-option active" data-drop="15">15 秒</button>
+        <button class="btn-option" data-drop="20">20 秒</button>
+        <button class="btn-option" data-drop="0">不下降</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>目標消除數字：</label>
+      <div class="btn-group" id="target-options">
+        <button class="btn-option" data-val="5">5</button>
+        <button class="btn-option active" data-val="10">10</button>
+        <button class="btn-option" data-val="15">15</button>
+      </div>
+      <input type="number" id="custom-target-input" class="input-box" style="margin-top: 8px;" placeholder="自訂目標數 (例如 12)">
+    </div>
+
+    <div class="menu-group">
+      <label>活動備註說明 (選填)：</label>
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例：暑期泡泡消除競賽" maxlength="30">
+    </div>
+  </div>
+
+  <button id="admin-unlock-btn" class="btn-primary btn-admin">🔑 解鎖管理者設定</button>
+
+  <div id="admin-create-actions" class="hidden">
+    <button id="create-event-btn" class="btn-primary">建立活動發布挑戰</button>
+    <button id="open-newtab-btn" class="btn-start btn-primary" style="margin-top:10px;">🎮 進入房間挑戰</button>
+  </div>
+
+  <div id="admin-action-area" class="hidden">
+    <div class="room-display-box">
+      <div style="font-size:13px; color:#64748b; font-weight:bold;">當前活動代號</div>
+      <div class="room-number" id="room-num-display">------</div>
+    </div>
+
+    <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
+    <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製排行榜成績</button>
+
+    <div class="leaderboard">
+      <div class="leaderboard-title">📊 玩家個人賽排行榜 (即時更新)</div>
+      <div id="admin-leaderboard-list"></div>
+    </div>
+  </div>
+
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
+</div>
+
+<div id="player-game-view" class="container hidden">
+  <div class="status-bar">
+    <div>目標: <span id="target-display">10</span></div>
+    <div>得分: <span id="score-display" style="color:#2563eb;">0</span></div>
+    <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">活動: ---</div>
+    <div>時間: <span id="time-display">--</span></div>
+  </div>
+
+  <div class="game-canvas-container">
+    <canvas id="bubbleCanvas" width="360" height="480"></canvas>
+    <div id="game-over-mask" class="game-over-overlay hidden">
+      <div id="final-score-text">🎉 挑戰結束！</div>
+      <div style="font-size:14px; margin-top:8px; font-weight:normal;">成績已成功自動回報至主控台排行榜！</div>
+    </div>
+  </div>
+
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 當前活動即時排行榜</div>
+    <div id="player-leaderboard-list"></div>
+  </div>
+</div>
+
+</body>
+</html>
