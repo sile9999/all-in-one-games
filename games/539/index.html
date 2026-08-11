@@ -1092,20 +1092,27 @@
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 繪製顯眼的塗層文字（鮮豔紅色 + 白色描邊）
-            const fontSize = Math.max(14, Math.floor(canvas.width * 0.15));
-            ctx.font = `900 ${fontSize}px "MicroSoft YaHei", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            // 白色粗邊描邊
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = Math.max(2, Math.floor(fontSize * 0.18));
-            ctx.strokeText('👻', canvas.width / 2, canvas.height / 2);
+            // 載入並繪製塗層圖片
+            const coverImg = new Image();
+            coverImg.crossOrigin = "Anonymous";
+            coverImg.src = "https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/cow.png";
+            coverImg.onload = function() {
+                // 等比例縮放並置中繪製圖片
+                const padding = canvas.width * 0.1;
+                const maxW = canvas.width - padding * 2;
+                const maxH = canvas.height - padding * 2;
+                let drawW = coverImg.width;
+                let drawH = coverImg.height;
 
-            // 主體鮮豔紅色填色
-            ctx.fillStyle = '#c62828';
-            ctx.fillText('👻', canvas.width / 2, canvas.height / 2);
+                const ratio = Math.min(maxW / drawW, maxH / drawH);
+                drawW *= ratio;
+                drawH *= ratio;
+
+                const drawX = (canvas.width - drawW) / 2;
+                const drawY = (canvas.height - drawH) / 2;
+
+                ctx.drawImage(coverImg, drawX, drawY, drawW, drawH);
+            };
 
             let isDrawing = false;
             let isTriggered = false;
@@ -1147,7 +1154,7 @@
                 const percent = (transparentPixels / (pixels.length / 4)) * 100;
 
                 // 刮開超過 35% 判定為完成，自動揭曉
-                if (percent > 60) {
+                if (percent > 70) {
                     isTriggered = true;
                     canvas.style.transition = 'opacity 0.3s ease';
                     canvas.style.opacity = '0';
