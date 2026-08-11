@@ -1147,7 +1147,7 @@
                 const percent = (transparentPixels / (pixels.length / 4)) * 100;
 
                 // 刮開超過 35% 判定為完成，自動揭曉
-                if (percent > 35) {
+                if (percent > 60) {
                     isTriggered = true;
                     canvas.style.transition = 'opacity 0.3s ease';
                     canvas.style.opacity = '0';
