@@ -444,7 +444,7 @@
             text-overflow: ellipsis;
         }
 
-        /* 未開格 (封面) 樣式 */
+        /* 未開格 (封面) 樣式：修正色差問題 (移除非必要的 translateZ 與硬體加速渲染問題) */
         .paper {
             position: absolute;
             top: 0;
@@ -466,14 +466,6 @@
             transition: transform 0.15s ease, filter 0.2s;
             user-select: none;
             z-index: 2;
-        }
-
-        /* 未開格圖片縮放呈現 */
-        .paper img {
-            max-width: 80%;
-            max-height: 80%;
-            object-fit: contain;
-            pointer-events: none;
         }
 
         .paper:hover {
@@ -828,9 +820,6 @@
         const db = firebase.database();
         const gameRef = db.ref("sharedPokeGame");
 
-        // 未開格圖片網址
-        const UNOPENED_IMAGE_URL = "https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/cow.png";
-
         // 全域變數
         let currentGameData = null;
         let activeMode = 'A';
@@ -1003,7 +992,7 @@
                 isPoked: false,
                 winner: "",
                 pokedAt: 0,
-                coverEmoji: "cow"
+                coverEmoji: "👻"
             }));
 
             const gamePayload = {
@@ -1107,7 +1096,7 @@
                 } else {
                     const paper = document.createElement('div');
                     paper.className = 'paper';
-                    paper.innerHTML = `<img src="${UNOPENED_IMAGE_URL}" alt="cow">`;
+                    paper.innerHTML = '👻';
                     paper.onclick = () => handleAdminPoke(cell.id - 1, cell);
                     cellEl.appendChild(paper);
                 }
@@ -1201,7 +1190,7 @@
                 } else {
                     const paper = document.createElement('div');
                     paper.className = 'paper';
-                    paper.innerHTML = `<img src="${UNOPENED_IMAGE_URL}" alt="cow">`;
+                    paper.innerHTML = '👻';
                     paper.onclick = () => handlePlayerPoke(cell.id - 1, cell, hasReachedLimit, isExpired, hasBigPrizesLeft, maxPokes);
                     cellEl.appendChild(paper);
                 }
