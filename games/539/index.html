@@ -894,7 +894,6 @@
         async function copyPlayerInfo() {
             const baseUrl = window.location.href.split('#')[0];
             const playerUrl = baseUrl + "#player";
-            const eventName = currentGameData.eventName;
             const pass = (currentGameData && currentGameData.password) ? currentGameData.password : document.getElementById('roomPassword').value.trim();
             const note = (currentGameData && currentGameData.note !== undefined) ? currentGameData.note : document.getElementById('eventNote').value.trim();
 
@@ -908,7 +907,7 @@
                 }
             }
 
-            const textToCopy = `🎮 刮刮樂活動連結：\n${playerUrl}\n🏆${eventName}🏆\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
+            const textToCopy = `🎮 刮刮樂活動連結：\n${playerUrl}\n\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
 
             try {
                 await navigator.clipboard.writeText(textToCopy);
