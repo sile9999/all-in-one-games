@@ -1072,7 +1072,7 @@
             listEl.innerHTML = html;
         }
 
-        // 創建銀色刮刮樂 Canvas
+        // 創建 Tiffany 藍漸層 + 🎁 刮刮樂 Canvas
         function setupScratchCanvas(cellEl, onScratchComplete) {
             const canvas = document.createElement('canvas');
             canvas.className = 'scratch-canvas';
@@ -1084,35 +1084,20 @@
 
             const ctx = canvas.getContext('2d');
 
-            // 繪製銀灰色銀漆漸層
+            // 1. 繪製 Tiffany 藍漸層
             const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#d6d6d6');
-            grad.addColorStop(0.5, '#f8f8f8');
-            grad.addColorStop(1, '#b0b0b0');
+            grad.addColorStop(0, '#b2f0e8');
+            grad.addColorStop(0.5, '#81e6d9');
+            grad.addColorStop(1, '#4fd1c5');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 載入並繪製塗層圖片
-            const coverImg = new Image();
-            coverImg.crossOrigin = "Anonymous";
-            coverImg.src = "https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/cow.png";
-            coverImg.onload = function() {
-                // 等比例縮放並置中繪製圖片
-                const padding = canvas.width * 0.1;
-                const maxW = canvas.width - padding * 2;
-                const maxH = canvas.height - padding * 2;
-                let drawW = coverImg.width;
-                let drawH = coverImg.height;
-
-                const ratio = Math.min(maxW / drawW, maxH / drawH);
-                drawW *= ratio;
-                drawH *= ratio;
-
-                const drawX = (canvas.width - drawW) / 2;
-                const drawY = (canvas.height - drawH) / 2;
-
-                ctx.drawImage(coverImg, drawX, drawY, drawW, drawH);
-            };
+            // 2. 繪製 "🎁" 圖案
+            const fontSize = Math.floor(canvas.width * 0.45);
+            ctx.font = `${fontSize}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText("🎁", canvas.width / 2, canvas.height / 2);
 
             let isDrawing = false;
             let isTriggered = false;
@@ -1154,7 +1139,7 @@
                 const percent = (transparentPixels / (pixels.length / 4)) * 100;
 
                 // 刮開超過 35% 判定為完成，自動揭曉
-                if (percent > 70) {
+                if (percent > 35) {
                     isTriggered = true;
                     canvas.style.transition = 'opacity 0.3s ease';
                     canvas.style.opacity = '0';
