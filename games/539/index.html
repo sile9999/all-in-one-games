@@ -907,7 +907,7 @@
                 }
             }
 
-            const textToCopy = `🎮 刮刮樂活動連結：\n${playerUrl}\n\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
+            const textToCopy = `🎮 刮刮樂活動連結：\n${playerUrl}\n🏆${titleText}🏆\n🔑 房間密碼：${pass}\n⏰ 結束時間：${endStr}\n📝 備註說明：${note}`;
 
             try {
                 await navigator.clipboard.writeText(textToCopy);
