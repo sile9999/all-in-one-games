@@ -1463,7 +1463,7 @@
             if (winners.length > 0) {
                 winners.forEach(item => {
                     const name = item.winner ? item.winner : "管理者代刮";
-                    text += `• 第 ${item.id} 格: ${item.prize} ➔ @${name}\n`;
+                    text += `• ${item.prize} ➔ @${name}\n`;
                 });
             } else {
                 text += `(尚無中獎紀錄)\n`;
@@ -1473,7 +1473,7 @@
             if (turtles.length > 0) {
                 turtles.forEach(item => {
                     const name = item.winner ? item.winner : "管理者代刮";
-                    text += `• 第 ${item.id} 格: 烏龜 ➔ ${name}\n`;
+                    text += `• 烏龜 ➔ ${name}\n`;
                 });
             } else {
                 text += `(尚無未得獎紀錄)\n`;
