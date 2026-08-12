@@ -24,7 +24,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 .btn-lobby{display:block;background:#00897b;color:white;max-width:250px;margin:12px auto 0}
 .button-group{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}
 .mode-tabs{display:flex;gap:6px;border-bottom:2px solid #ffe0b2;margin:10px 0}.tab-btn{background:none;color:#666}.tab-btn.active{background:#ff9800;color:white}.mode-content{display:none}.mode-content.active{display:block}
-.prize-item-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.a-prize-name{flex:1 1 100px}.a-prize-count{width:60px!important}.a-prize-img-url{flex:1.5 1 120px}.btn-del-item{background:#e53935;color:white;width:34px;height:38px}
+.prize-item-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px} .prize-preview{width:42px;height:42px;border:1px solid #ddd;border-radius:6px;object-fit:cover;background:#fafafa;display:none}.prize-preview.show{display:block}.a-prize-name{flex:1 1 100px}.a-prize-count{width:60px!important}.a-prize-img-url{flex:1.5 1 120px}.btn-del-item{background:#e53935;color:white;width:34px;height:38px}
 .btn-add-item{background:#ff9800;color:white;margin-top:3px}
 .capture-area{background:#fce4ec;padding:10px;border-radius:14px;display:flex;flex-direction:column;align-items:center;width:100%}
 .event-title{text-align:center;color:#d32f2f;font-size:1.7rem;font-weight:bold;margin-bottom:8px}
@@ -83,7 +83,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
         <div class="input-row"><label>遊戲結束：</label><input type="datetime-local" id="endTime"></div>
         <div class="input-row"><label>房間密碼：</label><input type="text" id="roomPassword" value="8888"></div>
         <div class="input-row"><label>彈珠遊戲時間(分)：</label><input type="number" id="gameMinutes" value="2" min="1" max="60"></div>
-        <div class="input-row"><label>每幾分換1次：</label><input type="number" id="pointsPerScratch" value="100" min="1"></div>
+        <div class="input-row"><label>每幾分換1次：</label><input type="number" id="pointsPerScratch" value="200" min="1"></div>
         <div class="input-row"><label>刮刮樂格數：</label><input type="number" id="totalCount" value="36" min="5"></div>
         <div class="input-row"><label>備註：</label><input type="text" id="eventNote" value="遊戲結束後，依積分兌換刮刮樂"></div>
         <div class="input-row">
@@ -103,9 +103,9 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
             <input class="a-prize-name" type="text" placeholder="獎品名稱">
             <input class="a-prize-count" type="number" value="1" min="1" placeholder="數量">
             <input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)">
-            <label class="btn-blue" style="padding:9px;cursor:pointer">📷
+            <label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳
               <input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
-            </label>
+            </label><img class="prize-preview" alt="圖片預覽">
             <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
           </div>
         </div>
@@ -161,7 +161,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
       </div>
       <div class="redeem-panel">
         <div>🎫 遊戲結束後可兌換刮刮樂</div>
-        <div style="margin-top:5px">兌換規則：<strong><span id="pointsRule">100</span> 積分 = 1 次</strong></div>
+        <div style="margin-top:5px">兌換規則：<strong><span id="pointsRule">200</span> 積分 = 1 次</strong></div>
         <div style="margin-top:8px">可兌換次數</div>
         <div class="redeem-count" id="redeemCount">0</div>
         <button id="redeemBtn" class="redeem-btn" onclick="startRedeem()" disabled>🎫 兌換刮刮樂</button>
@@ -227,17 +227,23 @@ function switchView(v){
 window.onhashchange=()=>{location.hash==='#player'?switchView('player'):switchView('main')};
 function switchMode(m){activeMode=m;document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0)===(m==='A')));document.getElementById('modeA').classList.toggle('active',m==='A');document.getElementById('modeB').classList.toggle('active',m==='B')}
 function addPrizeRow(){
- let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r)
+ let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><img class="prize-preview" alt="圖片預覽"><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r);savePrizeDraft()
 }
 function removePrizeRow(b){let c=document.getElementById('prizeListContainer');if(c.children.length>1)b.parentElement.remove();else alert("至少需要保留一組獎品！")}
-function handleImageUrlInput(i){let r=i.closest('.prize-item-row');r.dataset.image=i.value.trim()}
-function handleImageUpload(i){let f=i.files[0];if(!f)return;let rd=new FileReader();rd.onload=e=>{let r=i.closest('.prize-item-row');r.dataset.image=e.target.result};rd.readAsDataURL(f)}
+function savePrizeDraft(){
+ let rows=[];document.querySelectorAll('.prize-item-row').forEach(r=>{rows.push({name:r.querySelector('.a-prize-name')?.value||'',count:r.querySelector('.a-prize-count')?.value||1,url:r.querySelector('.a-prize-img-url')?.value||'',image:r.dataset.image||''})});
+ try{localStorage.setItem('pinballPrizeDraft',JSON.stringify(rows))}catch(e){}
+}
+function setPrizePreview(r,src){let img=r.querySelector('.prize-preview');if(!img)return;if(src){img.src=src;img.classList.add('show')}else{img.removeAttribute('src');img.classList.remove('show')}}
+function handleImageUrlInput(i){let r=i.closest('.prize-item-row');let v=i.value.trim();r.dataset.image=v;setPrizePreview(r,v);savePrizeDraft()}
+function handleImageUpload(i){let f=i.files[0];if(!f)return;if(f.size>2*1024*1024){alert('圖片請小於 2MB');i.value='';return}let rd=new FileReader();rd.onload=e=>{let r=i.closest('.prize-item-row');r.dataset.image=e.target.result;setPrizePreview(r,e.target.result);savePrizeDraft()};rd.readAsDataURL(f)}
+function restorePrizeDraft(){try{let rows=JSON.parse(localStorage.getItem('pinballPrizeDraft')||'[]');if(!rows.length)return;let box=document.getElementById('prizeListContainer');box.innerHTML='';rows.forEach((x,idx)=>{addPrizeRow();let r=box.lastElementChild;r.querySelector('.a-prize-name').value=x.name||'';r.querySelector('.a-prize-count').value=x.count||1;r.querySelector('.a-prize-img-url').value=x.url||'';r.dataset.image=x.image||x.url||'';setPrizePreview(r,r.dataset.image)});}catch(e){}}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
 function publishNewGame(){
  const eventName=document.getElementById('eventName').value.trim(),password=document.getElementById('roomPassword').value.trim();
  const endVal=document.getElementById('endTime').value,gameMinutes=Math.max(1,parseInt(document.getElementById('gameMinutes').value)||2);
- const pointsPerScratch=Math.max(1,parseInt(document.getElementById('pointsPerScratch').value)||100);
+ const pointsPerScratch=Math.max(1,parseInt(document.getElementById('pointsPerScratch').value)||200);
  const totalCells=Math.max(5,parseInt(document.getElementById('totalCount').value)||36),note=document.getElementById('eventNote').value.trim();
  if(!password){alert("請設定房間密碼");return}
  let prizeList=[];
@@ -325,7 +331,7 @@ function loadPlayerState(){
 function savePlayerScore(){db.ref(`sharedPokeGame/players/${playerKey()}`).update({name:currentPlayerName,score:playerScore,updatedAt:Date.now()})}
 function updatePlayerScore(){document.getElementById('playerScore').innerText=playerScore.toLocaleString();renderRedeem()}
 function renderRedeem(){
- if(!currentGameData)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),count=Math.floor(playerScore/unit);
+ if(!currentGameData)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),count=Math.floor(playerScore/unit);
  document.getElementById('pointsRule').innerText=unit;document.getElementById('redeemCount').innerText=count;
  let ended=!gameStarted||Date.now()>=Number(currentGameData.endTime||0);
  document.getElementById('redeemBtn').disabled=!(ended&&count>0);
@@ -341,10 +347,10 @@ function startPinballGame(){
  resetPinballCanvas();renderRedeem()
 }
 function finishPinball(){
- if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText="00:00";savePlayerScore();renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||100))} 次刮刮樂`)}
+ if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText="00:00";savePlayerScore();renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||200))} 次刮刮樂`)}
 function startRedeem(){
  if(gameStarted){alert("請等彈珠台時間結束後再兌換");return}
- let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
  if(available<=0){alert("積分不足");return}
  document.getElementById('redeemBtn').disabled=true;
  document.getElementById('playerScratchArea').style.display='block';
@@ -356,7 +362,7 @@ function closeScratchOverlay(){
 }
 
 function renderPlayerScratch(){
- let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
  let box=document.getElementById('playerPokeBox');box.innerHTML='';
  if(available<=0){box.innerHTML='<div style="color:white;font-weight:bold">目前沒有刮獎資格</div>';return}
  let idxs=d.cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);
@@ -366,15 +372,16 @@ function renderPlayerScratch(){
 }
 function claimScratch(i,c){
  if(c.isPoked){renderPlayerScratch();return}
- let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
  if(available<=0){alert("已沒有刮獎資格");return}
  let ref=db.ref(`sharedPokeGame/cells/${i}`);
  ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.pokedAt=Date.now();return cell}).then(r=>{
   if(!r.committed){renderPlayerScratch();return}
   playerScore-=unit;savePlayerScore();updatePlayerScore();
+  showScratchResult(c);
   if(String(c.prize).includes("烏龜"))alert("🐢 這次沒有中獎，再接再厲！");
   else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
-  renderPlayerScratch();renderWinnerTable(currentGameData);
+  renderWinnerTable(currentGameData);
  })
 }
 function renderPlayerBoard(d){
@@ -560,7 +567,7 @@ async function copyWinnerList(){
 async function copyScreenshot(){
  let area=document.getElementById('captureArea');try{let canvas=await html2canvas(area,{scale:2,useCORS:true});canvas.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert("截圖已複製！")}catch(e){alert("瀏覽器不允許直接複製圖片，請手動截圖")}})}catch(e){alert("截圖失敗")}
 }
-window.onload=()=>{updateClock();location.hash==='#player'?switchView('player'):switchView('main')};
+window.onload=()=>{updateClock();restorePrizeDraft();location.hash==='#player'?switchView('player'):switchView('main')};
 </script>
 </body>
 </html>
