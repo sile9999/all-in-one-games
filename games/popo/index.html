@@ -1,915 +1,566 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>泡泡消消樂 - 數學燒腦版</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    
-    body { 
-      background-color: #f0f4f8; 
-      background-image: url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");
-      background-repeat: no-repeat;
-      background-position: center center;
-      background-attachment: fixed;
-      background-size: cover;
-      display: flex; 
-      justify-content: center; 
-      align-items: center; 
-      min-height: 100vh; 
-      padding: 16px; 
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜市彈珠台 × 刮刮樂</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:"Microsoft JhengHei","PingFang TC",sans-serif}
+body{background:#fce4ec;background-image:url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");background-repeat:no-repeat;background-position:center;background-attachment:fixed;background-size:cover;min-height:100vh;padding:15px 10px;color:#333}
+h1{color:#d32f2f;text-shadow:2px 2px #ffcdd2;text-align:center;margin-bottom:12px;font-size:1.8rem}
+.page{display:none;width:100%;max-width:900px;margin:auto}.page.active{display:block}
+.card,.config-panel,.winner-list-panel,.login-card{background:rgba(255,255,255,.96);padding:15px;border-radius:14px;box-shadow:0 4px 15px rgba(0,0,0,.12);margin-bottom:12px}
+.login-card{max-width:420px;margin:25px auto;display:flex;flex-direction:column;gap:12px}
+.login-card h2{text-align:center;color:#d32f2f}
+input,textarea{padding:9px;border:1px solid #ccc;border-radius:7px;font-size:.9rem;user-select:text}
+.input-group{display:flex;flex-direction:column;gap:8px}.input-row{display:flex;align-items:center;gap:7px}.input-row label{white-space:nowrap;font-size:.85rem;color:#666}.input-row input{flex:1;min-width:0}
+input[type=number]{width:80px;text-align:center}
+button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;cursor:pointer;text-decoration:none;text-align:center}
+.btn-apply{background:#d32f2f;color:white;width:100%}.btn-apply:hover{background:#b71c1c}
+.btn-orange{background:#ef6c00;color:#fff}.btn-purple{background:#7b1fa2;color:#fff}.btn-blue{background:#0288d1;color:#fff}.btn-green{background:#2e7d32;color:#fff}.btn-gray{background:#607d8b;color:#fff}
+.btn-lobby{display:block;background:#00897b;color:white;max-width:250px;margin:12px auto 0}
+.button-group{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.mode-tabs{display:flex;gap:6px;border-bottom:2px solid #ffe0b2;margin:10px 0}.tab-btn{background:none;color:#666}.tab-btn.active{background:#ff9800;color:white}.mode-content{display:none}.mode-content.active{display:block}
+.prize-item-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.a-prize-name{flex:1 1 100px}.a-prize-count{width:60px!important}.a-prize-img-url{flex:1.5 1 120px}.btn-del-item{background:#e53935;color:white;width:34px;height:38px}
+.btn-add-item{background:#ff9800;color:white;margin-top:3px}
+.capture-area{background:#fce4ec;padding:10px;border-radius:14px;display:flex;flex-direction:column;align-items:center;width:100%}
+.event-title{text-align:center;color:#d32f2f;font-size:1.7rem;font-weight:bold;margin-bottom:8px}
+.toolbar{width:100%;margin-bottom:8px}.time-box{background:#ffe0b2;color:#e65100;border-radius:20px;padding:8px 14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:bold}
+.prizes-count{color:#d32f2f}
+.poke-box{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;background:#d32f2f;padding:8px;border-radius:10px;width:100%}
+#mainPokeBox{grid-template-columns:repeat(10,1fr);gap:3px;padding:5px}
+#mainPokeBox .cell{font-size:.62rem;border-radius:4px}
+#mainPokeBox .winner-name{font-size:.52rem;padding:1px 3px;margin-top:2px}
+#mainPokeBox .cell-img{max-height:42%}
+.cell{position:relative;aspect-ratio:1;background:white;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:.8rem;font-weight:bold;overflow:hidden;box-shadow:inset 0 0 4px rgba(0,0,0,.12)}
+.cell.winning{background:linear-gradient(135deg,#fff9c4,#ffe082);color:#b71c1c;border:2px solid #ffa000}.cell.turtle{background:#f1f3f4;color:#546e7a}
+.cell-img{max-width:80%;max-height:50%;object-fit:contain}.winner-name{font-size:.7rem;color:#0d47a1;background:#e3f2fd;padding:2px 5px;border-radius:4px;margin-top:3px;max-width:95%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scratch-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;cursor:pointer;touch-action:none;border-radius:6px}
+.unopened-prizes-box{width:100%;background:white;border:2px dashed #ffb74d;border-radius:10px;padding:10px;margin-top:10px}.unopened-prizes-title{text-align:center;font-weight:bold;color:#e65100;margin-bottom:8px}.unopened-prizes-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.unopened-prize-item{font-size:.8rem;background:#fff8e1;padding:5px 8px;border-radius:6px;display:flex;justify-content:space-between}.unopened-prize-count{color:#d32f2f;font-weight:bold}
+.footer-row{display:flex;width:100%;margin-top:8px}.note-display{width:66%;color:#d84315;font-weight:bold}.copyright-display{width:34%;text-align:right;color:#d84315;font-weight:bold}
+.winner-table{width:100%;border-collapse:collapse;font-size:.8rem}.winner-table th,.winner-table td{border:1px solid #ffe0b2;padding:6px;text-align:center}.winner-table th{background:#fff3e0;color:#e65100}
+.status-bar{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;background:white;padding:10px 14px;border-radius:10px;margin-bottom:10px;font-weight:bold}.score{color:#1565c0;font-size:1.15rem}.timer{color:#d32f2f;font-size:1.15rem}
+.pinball-wrap{background:linear-gradient(#263238,#102027);padding:12px;border-radius:18px;box-shadow:0 7px 20px rgba(0,0,0,.3);width:min(420px,96vw);margin:auto}
+#pinballCanvas{display:block;width:100%;height:auto;border-radius:12px;background:#102027;touch-action:none}
+.pinball-help{text-align:center;color:#fff;margin:8px 0;font-size:.85rem}.launch-btn{width:100%;background:#ffb300;color:#4e342e;font-size:1.05rem;margin-top:8px}.launch-btn:disabled{opacity:.45;cursor:not-allowed}
+.redeem-panel{margin-top:12px;background:linear-gradient(135deg,#fff8e1,#ffe0b2);padding:15px;border-radius:14px;text-align:center;border:2px solid #ffb74d}.redeem-count{font-size:2rem;color:#d32f2f;font-weight:900}.redeem-btn{background:#e65100;color:white;font-size:1rem;margin-top:8px}.redeem-btn:disabled{background:#aaa}
+.player-grid{display:grid;grid-template-columns:1fr;gap:12px}
+#playerPokeBox{display:flex;justify-content:center;align-items:center;padding:15px;width:min(320px,85vw);height:min(320px,85vw);margin:10px auto;background:#d32f2f}
+#playerPokeBox .cell{width:100%;height:100%}
+@media(max-width:520px){#mainPokeBox{grid-template-columns:repeat(8,1fr);gap:2px;padding:4px}.poke-box{grid-template-columns:repeat(5,1fr);gap:4px;padding:6px}.input-row{align-items:flex-start;flex-direction:column}.input-row input{width:100%}.unopened-prizes-grid{grid-template-columns:1fr}.event-title{font-size:1.35rem}}
+</style>
+<style>
+.pinball-wrap{background:linear-gradient(#6d1b1b,#26100f);border:5px solid #ffb300;position:relative}
+#playerScratchArea{position:fixed;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,92vw);max-height:92vh;overflow:auto;margin:0;background:rgba(255,255,255,.98);border:4px solid #ffb300;box-shadow:0 15px 50px rgba(0,0,0,.55);padding:15px}
+#playerScratchArea:before{content:"";position:fixed;inset:-100vh;z-index:-1;background:rgba(20,10,25,.68);backdrop-filter:blur(2px)}
+#playerScratchArea .event-title{font-size:1.35rem}
+#playerScratchArea .close-scratch-btn{display:block;margin:8px auto 0;background:#607d8b;color:#fff}
+.pinball-wrap:before{content:"";position:absolute;inset:8px;border:2px solid rgba(255,224,178,.5);border-radius:12px;pointer-events:none}
+#pinballCanvas{background:radial-gradient(circle at 50% 10%,#7b1fa2,#24103d 65%,#120b20);box-shadow:inset 0 0 30px rgba(0,0,0,.7)}
+.launch-btn{box-shadow:0 3px 0 #b26a00,0 5px 10px rgba(0,0,0,.35)}
+</style>
 
-    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; }
-    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
-    
-    .menu-group { margin-bottom: 16px; text-align: left; }
-    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
-    
-    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
-    .btn-option { flex: 1; min-width: 60px; padding: 10px 6px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 13px; }
-    .btn-option.active { border-color: #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
-    
-    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
-    
-    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
-    .btn-primary:hover { background-color: #2563eb; }
-    .btn-admin { background-color: #64748b; }
-    .btn-admin:hover { background-color: #475569; }
-    .btn-copy { background-color: #8b5cf6; }
-    .btn-copy:hover { background-color: #7c3aed; }
-    .btn-start { background-color: #10b981; }
-    .btn-start:hover { background-color: #059669; }
-
-    .btn-lobby {
-      width: 100%;
-      max-width: 250px;
-      margin: 16px auto 0 auto;
-      background-color: #00897b;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 18px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-      text-align: center;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s;
-    }
-    .btn-lobby:hover { background-color: #00695c; }
-    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
-
-    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
-    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
-
-    .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
-    
-    /* 泡泡射擊 Canvas 容器 */
-    .game-canvas-container { position: relative; width: 100%; max-width: 440px; margin: 0 auto 16px auto; }
-    canvas { 
-      background: #0f172a; 
-      border-radius: 16px; 
-      display: block; 
-      width: 100%; 
-      height: auto; 
-      cursor: crosshair; 
-      box-shadow: inset 0 0 12px rgba(255,255,255,0.05); 
-      touch-action: none; /* 防止行動裝置滑動網頁 */
-    }
-
-    .game-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.88); border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 22px; font-weight: bold; z-index: 10; padding: 16px; text-align: center; }
-
-    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
-    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
-    .leaderboard-item { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
-    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
-
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
-    
-    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; }
-    .ended-icon { font-size: 48px; margin-bottom: 12px; }
-
-    .hidden { display: none !important; }
-    .disabled-area { opacity: 0.5; pointer-events: none; }
-  </style>
-
-  <!-- 防 F12 與開發者工具腳本 -->
-  <script>
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) { e.preventDefault(); return false; }
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) { e.preventDefault(); return false; }
-    });
-
-    setInterval(() => {
-      const startTime = performance.now();
-      (function() { return false; }).constructor("debugger")();
-      const endTime = performance.now();
-      if (endTime - startTime > 100) {
-        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
-      }
-    }, 500);
-  </script>
-
-  <!-- JS 模組載入 -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
-      authDomain: "gogogame-ce8ba.firebaseapp.com",
-      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
-      projectId: "gogogame-ce8ba",
-      storageBucket: "gogogame-ce8ba.firebasestorage.app",
-      messagingSenderId: "823932242561",
-      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    let eventId = null;
-    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
-    let playerName = '';
-    let targetNumber = 10;
-    let gameMode = '60s';
-    let dropIntervalSec = 15;
-    let dropTimer = null;
-    let endTimeStr = '';
-    let eventEndTimeMs = 0;
-    let myScore = 0;
-    let timer = null;
-    let eventRef = null;
-    let currentLeaderboard = {};
-    let isGameActive = false;
-
-    // 泡泡龍 Canvas 核心變數
-    let canvas, ctx;
-    const COLS = 8;
-    const ROWS = 10;
-    let BUBBLE_RADIUS = 22;
-    let grid = [];
-    let currentBubble = null;
-    let nextBubbleValue = 1;
-    let shootingBubble = null;
-    let mousePos = { x: 200, y: 500 };
-
-    const BUBBLE_COLORS = {
-      1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#10b981',
-      5: '#06b6d4', 6: '#3b82f6', 7: '#6366f1', 8: '#8b5cf6',
-      9: '#ec4899', 10: '#f43f5e'
-    };
-
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
-      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
-      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
-      document.getElementById('create-event-btn').addEventListener('click', createEvent);
-      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
-      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
-      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
-      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
-
-      setupOptionGroup('target-options', (val) => targetNumber = parseInt(val));
-      setupOptionGroup('mode-options', (val) => gameMode = val);
-      setupOptionGroup('drop-options', (val) => dropIntervalSec = parseInt(val));
-
-      const now = new Date();
-      now.setHours(23, 59, 0, 0);
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('admin-endtime-input').value = `${year}-${month}-${day}T${hours}:${minutes}`;
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const eventParam = urlParams.get('event');
-
-      if (eventParam) {
-        document.getElementById('main-setup-view').classList.add('hidden');
-        eventId = eventParam;
-        
-        get(ref(db, 'events_v1/' + eventId)).then((snapshot) => {
-          if (!snapshot.exists()) {
-            alert('找不到該活動代號，請確認後重試！');
-            document.getElementById('main-setup-view').classList.remove('hidden');
-            return;
-          }
-
-          const data = snapshot.val();
-          if (data.endTime && Date.now() >= data.endTime) {
-            showEventEndedView();
-            return;
-          }
-
-          document.getElementById('input-event-id').value = eventId;
-          document.getElementById('join-modal').classList.remove('hidden');
-        }).catch((error) => {
-          alert('讀取活動失敗：' + error.message);
-          document.getElementById('main-setup-view').classList.remove('hidden');
-        });
-      }
-    });
-
-    function showEventEndedView() {
-      document.getElementById('main-setup-view').classList.add('hidden');
-      document.getElementById('join-modal').classList.add('hidden');
-      document.getElementById('player-game-view').classList.add('hidden');
-      document.getElementById('event-ended-view').classList.remove('hidden');
-
-      onValue(ref(db, `events_v1/${eventId}`), (snap) => {
-        const evData = snap.val();
-        if (evData) renderLeaderboard('ended-leaderboard-list', evData.scores || {});
-      });
-    }
-
-    function setupOptionGroup(groupId, callback) {
-      const group = document.getElementById(groupId);
-      group.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-option')) {
-          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
-          e.target.classList.add('active');
-          callback(e.target.dataset.val || e.target.dataset.mode || e.target.dataset.drop);
-        }
-      });
-    }
-
-    function openAdminModal() { document.getElementById('pwd-modal').classList.remove('hidden'); }
-
-    function checkPassword() {
-      if (document.getElementById('admin-pwd').value === '17696969') {
-        document.getElementById('pwd-modal').classList.add('hidden');
-        document.getElementById('setting-fields').classList.remove('disabled-area');
-        document.getElementById('admin-create-actions').classList.remove('hidden');
-        const unlockBtn = document.getElementById('admin-unlock-btn');
-        unlockBtn.innerText = '✅ 管理者權限已解鎖';
-        unlockBtn.classList.add('btn-success-state');
-      } else {
-        alert('密碼錯誤！');
-      }
-    }
-
-    function createEvent() {
-      const customVal = parseInt(document.getElementById('custom-target-input').value);
-      if (!isNaN(customVal) && customVal >= 2) targetNumber = customVal;
-
-      endTimeStr = document.getElementById('admin-endtime-input').value;
-      if (!endTimeStr) return alert('請先設定「活動結束時間」！');
-
-      const noteText = document.getElementById('admin-note-input').value.trim();
-      const calculatedEndTimeMs = new Date(endTimeStr).getTime();
-
-      if (calculatedEndTimeMs <= Date.now()) return alert('⚠️ 活動結束時間必須設定在「未來」！');
-
-      eventId = Math.floor(100000 + Math.random() * 900000).toString();
-      eventRef = ref(db, 'events_v1/' + eventId);
-
-      set(eventRef, {
-        targetNumber: targetNumber,
-        gameMode: gameMode,
-        dropIntervalSec: dropIntervalSec,
-        endTime: calculatedEndTimeMs,
-        note: noteText,
-        scores: {}
-      }).then(() => {
-        document.getElementById('room-num-display').innerText = eventId;
-        document.getElementById('admin-action-area').classList.remove('hidden');
-        alert(`🎉 活動建立成功！活動代號為：${eventId}`);
-      });
-
-      onValue(eventRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-        currentLeaderboard = data.scores || {};
-        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
-      });
-    }
-
-    function copyEventLink(btn) {
-      if (!eventId) return;
-      const fullLink = `${window.location.origin}${window.location.pathname}?event=${eventId}`;
-      let copyMsg = `🎮 泡泡消消樂 - 數學燒腦版\n🔗 挑戰連結：${fullLink}\n📍 活動代號：${eventId}\n🎯 目標合數：${targetNumber}\n`;
-
-      navigator.clipboard.writeText(copyMsg).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結與說明');
-      });
-    }
-
-    function copyScores(btn) {
-      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) return alert('目前尚無玩家回報成績！');
-      const sorted = Object.values(currentLeaderboard).sort((a, b) => b.score - a.score);
-      let text = `🏆【泡泡消消樂】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
-      sorted.forEach((p, idx) => { text += `第 ${idx + 1} 名: ${p.name} - ${p.score} 分\n`; });
-
-      navigator.clipboard.writeText(text).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製排行榜成績');
-      });
-    }
-
-    function triggerButtonFeedback(btnElement, activeText, originalText) {
-      btnElement.innerText = activeText;
-      btnElement.classList.add('btn-success-state');
-      setTimeout(() => {
-        btnElement.innerText = originalText;
-        btnElement.classList.remove('btn-success-state');
-      }, 1200);
-    }
-
-    function openJoinModalNewTab() {
-      const baseUrl = window.location.origin + window.location.pathname;
-      window.open(eventId ? `${baseUrl}?event=${eventId}` : baseUrl, '_blank');
-    }
-
-    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-    /* ---------------- 泡泡龍遊戲邏輯 ---------------- */
-    function joinIndividualGame() {
-      const inputEvent = document.getElementById('input-event-id').value.trim();
-      const inputName = document.getElementById('input-player-name').value.trim();
-
-      if (!inputEvent || !inputName) return alert('請填寫完整代號與暱稱！');
-
-      eventId = inputEvent;
-      playerName = inputName;
-      eventRef = ref(db, 'events_v1/' + eventId);
-
-      get(eventRef).then((snapshot) => {
-        if (!snapshot.exists()) return alert('找不到該活動代號！');
-
-        const data = snapshot.val();
-        eventEndTimeMs = data.endTime || 0;
-
-        if (eventEndTimeMs && Date.now() >= eventEndTimeMs) {
-          showEventEndedView();
-          return;
-        }
-
-        targetNumber = data.targetNumber;
-        gameMode = data.gameMode;
-        dropIntervalSec = data.dropIntervalSec || 15;
-
-        document.getElementById('join-modal').classList.add('hidden');
-        document.getElementById('main-setup-view').classList.add('hidden');
-        document.getElementById('player-game-view').classList.remove('hidden');
-
-        onValue(eventRef, (snap) => {
-          const evData = snap.val();
-          if (evData) renderLeaderboard('player-leaderboard-list', evData.scores || {});
-        });
-
-        initCanvasGame();
-      });
-    }
-
-    function getRandomVal() {
-      return Math.floor(Math.random() * (targetNumber - 1)) + 1;
-    }
-
-    function initCanvasGame() {
-      canvas = document.getElementById('bubbleCanvas');
-      ctx = canvas.getContext('2d');
-
-      BUBBLE_RADIUS = canvas.width / (COLS * 2 + 1);
-
-      grid = [];
-      for (let r = 0; r < ROWS; r++) {
-        grid[r] = [];
-        for (let c = 0; c < COLS; c++) {
-          if (r < 3) {
-            grid[r][c] = { value: getRandomVal() };
-          } else {
-            grid[r][c] = null;
-          }
-        }
-      }
-
-      nextBubbleValue = getRandomVal();
-      prepareNextShootBubble();
-
-      // 滑鼠控制
-      canvas.addEventListener('mousemove', (e) => {
-        updatePointerPos(e.clientX, e.clientY);
-      });
-
-      canvas.addEventListener('click', () => {
-        shootBubble();
-      });
-
-      // 📱 觸控控制（手機、平板）
-      const handleTouch = (e) => {
-        if (e.touches && e.touches.length > 0) {
-          e.preventDefault();
-          const touch = e.touches[0];
-          updatePointerPos(touch.clientX, touch.clientY);
-        }
-      };
-
-      canvas.addEventListener('touchstart', (e) => {
-        handleTouch(e);
-      }, { passive: false });
-
-      canvas.addEventListener('touchmove', (e) => {
-        handleTouch(e);
-      }, { passive: false });
-
-      canvas.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        shootBubble();
-      }, { passive: false });
-
-      startPersonalGame();
-      requestAnimationFrame(gameLoop);
-    }
-
-    function updatePointerPos(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      mousePos.x = (clientX - rect.left) * scaleX;
-      mousePos.y = (clientY - rect.top) * scaleY;
-    }
-
-    function shootBubble() {
-      if (!isGameActive || shootingBubble) return;
-      
-      const startX = canvas.width / 2;
-      const startY = canvas.height - 40;
-      const angle = Math.atan2(mousePos.y - startY, mousePos.x - startX);
-
-      if (angle < 0) {
-        shootingBubble = {
-          x: startX,
-          y: startY,
-          vx: Math.cos(angle) * 12,
-          vy: Math.sin(angle) * 12,
-          value: currentBubble.value
-        };
-        prepareNextShootBubble();
-      }
-    }
-
-    function prepareNextShootBubble() {
-      currentBubble = { value: nextBubbleValue };
-      nextBubbleValue = getRandomVal();
-    }
-
-    function pushNewRow() {
-      for (let c = 0; c < COLS; c++) {
-        if (grid[ROWS - 1][c]) {
-          endPersonalGame(false);
-          return;
-        }
-      }
-      for (let r = ROWS - 1; r > 0; r--) {
-        grid[r] = [...grid[r - 1]];
-      }
-      grid[0] = [];
-      for (let c = 0; c < COLS; c++) {
-        grid[0][c] = { value: getRandomVal() };
-      }
-
-      checkTouchShootingArea();
-    }
-
-    function checkTouchShootingArea() {
-      const dangerYThreshold = canvas.height - 80;
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (grid[r][c]) {
-            const pos = getBubblePos(r, c);
-            if (pos.y + BUBBLE_RADIUS >= dangerYThreshold) {
-              endPersonalGame(false);
-              return true;
-            }
-          }
-        }
-      }
-      return false;
-    }
-
-    function updateScoreToFirebase() {
-      if (!eventId || !playerId) return;
-      update(ref(db, `events_v1/${eventId}/scores/${playerId}`), {
-        name: playerName,
-        score: myScore,
-        timestamp: Date.now()
-      });
-    }
-
-    function startPersonalGame() {
-      isGameActive = true;
-      myScore = 0;
-      updateScoreToFirebase();
-
-      document.getElementById('game-over-mask').classList.add('hidden');
-      document.getElementById('target-display').innerText = targetNumber;
-      document.getElementById('score-display').innerText = myScore;
-      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
-
-      let seconds = parseInt(gameMode) || 60;
-      document.getElementById('time-display').innerText = seconds + 's';
-
-      if (timer) clearInterval(timer);
-      timer = setInterval(() => {
-        if (eventEndTimeMs && Date.now() >= eventEndTimeMs) {
-          clearInterval(timer);
-          if (dropTimer) clearInterval(dropTimer);
-          endPersonalGame(true);
-          return;
-        }
-
-        seconds--;
-        document.getElementById('time-display').innerText = seconds + 's';
-
-        if (seconds <= 0) {
-          clearInterval(timer);
-          if (dropTimer) clearInterval(dropTimer);
-          endPersonalGame(false);
-        }
-      }, 1000);
-
-      if (dropTimer) clearInterval(dropTimer);
-      if (dropIntervalSec > 0) {
-        dropTimer = setInterval(() => {
-          if (isGameActive) {
-            pushNewRow();
-          }
-        }, dropIntervalSec * 1000);
-      }
-    }
-
-    function endPersonalGame(isEventExpired = false) {
-      isGameActive = false;
-      if (dropTimer) clearInterval(dropTimer);
-      document.getElementById('time-display').innerText = '0s';
-      document.getElementById('final-score-text').innerText = isEventExpired ? 
-        `⏰ 活動時間到達！結算：${myScore} 分` : `🎉 挑戰結束！獲得 ${myScore} 分`;
-      
-      document.getElementById('game-over-mask').classList.remove('hidden');
-      updateScoreToFirebase();
-    }
-
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      drawGrid();
-      updateShootingBubble();
-      drawLauncher();
-
-      if (isGameActive) {
-        requestAnimationFrame(gameLoop);
-      }
-    }
-
-    function getBubblePos(row, col) {
-      const offset = (row % 2 === 1) ? BUBBLE_RADIUS : 0;
-      const x = col * BUBBLE_RADIUS * 2 + BUBBLE_RADIUS * 1.5 + offset;
-      const y = row * BUBBLE_RADIUS * 1.732 + BUBBLE_RADIUS * 1.5;
-      return { x, y };
-    }
-
-    function drawBubble(x, y, value) {
-      const r = BUBBLE_RADIUS - 2;
-      const baseColor = BUBBLE_COLORS[value] || '#3b82f6';
-
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = baseColor;
-      ctx.fill();
-
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-      ctx.stroke();
-
-      ctx.font = '900 18px "Segoe UI", Roboto, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-      ctx.strokeText(value, x, y);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(value, x, y);
-    }
-
-    function drawGrid() {
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (grid[r][c]) {
-            const pos = getBubblePos(r, c);
-            drawBubble(pos.x, pos.y, grid[r][c].value);
-          }
-        }
-      }
-    }
-
-    function drawLauncher() {
-      const startX = canvas.width / 2;
-      const startY = canvas.height - 40;
-
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(mousePos.x, mousePos.y);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      if (currentBubble) drawBubble(startX, startY, currentBubble.value);
-      drawBubble(30, canvas.height - 30, nextBubbleValue);
-      
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('下一個', 30, canvas.height - 55);
-    }
-
-    function updateShootingBubble() {
-      if (!shootingBubble) return;
-
-      shootingBubble.x += shootingBubble.vx;
-      shootingBubble.y += shootingBubble.vy;
-
-      if (shootingBubble.x - BUBBLE_RADIUS <= 0 || shootingBubble.x + BUBBLE_RADIUS >= canvas.width) {
-        shootingBubble.vx *= -1;
-      }
-
-      let hasCollided = false;
-      if (shootingBubble.y - BUBBLE_RADIUS <= 0) {
-        hasCollided = true;
-      } else {
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
-            if (grid[r][c]) {
-              const pos = getBubblePos(r, c);
-              const dist = Math.hypot(shootingBubble.x - pos.x, shootingBubble.y - pos.y);
-              if (dist < BUBBLE_RADIUS * 1.8) {
-                hasCollided = true;
-                break;
-              }
-            }
-          }
-          if (hasCollided) break;
-        }
-      }
-
-      if (hasCollided) {
-        snapToGrid(shootingBubble);
-        shootingBubble = null;
-      } else {
-        drawBubble(shootingBubble.x, shootingBubble.y, shootingBubble.value);
-      }
-    }
-
-    function snapToGrid(bubble) {
-      let closestRow = 0, closestCol = 0, minDist = Infinity;
-
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (!grid[r][c]) {
-            const pos = getBubblePos(r, c);
-            const dist = Math.hypot(bubble.x - pos.x, bubble.y - pos.y);
-            if (dist < minDist) {
-              minDist = dist;
-              closestRow = r;
-              closestCol = c;
-            }
-          }
-        }
-      }
-
-      grid[closestRow][closestCol] = { value: bubble.value };
-
-      if (checkTouchShootingArea()) return;
-
-      checkMatches(closestRow, closestCol);
-    }
-
-    function checkMatches(startR, startC) {
-      const startVal = grid[startR][startC].value;
-
-      if (startVal === targetNumber) {
-        grid[startR][startC] = null;
-        myScore += 10;
-        document.getElementById('score-display').innerText = myScore;
-        updateScoreToFirebase();
-        return;
-      }
-
-      function getNeighbors(r, c) {
-        const isOdd = (r % 2 === 1);
-        const dirs = [
-          { r: r - 1, c: c }, { r: r + 1, c: c },
-          { r: r, c: c - 1 }, { r: r, c: c + 1 },
-          { r: r - 1, c: isOdd ? c + 1 : c - 1 },
-          { r: r + 1, c: isOdd ? c + 1 : c - 1 }
-        ];
-        return dirs.filter(n => n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS && grid[n.r][n.c]);
-      }
-
-      let matchedGroup = null;
-
-      function findAdjacentMatch(currentGroup, currentSum, visited) {
-        if (matchedGroup) return; 
-
-        if (currentSum === targetNumber) {
-          matchedGroup = [...currentGroup];
-          return;
-        }
-
-        if (currentSum > targetNumber) return;
-
-        let candidateNeighbors = [];
-        currentGroup.forEach(node => {
-          let nbs = getNeighbors(node.r, node.c);
-          nbs.forEach(nb => {
-            let key = `${nb.r},${nb.c}`;
-            if (!visited.has(key) && !candidateNeighbors.some(c => c.r === nb.r && c.c === nb.c)) {
-              candidateNeighbors.push({ r: nb.r, c: nb.c, val: grid[nb.r][nb.c].value });
-            }
-          });
-        });
-
-        for (let candidate of candidateNeighbors) {
-          let key = `${candidate.r},${candidate.c}`;
-          visited.add(key);
-          currentGroup.push(candidate);
-
-          findAdjacentMatch(currentGroup, currentSum + candidate.val, visited);
-
-          currentGroup.pop();
-          visited.delete(key);
-
-          if (matchedGroup) return;
-        }
-      }
-
-      let initialVisited = new Set([`${startR},${startC}`]);
-      findAdjacentMatch([{ r: startR, c: startC, val: startVal }], startVal, initialVisited);
-
-      if (matchedGroup) {
-        myScore += 10;
-        document.getElementById('score-display').innerText = myScore;
-        updateScoreToFirebase();
-
-        matchedGroup.forEach(p => {
-          grid[p.r][p.c] = null;
-        });
-      }
-    }
-
-    function renderLeaderboard(elementId, scoresObj) {
-      const lbEl = document.getElementById(elementId);
-      if (!lbEl) return;
-
-      const sorted = Object.entries(scoresObj || {})
-        .map(([id, p]) => ({ id, ...p }))
-        .sort((a, b) => b.score - a.score);
-
-      lbEl.innerHTML = sorted.map((p, idx) => `
-        <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
-          <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
-          <span>${p.score} 分</span>
-        </div>
-      `).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
-    }
-  </script>
 </head>
 <body>
+<h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 🎫</h1>
 
-<div id="pwd-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom:12px; color:#1e293b;">管理者身分驗證</h3>
-    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
-    <button id="pwd-check-btn" class="btn-primary">確認驗證</button>
-    <button id="pwd-cancel-btn" class="btn-primary btn-admin" style="margin-top:8px;">取消</button>
+<div id="pageMain" class="page active">
+  <div id="adminLoginCard" class="login-card">
+    <h2>🔑 管理員登入</h2>
+    <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
+    <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
+    <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
   </div>
-</div>
 
-<div id="join-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom:16px; color:#1e293b;">參加泡泡消消樂賽</h3>
-    <input type="text" id="input-event-id" class="input-box" placeholder="輸入 6 位數活動代號" maxlength="6">
-    <input type="text" id="input-player-name" class="input-box" placeholder="輸入你的暱稱" maxlength="10">
-    <button id="join-game-btn" class="btn-primary">開始個人挑戰</button>
-  </div>
-</div>
+  <div id="adminContentArea" style="display:none">
+    <div class="config-panel">
+      <h3>⚙️ 活動設定</h3>
+      <div class="input-group">
+        <div class="input-row"><label>活動名稱：</label><input type="text" id="eventName" placeholder="例如：夜市歡樂王"></div>
+        <div class="input-row"><label>遊戲結束：</label><input type="datetime-local" id="endTime"></div>
+        <div class="input-row"><label>房間密碼：</label><input type="text" id="roomPassword" value="8888"></div>
+        <div class="input-row"><label>彈珠遊戲時間(分)：</label><input type="number" id="gameMinutes" value="2" min="1" max="60"></div>
+        <div class="input-row"><label>每幾分換1次：</label><input type="number" id="pointsPerScratch" value="100" min="1"></div>
+        <div class="input-row"><label>刮刮樂格數：</label><input type="number" id="totalCount" value="36" min="5"></div>
+        <div class="input-row"><label>備註：</label><input type="text" id="eventNote" value="遊戲結束後，依積分兌換刮刮樂"></div>
+        <div class="input-row">
+          <input type="checkbox" id="showUnopenedPrizes" checked style="width:18px">
+          <label>顯示未開出獎品清單</label>
+        </div>
+      </div>
 
-<div id="event-ended-view" class="ended-card hidden">
-  <div class="ended-icon">⌛</div>
-  <h2 style="color: #1e293b; margin-bottom: 8px;">本次活動已結束</h2>
-  <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">感謝您的關注與參與！</p>
-  
-  <div class="leaderboard">
-    <div class="leaderboard-title">🏆 該場次最終排行榜</div>
-    <div id="ended-leaderboard-list"></div>
-  </div>
-</div>
-
-<div id="main-setup-view" class="container">
-  <h1>⚙️ 泡泡消消樂 - 主控台</h1>
-
-  <div id="setting-fields" class="disabled-area">
-    <div class="menu-group">
-      <label>活動結束時間 ：</label>
-      <input type="datetime-local" id="admin-endtime-input" class="input-box">
-    </div>
-
-    <div class="menu-group">
-      <label>單局遊玩時間：</label>
-      <div class="btn-group" id="mode-options">
-        <button class="btn-option" data-mode="30s">30 秒</button>
-        <button class="btn-option active" data-mode="60s">60 秒</button>
-        <button class="btn-option" data-mode="120s">120 秒</button>
-        <button class="btn-option" data-mode="180s">180 秒</button>
+      <label style="font-weight:bold;font-size:.85rem">🎁 刮刮樂獎品設定：</label>
+      <div class="mode-tabs">
+        <button class="tab-btn active" onclick="switchMode('A')">模式 A：品名＋數量</button>
+        <button class="tab-btn" onclick="switchMode('B')">模式 B：自由文字</button>
+      </div>
+      <div id="modeA" class="mode-content active">
+        <div id="prizeListContainer">
+          <div class="prize-item-row">
+            <input class="a-prize-name" type="text" placeholder="獎品名稱">
+            <input class="a-prize-count" type="number" value="1" min="1" placeholder="數量">
+            <input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)">
+            <label class="btn-blue" style="padding:9px;cursor:pointer">📷
+              <input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+            </label>
+            <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
+          </div>
+        </div>
+        <button class="btn-add-item" onclick="addPrizeRow()">＋ 新增獎品</button>
+      </div>
+      <div id="modeB" class="mode-content">
+        <textarea id="prizeInput" style="width:100%;height:70px" placeholder="例如：100元紅包, 飲料一杯, 精美小禮物"></textarea>
+      </div>
+      <button class="btn-apply" onclick="publishNewGame()" style="margin-top:10px">🚀 建立新的夜市彈珠台活動</button>
+      <div class="button-group">
+        <button class="btn-orange" onclick="openPlayerWindow()">🎮 開啟玩家頁</button>
+        <button class="btn-purple" onclick="copyPlayerInfo()">📋 複製玩家網址與密碼</button>
       </div>
     </div>
 
-    <div class="menu-group">
-      <label>泡泡下降速度 (每幾秒下降一排)：</label>
-      <div class="btn-group" id="drop-options">
-        <button class="btn-option" data-drop="10">10 秒</button>
-        <button class="btn-option active" data-drop="15">15 秒</button>
-        <button class="btn-option" data-drop="20">20 秒</button>
-        <button class="btn-option" data-drop="0">不下降</button>
-      </div>
+    <div class="capture-area" id="captureArea">
+      <div class="event-title" id="eventTitleDisplay"></div>
+      <div class="toolbar"><div class="time-box"><span>🕒 <span id="clock"></span></span><span>🎁 剩餘大獎：<span id="remainingPrizesCount" class="prizes-count">0 / 0</span></span></div></div>
+      <div class="poke-box" id="mainPokeBox"></div>
+      <div class="unopened-prizes-box" id="mainUnopenedBox" style="display:none"><div class="unopened-prizes-title">🎁 未開出獎品清單</div><div class="unopened-prizes-grid" id="mainUnopenedList"></div></div>
+      <div class="footer-row"><div class="note-display" id="noteDisplay"></div><div class="copyright-display">©2026乳蕉四妻🐸</div></div>
     </div>
-
-    <div class="menu-group">
-      <label>目標消除數字：</label>
-      <div class="btn-group" id="target-options">
-        <button class="btn-option" data-val="5">5</button>
-        <button class="btn-option active" data-val="10">10</button>
-        <button class="btn-option" data-val="15">15</button>
-      </div>
-      <input type="number" id="custom-target-input" class="input-box" style="margin-top: 8px;" placeholder="自訂目標數 (例如 12)">
+    <div class="button-group">
+      <button class="btn-blue" onclick="copyScreenshot()">📋 複製截圖</button>
+      <button class="btn-green" onclick="copyWinnerList()">📝 複製得獎列表</button>
     </div>
-
-    <div class="menu-group">
-      <label>活動備註說明 (選填)：</label>
-      <input type="text" id="admin-note-input" class="input-box" placeholder="例：暑期泡泡消除競賽" maxlength="30">
-    </div>
-  </div>
-
-  <button id="admin-unlock-btn" class="btn-primary btn-admin">🔑 解鎖管理者設定</button>
-
-  <div id="admin-create-actions" class="hidden">
-    <button id="create-event-btn" class="btn-primary">建立活動發布挑戰</button>
-    <button id="open-newtab-btn" class="btn-start btn-primary" style="margin-top:10px;">🎮 進入房間挑戰</button>
-  </div>
-
-  <div id="admin-action-area" class="hidden">
-    <div class="room-display-box">
-      <div style="font-size:13px; color:#64748b; font-weight:bold;">當前活動代號</div>
-      <div class="room-number" id="room-num-display">------</div>
-    </div>
-
-    <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
-    <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製排行榜成績</button>
-
-    <div class="leaderboard">
-      <div class="leaderboard-title">📊 玩家個人賽排行榜 (即時更新)</div>
-      <div id="admin-leaderboard-list"></div>
-    </div>
-  </div>
-
-  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
-</div>
-
-<div id="player-game-view" class="container hidden">
-  <div class="status-bar">
-    <div>目標: <span id="target-display">10</span></div>
-    <div>得分: <span id="score-display" style="color:#2563eb;">0</span></div>
-    <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">活動: ---</div>
-    <div>時間: <span id="time-display">--</span></div>
-  </div>
-
-  <div class="game-canvas-container">
-    <canvas id="bubbleCanvas" width="360" height="480"></canvas>
-    <div id="game-over-mask" class="game-over-overlay hidden">
-      <div id="final-score-text">🎉 挑戰結束！</div>
-      <div style="font-size:14px; margin-top:8px; font-weight:normal;">成績已成功自動回報至主控台排行榜！</div>
-    </div>
-  </div>
-
-  <div class="leaderboard">
-    <div class="leaderboard-title">🏆 當前活動即時排行榜</div>
-    <div id="player-leaderboard-list"></div>
+    <div class="winner-list-panel"><h3>🏆 刮獎紀錄</h3><div id="winnerTableContainer"><div style="text-align:center;color:#999">尚無紀錄</div></div></div>
   </div>
 </div>
 
+<div id="pagePlayer" class="page">
+  <div id="playerLoginCard" class="login-card">
+    <h2 id="loginCardTitle">🎮 夜市彈珠台</h2>
+    <input type="password" id="inputRoomPass" placeholder="房間密碼">
+    <input type="text" id="inputPlayerName" placeholder="您的暱稱">
+    <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
+    <a href="#" class="btn-lobby" onclick="switchView('main');return false">返回管理頁</a>
+  </div>
+
+  <div id="playerGameArea" style="display:none">
+    <div class="status-bar">
+      <span>👤 <span id="displayName"></span></span>
+      <span class="score">⭐ 積分：<span id="playerScore">0</span></span>
+      <span class="timer">⏱️ <span id="playerTimer">--:--</span></span>
+    </div>
+
+    <div class="card">
+      <div class="event-title" id="playerEventTitle"></div>
+      <div class="pinball-wrap">
+        <canvas id="pinballCanvas" width="360" height="520"></canvas>
+        <div class="pinball-help">按「發射彈珠」讓彈珠撞擊障礙物並掉入得分槽</div>
+        <button id="launchBallBtn" class="launch-btn" onclick="launchBall()">🎯 發射彈珠</button>
+      </div>
+      <div class="redeem-panel">
+        <div>🎫 遊戲結束後可兌換刮刮樂</div>
+        <div style="margin-top:5px">兌換規則：<strong><span id="pointsRule">100</span> 積分 = 1 次</strong></div>
+        <div style="margin-top:8px">可兌換次數</div>
+        <div class="redeem-count" id="redeemCount">0</div>
+        <button id="redeemBtn" class="redeem-btn" onclick="startRedeem()" disabled>🎫 兌換刮刮樂</button>
+        <div id="redeemMessage" style="margin-top:8px;color:#795548;font-weight:bold"></div>
+      </div>
+    </div>
+
+    <div id="playerScratchArea" class="card" style="display:none">
+      <div class="event-title">🎫 您的刮刮樂</div>
+      <div style="text-align:center;color:#795548;font-size:.85rem;margin-bottom:8px">此區會覆蓋在彈珠台上方，完成刮獎後可繼續操作。</div>
+      <div id="playerPokeBox" class="poke-box"></div>
+      <div id="playerUnopenedBox" class="unopened-prizes-box" style="display:none"><div class="unopened-prizes-title">🎁 未開出獎品</div><div class="unopened-prizes-grid" id="playerUnopenedList"></div></div>
+      <div class="footer-row"><div class="note-display" id="playerNoteDisplay"></div><div class="copyright-display">©2026乳蕉四妻🐸</div></div>
+      <button class="close-scratch-btn" onclick="closeScratchOverlay()">✕ 關閉刮獎區</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key.toUpperCase()))||(e.ctrlKey&&e.key.toUpperCase()==='U')){e.preventDefault();return false}});
+
+const firebaseConfig={
+ apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+ authDomain:"gogogame-ce8ba.firebaseapp.com",
+ databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+ projectId:"gogogame-ce8ba",
+ storageBucket:"gogogame-ce8ba.firebasestorage.app",
+ messagingSenderId:"823932242561",
+ appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const gameRef=db.ref("sharedPokeGame");
+
+let currentGameData=null,activeMode='A',currentPlayerName="",playerScore=0;
+let playerState=null,ball=null,animationId=null,lastTime=0,timerId=null,gameStarted=false;
+const ADMIN_DEFAULT_PASS="594200";
+
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function formatDate(ts){if(!ts)return"-";let d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`}
+function formatShortDate(ts){return ts?formatDate(ts).slice(0,16):"未設定"}
+function updateClock(){let s=formatDate(Date.now());document.getElementById('clock').innerText=s}
+setInterval(updateClock,1000);
+
+function loginAdmin(){
+ if(document.getElementById('inputAdminPass').value.trim()===ADMIN_DEFAULT_PASS){
+  document.getElementById('adminLoginCard').style.display='none';document.getElementById('adminContentArea').style.display='block';
+ }else alert("管理員密碼錯誤！");
+}
+function openPlayerWindow(){
+  const url=location.href.split('#')[0]+'#player';
+  const w=window.open(url,'playerWindow','width=520,height=900,resizable=yes,scrollbars=yes');
+  if(!w) alert('瀏覽器阻擋了新視窗，請允許此網站開啟彈出視窗。');
+  else w.focus();
+}
+
+function switchView(v){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ if(v==='player'){document.getElementById('pagePlayer').classList.add('active');document.getElementById('mainTitleHeader').style.display='none'}
+ else{document.getElementById('pageMain').classList.add('active');document.getElementById('mainTitleHeader').style.display='block'}
+}
+window.onhashchange=()=>{location.hash==='#player'?switchView('player'):switchView('main')};
+function switchMode(m){activeMode=m;document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0)===(m==='A')));document.getElementById('modeA').classList.toggle('active',m==='A');document.getElementById('modeB').classList.toggle('active',m==='B')}
+function addPrizeRow(){
+ let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r)
+}
+function removePrizeRow(b){let c=document.getElementById('prizeListContainer');if(c.children.length>1)b.parentElement.remove();else alert("至少需要保留一組獎品！")}
+function handleImageUrlInput(i){let r=i.closest('.prize-item-row');r.dataset.image=i.value.trim()}
+function handleImageUpload(i){let f=i.files[0];if(!f)return;let rd=new FileReader();rd.onload=e=>{let r=i.closest('.prize-item-row');r.dataset.image=e.target.result};rd.readAsDataURL(f)}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function publishNewGame(){
+ const eventName=document.getElementById('eventName').value.trim(),password=document.getElementById('roomPassword').value.trim();
+ const endVal=document.getElementById('endTime').value,gameMinutes=Math.max(1,parseInt(document.getElementById('gameMinutes').value)||2);
+ const pointsPerScratch=Math.max(1,parseInt(document.getElementById('pointsPerScratch').value)||100);
+ const totalCells=Math.max(5,parseInt(document.getElementById('totalCount').value)||36),note=document.getElementById('eventNote').value.trim();
+ if(!password){alert("請設定房間密碼");return}
+ let prizeList=[];
+ if(activeMode==='A'){
+  document.querySelectorAll('.prize-item-row').forEach(r=>{let n=r.querySelector('.a-prize-name').value.trim(),c=parseInt(r.querySelector('.a-prize-count').value)||0,img=r.dataset.image||r.querySelector('.a-prize-img-url').value.trim();if(n&&c>0)for(let i=0;i<c;i++)prizeList.push({name:n,image:img})})
+ }else document.getElementById('prizeInput').value.split(/[,，\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>prizeList.push({name:n,image:""}));
+ while(prizeList.length<totalCells)prizeList.push({name:"🐢 烏龜",image:""});
+ prizeList=prizeList.slice(0,totalCells);shuffle(prizeList);
+ let cells=prizeList.map((x,i)=>({id:i+1,prize:x.name,image:x.image||"",isPoked:false,winner:"",pokedAt:0,coverEmoji:"🎫"}));
+ let endTime=endVal?new Date(endVal).getTime():0;
+ let payload={eventName,password,endTime,note,totalCells,showUnopenedPrizes:document.getElementById('showUnopenedPrizes').checked,cells,
+  gameMinutes,pointsPerScratch,players:{},updatedAt:Date.now()};
+ gameRef.set(payload).then(()=>alert("🎉 新的夜市彈珠台活動已建立！"))
+}
+
+gameRef.on('value',snap=>{
+ const d=snap.val();if(!d)return;currentGameData=d;renderMainBoard(d);renderWinnerTable(d);renderPlayerBoard(d);
+});
+
+function calculateUnopenedPrizes(cells){let m={};(cells||[]).forEach(c=>{if(!c.isPoked&&!String(c.prize).includes("烏龜")){if(!m[c.prize])m[c.prize]={count:0,image:c.image||""};m[c.prize].count++}});return m}
+function renderUnopenedBox(box,list,show,cells){
+ if(!show){box.style.display='none';return}let m=calculateUnopenedPrizes(cells),keys=Object.keys(m);box.style.display='block';
+ if(!keys.length){list.innerHTML='<div style="grid-column:span 2;text-align:center;color:#888">🎉 所有大獎已開出</div>';return}
+ list.innerHTML=keys.map(n=>`<div class="unopened-prize-item"><span>${m[n].image?`<img src="${escapeHtml(m[n].image)}" style="width:20px;height:20px;object-fit:cover;vertical-align:middle">`:''} 🎁 ${escapeHtml(n)}</span><span class="unopened-prize-count">剩 ${m[n].count} 份</span></div>`).join('')
+}
+
+function setupScratchCanvas(cellEl,onDone){
+ let c=document.createElement('canvas');c.className='scratch-canvas';cellEl.appendChild(c);
+ requestAnimationFrame(()=>{let r=cellEl.getBoundingClientRect();c.width=Math.max(80,r.width);c.height=Math.max(80,r.height);let x=c.getContext('2d');
+ let g=x.createLinearGradient(0,0,c.width,c.height);g.addColorStop(0,'#b2f0e8');g.addColorStop(.5,'#81e6d9');g.addColorStop(1,'#4fd1c5');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);x.font=`${Math.floor(c.width*.4)}px sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText('🎁',c.width/2,c.height/2);
+ let down=false,done=false;
+ function pos(e){let r=c.getBoundingClientRect(),q=e.touches?e.touches[0]:e;return{x:(q.clientX-r.left)*c.width/r.width,y:(q.clientY-r.top)*c.height/r.height}}
+ function scratch(e){if(!down||done)return;e.preventDefault();let p=pos(e);x.globalCompositeOperation='destination-out';x.beginPath();x.arc(p.x,p.y,Math.max(14,c.width*.1),0,Math.PI*2);x.fill();let d=x.getImageData(0,0,c.width,c.height).data,z=0;for(let i=3;i<d.length;i+=4)if(d[i]===0)z++;if(z/(d.length/4)>.35){done=true;c.style.opacity='0';setTimeout(()=>c.remove(),300);onDone()}}
+ c.onmousedown=e=>{down=true;scratch(e)};c.onmousemove=scratch;window.addEventListener('mouseup',()=>down=false);
+ c.ontouchstart=e=>{down=true;scratch(e)};c.ontouchmove=scratch;c.ontouchend=()=>down=false;
+ });
+}
+
+function renderMainBoard(d){
+ document.getElementById('eventTitleDisplay').innerText=d.eventName?`🎯 ${d.eventName} × 刮刮樂 🎫`:"🎯 夜市彈珠台 × 刮刮樂";
+ document.getElementById('noteDisplay').innerText=d.note?`※ ${d.note} ※`:"";
+ let big=d.cells.filter(c=>!String(c.prize).includes("烏龜")).length,rev=d.cells.filter(c=>c.isPoked&&!String(c.prize).includes("烏龜")).length;
+ document.getElementById('remainingPrizesCount').innerText=`${Math.max(0,big-rev)} / ${big}`;
+ let box=document.getElementById('mainPokeBox');box.innerHTML='';
+ d.cells.forEach((c,i)=>{let e=document.createElement('div'),t=String(c.prize).includes("烏龜");e.className=`cell ${c.isPoked?(t?'turtle':'winning'):''}`;
+ let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img">`:'';if(c.isPoked)e.innerHTML=t?`<div style="font-size:1.7rem">🐢</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`:`${img}<div>${escapeHtml(c.prize)}</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`;else{e.innerHTML=`<div style="font-size:1.5rem">🎫</div>`;setupScratchCanvas(e,()=>handleAdminPoke(i,c))}box.appendChild(e)});
+ renderUnopenedBox(document.getElementById('mainUnopenedBox'),document.getElementById('mainUnopenedList'),d.showUnopenedPrizes!==false,d.cells)
+}
+function handleAdminPoke(i,c){if(c.isPoked)return;db.ref(`sharedPokeGame/cells/${i}`).update({isPoked:true,winner:"",pokedAt:Date.now()})}
+
+function loginPlayer(){
+ if(!currentGameData){alert("主持人尚未建立活動");return}
+ let p=document.getElementById('inputRoomPass').value.trim(),n=document.getElementById('inputPlayerName').value.trim();
+ if(p!==currentGameData.password){alert("房間密碼錯誤");return}
+ if(!n){alert("請輸入暱稱");return}
+ const normalizedName=n.toLocaleLowerCase().replace(/\\s+/g,' ').trim();
+ const ref=db.ref(`sharedPokeGame/players/${playerKeyFor(n)}`);
+ ref.transaction(existing=>{
+   if(existing)return;
+   return {name:n,nameNormalized:normalizedName,score:0,joinedAt:Date.now(),updatedAt:Date.now(),participated:true};
+ }).then(r=>{
+   if(!r.committed){
+     alert("此暱稱已經參加過本次活動，不能重複參加！\\n請使用尚未參加過的暱稱。");
+     return;
+   }
+   currentPlayerName=n;
+   playerScore=0;
+   playerState=r.snapshot.val()||{};
+   document.getElementById('displayName').innerText=n;
+   document.getElementById('playerLoginCard').style.display='none';
+   document.getElementById('playerGameArea').style.display='block';
+   updatePlayerScore();
+   startPinballGame();
+ });
+}
+
+function playerKeyFor(name){
+ return String(name).trim().toLocaleLowerCase().replace(/[.#$[\]/]/g,'_').replace(/\\s+/g,' ').slice(0,60);
+}
+function playerKey(){return playerKeyFor(currentPlayerName)}
+function loadPlayerState(){
+ let ref=db.ref(`sharedPokeGame/players/${playerKey()}`);
+ ref.once('value').then(s=>{let p=s.val()||{};playerScore=Number(p.score)||0;playerState=p;updatePlayerScore();renderRedeem();});
+}
+function savePlayerScore(){db.ref(`sharedPokeGame/players/${playerKey()}`).update({name:currentPlayerName,score:playerScore,updatedAt:Date.now()})}
+function updatePlayerScore(){document.getElementById('playerScore').innerText=playerScore.toLocaleString();renderRedeem()}
+function renderRedeem(){
+ if(!currentGameData)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),count=Math.floor(playerScore/unit);
+ document.getElementById('pointsRule').innerText=unit;document.getElementById('redeemCount').innerText=count;
+ let ended=!gameStarted||Date.now()>=Number(currentGameData.endTime||0);
+ document.getElementById('redeemBtn').disabled=!(ended&&count>0);
+ document.getElementById('redeemMessage').innerText=ended?(count>0?`🎉 您目前有 ${count} 次刮刮樂兌換資格！`:"積分不足，無法兌換刮刮樂。"):"⏳ 遊戲尚未結束，請繼續玩彈珠台！";
+}
+function startPinballGame(){
+ if(!currentGameData)return;gameStarted=true;playerScore=Number(playerState?.score)||0;
+ let duration=Math.max(1,Number(currentGameData.gameMinutes)||2)*60*1000;
+ let end=Date.now()+duration;
+ document.getElementById('launchBallBtn').disabled=false;
+ clearInterval(timerId);
+ timerId=setInterval(()=>{let left=Math.max(0,end-Date.now());document.getElementById('playerTimer').innerText=`${String(Math.floor(left/60000)).padStart(2,'0')}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`;if(left<=0){finishPinball();}},250);
+ resetPinballCanvas();renderRedeem()
+}
+function finishPinball(){
+ if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText="00:00";savePlayerScore();renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||100))} 次刮刮樂`)}
+function startRedeem(){
+ if(gameStarted){alert("請等彈珠台時間結束後再兌換");return}
+ let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ if(available<=0){alert("積分不足");return}
+ document.getElementById('redeemBtn').disabled=true;
+ document.getElementById('playerScratchArea').style.display='block';
+ renderPlayerScratch();
+ document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`;
+}
+function closeScratchOverlay(){
+ document.getElementById('playerScratchArea').style.display='none';
+}
+
+function renderPlayerScratch(){
+ let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ let box=document.getElementById('playerPokeBox');box.innerHTML='';
+ if(available<=0){box.innerHTML='<div style="color:white;font-weight:bold">目前沒有刮獎資格</div>';return}
+ let idxs=d.cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);
+ if(!idxs.length){box.innerHTML='<div style="color:white;font-weight:bold">所有刮刮樂都已開完</div>';return}
+ let i=idxs[Math.floor(Math.random()*idxs.length)],c=d.cells[i],el=document.createElement('div');el.className='cell';el.innerHTML=String(c.prize).includes("烏龜")?'<div style="font-size:4rem">🐢</div>':'<div style="font-size:3rem">🎁</div>';
+ setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el);
+}
+function claimScratch(i,c){
+ if(c.isPoked){renderPlayerScratch();return}
+ let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||100),available=Math.floor(playerScore/unit);
+ if(available<=0){alert("已沒有刮獎資格");return}
+ let ref=db.ref(`sharedPokeGame/cells/${i}`);
+ ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.pokedAt=Date.now();return cell}).then(r=>{
+  if(!r.committed){renderPlayerScratch();return}
+  playerScore-=unit;savePlayerScore();updatePlayerScore();
+  if(String(c.prize).includes("烏龜"))alert("🐢 這次沒有中獎，再接再厲！");
+  else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
+  renderPlayerScratch();renderWinnerTable(currentGameData);
+ })
+}
+function renderPlayerBoard(d){
+ if(!currentPlayerName)return;
+ document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:"🎯 夜市彈珠台";
+ document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:"";
+ if(!gameStarted)renderRedeem()
+}
+
+function resetPinballCanvas(){
+ cancelAnimationFrame(animationId);ball=null;lastTime=0;drawPinball();
+}
+const pegs=[
+ {x:55,y:105},{x:125,y:85},{x:205,y:85},{x:285,y:105},
+ {x:90,y:160},{x:170,y:145},{x:250,y:160},
+ {x:55,y:225},{x:125,y:205},{x:205,y:205},{x:285,y:225},
+ {x:90,y:285},{x:170,y:265},{x:250,y:285},
+ {x:55,y:330},{x:125,y:315},{x:205,y:315},{x:285,y:330},
+ // 下方增加更多碰撞釘子，讓彈珠自然分流進入得分槽
+ {x:75,y:350},{x:125,y:350},{x:175,y:350},{x:225,y:350},{x:275,y:350},
+ {x:100,y:370},{x:150,y:370},{x:200,y:370},{x:250,y:370},
+ {x:125,y:388},{x:175,y:388},{x:225,y:388}
+];
+const bins=[
+ {x:0,w:30,s:20},{x:30,w:30,s:30},{x:60,w:30,s:40},{x:90,w:30,s:60},
+ {x:120,w:30,s:80},{x:150,w:30,s:120},{x:180,w:30,s:150},{x:210,w:30,s:120},
+ {x:240,w:30,s:80},{x:270,w:30,s:60},{x:300,w:30,s:40},{x:330,w:30,s:20}
+];
+const bumpers=[
+ {x:85,y:125,r:18,s:10},{x:180,y:115,r:22,s:20},{x:275,y:125,r:18,s:10}
+];
+let flashUntil=0,flashText="",lastPegHit=0;
+function drawPinball(){
+ let c=document.getElementById('pinballCanvas'),x=c.getContext('2d');
+ x.clearRect(0,0,c.width,c.height);
+
+ let g=x.createLinearGradient(0,0,0,c.height);
+ g.addColorStop(0,'#7b1fa2');g.addColorStop(.45,'#31104f');g.addColorStop(1,'#120b20');
+ x.fillStyle=g;x.fillRect(0,0,c.width,c.height);
+
+ // 星星燈光
+ for(let i=0;i<24;i++){
+   let sx=(i*73)%350, sy=42+(i*47)%320;
+   x.fillStyle=i%3===0?'#ffe082':'#ce93d8';
+   x.beginPath();x.arc(sx,sy,1.7,0,Math.PI*2);x.fill();
+ }
+
+ x.fillStyle='#ffe082';x.font='bold 17px sans-serif';x.textAlign='center';
+ x.fillText('🎯 夜市彈珠台',180,27);
+
+ // 上方得分燈
+ bumpers.forEach((b,i)=>{
+   let glow=x.createRadialGradient(b.x,b.y,2,b.x,b.y,b.r*2.2);
+   glow.addColorStop(0,'#fff59d');glow.addColorStop(.25,'#ffca28');glow.addColorStop(1,'rgba(255,152,0,0)');
+   x.fillStyle=glow;x.beginPath();x.arc(b.x,b.y,b.r*2.2,0,Math.PI*2);x.fill();
+   x.beginPath();x.arc(b.x,b.y,b.r,0,Math.PI*2);
+   x.fillStyle=i===1?'#ff7043':'#ffb300';x.fill();
+   x.strokeStyle='#fff8e1';x.lineWidth=2;x.stroke();
+   x.fillStyle='#4e342e';x.font='bold 10px sans-serif';x.fillText('+'+b.s,b.x,b.y+4);
+ });
+
+ // 釘子
+ pegs.forEach(p=>{
+   x.beginPath();x.arc(p.x,p.y,7,0,Math.PI*2);
+   x.fillStyle='#eceff1';x.fill();
+   x.beginPath();x.arc(p.x-2,p.y-2,3,0,Math.PI*2);
+   x.fillStyle='#90a4ae';x.fill();
+ });
+
+ // 底部得分槽：左右高分、中間低分；每格都有實體隔板
+ x.fillStyle='#ff7043';x.fillRect(0,395,360,5);
+ bins.forEach((b,i)=>{
+   x.fillStyle=i%2?'rgba(255,193,7,.12)':'rgba(255,255,255,.08)';
+   x.fillRect(b.x,400,b.w,115);
+   // 槽底與左右隔板
+   x.strokeStyle='#ffd54f';x.lineWidth=4;x.strokeRect(b.x,400,b.w,115);
+   x.fillStyle='#fff';x.font='bold 10px sans-serif';
+   x.save();x.translate(b.x+b.w/2,462);x.rotate(-Math.PI/2);x.fillText('+'+b.s,0,0);x.restore();
+ });
+ // 加粗隔板，從槽頂一路到底，避免視覺上像只有框線
+ x.fillStyle='#ffe082';
+ for(let i=0;i<=12;i++) x.fillRect(i*30-2,398,4,120);
+
+ if(ball){
+   let glow=x.createRadialGradient(ball.x-2,ball.y-2,1,ball.x,ball.y,ball.r*2.8);
+   glow.addColorStop(0,'#fff');glow.addColorStop(.3,'#e0f7fa');glow.addColorStop(1,'rgba(128,222,234,0)');
+   x.fillStyle=glow;x.beginPath();x.arc(ball.x,ball.y,ball.r*2.8,0,Math.PI*2);x.fill();
+   x.beginPath();x.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+   let bg=x.createRadialGradient(ball.x-3,ball.y-3,1,ball.x,ball.y,ball.r);
+   bg.addColorStop(0,'#fff');bg.addColorStop(1,'#90a4ae');
+   x.fillStyle=bg;x.fill();x.strokeStyle='#fff';x.stroke();
+ }
+ if(Date.now()<flashUntil){
+   x.fillStyle='rgba(0,0,0,.55)';x.fillRect(65,235,230,60);
+   x.fillStyle='#ffeb3b';x.font='bold 28px sans-serif';x.fillText(flashText,180,274);
+ }
+}
+function launchBall(){
+ if(!gameStarted||ball)return;
+ // 每次發射有不同初速度，增加遊戲的不確定性
+ ball={x:180,y:55,vx:(Math.random()-.5)*90,vy:25,r:7,binIndex:undefined};
+ lastTime=performance.now();
+ animationId=requestAnimationFrame(updateBall);
+}
+function updateBall(t){
+ if(!ball||!gameStarted){drawPinball();return}
+ let dt=Math.min(.025,(t-lastTime)/1000||.016);lastTime=t;
+
+ ball.vy+=470*dt;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
+
+ // 牆壁反彈
+ if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx)*.88}
+ if(ball.x>360-ball.r){ball.x=360-ball.r;ball.vx=-Math.abs(ball.vx)*.88}
+
+ // 撞擊釘子
+ pegs.forEach(p=>{
+   let dx=ball.x-p.x,dy=ball.y-p.y,dist=Math.hypot(dx,dy),min=ball.r+7;
+   if(dist<min){
+     let nx=dx/(dist||1),ny=dy/(dist||1);
+     let dot=ball.vx*nx+ball.vy*ny;
+     if(dot<0){
+       ball.vx-=2*dot*nx;ball.vy-=2*dot*ny;
+       ball.vx*=.92;ball.vy*=.92;
+       ball.x=p.x+nx*min;ball.y=p.y+ny*min;
+       if(t-lastPegHit>90){addScore(1);lastPegHit=t}
+     }
+   }
+ });
+
+ // 撞擊特殊加分碰撞球
+ bumpers.forEach(b=>{
+   let dx=ball.x-b.x,dy=ball.y-b.y,dist=Math.hypot(dx,dy),min=ball.r+b.r;
+   if(dist<min){
+     let nx=dx/(dist||1),ny=dy/(dist||1);
+     ball.x=b.x+nx*min;ball.y=b.y+ny*min;
+     let speed=Math.max(250,Math.hypot(ball.vx,ball.vy));
+     ball.vx=nx*speed;ball.vy=ny*speed;
+     flashText='+'+b.s+' BONUS!';
+     flashUntil=Date.now()+500;
+     addScore(b.s);
+   }
+ });
+
+ // 進入得分槽後鎖定槽位：即使高速移動也不能穿越隔板
+ if(ball.y>=400){
+   if(ball.binIndex===undefined){
+     ball.binIndex=Math.min(bins.length-1,Math.max(0,Math.floor(ball.x/30)));
+   }
+   let b=bins[ball.binIndex],pad=ball.r+3;
+   if(ball.x<b.x+pad){ball.x=b.x+pad;ball.vx=Math.abs(ball.vx)*0.15}
+   if(ball.x>b.x+b.w-pad){ball.x=b.x+b.w-pad;ball.vx=-Math.abs(ball.vx)*0.15}
+ }
+
+ // 落入得分槽
+ if(ball.y>515){
+   let bin=bins[ball.binIndex===undefined?Math.min(bins.length-1,Math.max(0,Math.floor(ball.x/30))):ball.binIndex];
+   addScore(bin.s);
+   flashText='+'+bin.s+' 分!';
+   flashUntil=Date.now()+650;
+   ball=null;drawPinball();return;
+ }
+
+ drawPinball();
+ animationId=requestAnimationFrame(updateBall);
+}
+function addScore(n){playerScore+=n;updatePlayerScore();savePlayerScore()}
+
+function renderWinnerTable(d){
+ let c=document.getElementById('winnerTableContainer'),rows=(d.cells||[]).filter(x=>x.isPoked);
+ if(!rows.length){c.innerHTML='<div style="text-align:center;color:#999">尚無紀錄</div>';return}
+ c.innerHTML=`<table class="winner-table"><thead><tr><th>格</th><th>獎品</th><th>玩家</th><th>時間</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.id}</td><td>${escapeHtml(x.prize)}</td><td>${escapeHtml(x.winner||'管理者')}</td><td>${formatDate(x.pokedAt)}</td></tr>`).join('')}</tbody></table>`
+}
+async function copyPlayerInfo(){
+ let url=location.href.split('#')[0]+'#player',pass=currentGameData?.password||document.getElementById('roomPassword').value.trim();
+ let txt=`🎯 夜市彈珠台 × 刮刮樂\n玩家網址：${url}\n房間密碼：${pass}\n遊戲時間：${currentGameData?.gameMinutes||document.getElementById('gameMinutes').value} 分鐘\n兌換規則：${currentGameData?.pointsPerScratch||document.getElementById('pointsPerScratch').value} 積分 = 1 次刮刮樂`;
+ try{await navigator.clipboard.writeText(txt);alert("✅ 玩家網址與規則已複製！")}catch(e){alert(txt)}
+}
+async function copyWinnerList(){
+ if(!currentGameData)return;let rows=currentGameData.cells.filter(c=>c.isPoked),txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n`;
+ rows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
+ try{await navigator.clipboard.writeText(txt);alert("得獎列表已複製！")}catch(e){alert(txt)}
+}
+async function copyScreenshot(){
+ let area=document.getElementById('captureArea');try{let canvas=await html2canvas(area,{scale:2,useCORS:true});canvas.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert("截圖已複製！")}catch(e){alert("瀏覽器不允許直接複製圖片，請手動截圖")}})}catch(e){alert("截圖失敗")}
+}
+window.onload=()=>{updateClock();location.hash==='#player'?switchView('player'):switchView('main')};
+</script>
 </body>
 </html>
