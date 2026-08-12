@@ -183,7 +183,7 @@
             user-select: text;
         }
 
-        /* 調整獎品設定列：加入圖片上傳按鈕與預覽 */
+        /* 調整獎品設定列：縮短名稱欄位並加入圖片網址欄位 */
         .prize-item-row {
             display: flex;
             gap: 6px;
@@ -192,9 +192,10 @@
             flex-wrap: wrap;
         }
 
+        /* 1. 縮短獎品名稱欄位 */
         .prize-item-row .a-prize-name {
-            flex: 1;
-            min-width: 120px;
+            flex: 1 1 90px;
+            min-width: 80px;
             padding: 6px 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -204,7 +205,7 @@
         }
 
         .prize-item-row .a-prize-count {
-            width: 65px;
+            width: 55px;
             padding: 6px;
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -214,10 +215,22 @@
             user-select: text;
         }
 
+        /* 2. 新增圖片網址輸入框樣式 */
+        .prize-item-row .a-prize-img-url {
+            flex: 1.5 1 110px;
+            min-width: 100px;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            height: 36px;
+            user-select: text;
+        }
+
         .btn-upload-label {
             background-color: #0288d1;
             color: white;
-            padding: 6px 10px;
+            padding: 6px 8px;
             border-radius: 6px;
             font-size: 0.8rem;
             cursor: pointer;
@@ -725,11 +738,13 @@
 
                 <div id="modeA" class="mode-content active">
                     <div id="prizeListContainer">
+                        <!-- 調整獎品設定列：名稱縮短，並加入圖片網址欄位 -->
                         <div class="prize-item-row">
-                            <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                            <input type="text" class="a-prize-name" placeholder="名稱" maxlength="20">
                             <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                            <input type="text" class="a-prize-img-url" placeholder="貼上圖片網址" onchange="handleImageUrlInput(this)">
                             <label class="btn-upload-label">
-                                📷 上傳圖片
+                                📷 上傳
                                 <input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                             </label>
                             <img class="prize-img-preview" src="" alt="預覽">
@@ -991,10 +1006,11 @@
             const row = document.createElement('div');
             row.className = 'prize-item-row';
             row.innerHTML = `
-                <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
+                <input type="text" class="a-prize-name" placeholder="名稱" maxlength="20">
                 <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                <input type="text" class="a-prize-img-url" placeholder="貼上圖片網址" onchange="handleImageUrlInput(this)">
                 <label class="btn-upload-label">
-                    📷 上傳圖片
+                    📷 上傳
                     <input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
                 </label>
                 <img class="prize-img-preview" src="" alt="預覽">
@@ -1004,6 +1020,24 @@
             row.querySelector('.a-prize-name').focus();
         }
 
+        /* 處理圖片網址輸入 */
+        function handleImageUrlInput(input) {
+            const url = input.value.trim();
+            const row = input.closest('.prize-item-row');
+            const imgPreview = row.querySelector('.prize-img-preview');
+            
+            if (url) {
+                imgPreview.src = url;
+                imgPreview.style.display = 'block';
+                row.dataset.image = url; // 儲存網址至 data 屬性
+            } else {
+                imgPreview.src = "";
+                imgPreview.style.display = 'none';
+                row.dataset.image = "";
+            }
+        }
+
+        /* 處理圖片上傳 */
         function handleImageUpload(input) {
             const file = input.files[0];
             if (!file) return;
@@ -1012,9 +1046,12 @@
             reader.onload = function (e) {
                 const row = input.closest('.prize-item-row');
                 const imgPreview = row.querySelector('.prize-img-preview');
+                const urlInput = row.querySelector('.a-prize-img-url');
+                
                 imgPreview.src = e.target.result;
                 imgPreview.style.display = 'block';
                 row.dataset.image = e.target.result; // 將 Base64 數據暫存於 data 屬性
+                urlInput.value = ""; // 清空網址欄位以免混淆
             };
             reader.readAsDataURL(file);
         }
@@ -1058,7 +1095,8 @@
                 document.querySelectorAll('.prize-item-row').forEach(row => {
                     const name = row.querySelector('.a-prize-name').value.trim();
                     const count = parseInt(row.querySelector('.a-prize-count').value) || 0;
-                    const imgData = row.dataset.image || "";
+                    const urlInputVal = row.querySelector('.a-prize-img-url') ? row.querySelector('.a-prize-img-url').value.trim() : "";
+                    const imgData = row.dataset.image || urlInputVal || "";
                     if (name && count > 0) {
                         for (let i = 0; i < count; i++) {
                             prizeList.push({ name: name, image: imgData });
