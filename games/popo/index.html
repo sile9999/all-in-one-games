@@ -54,8 +54,11 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 </style>
 <style>
 .pinball-wrap{background:linear-gradient(#6d1b1b,#26100f);border:5px solid #ffb300;position:relative}
-#playerScratchArea{position:fixed;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,92vw);max-height:92vh;overflow:auto;margin:0;background:rgba(255,255,255,.98);border:4px solid #ffb300;box-shadow:0 15px 50px rgba(0,0,0,.55);padding:15px}
-#playerScratchArea:before{content:"";position:fixed;inset:-100vh;z-index:-1;background:rgba(20,10,25,.68);backdrop-filter:blur(2px)}
+#playerScratchArea{display:none;width:min(430px,96vw);margin:14px auto 0;background:rgba(255,255,255,.98);border:4px solid #ffb300;box-shadow:0 8px 24px rgba(0,0,0,.22);padding:15px;border-radius:14px}
+#playerScratchArea .scratch-result{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:260px;background:#fff;border:2px solid #ffe0b2;border-radius:10px;padding:15px}
+#playerScratchArea .scratch-result img{display:block;width:180px;height:180px;object-fit:contain;border-radius:8px;margin-bottom:10px}
+#playerScratchArea .scratch-result .prize-name{font-size:1.25rem;font-weight:900;color:#d32f2f}
+#playerScratchArea .next-scratch-btn{display:block;width:100%;margin-top:10px;background:#e65100;color:#fff}
 #playerScratchArea .event-title{font-size:1.35rem}
 #playerScratchArea .close-scratch-btn{display:block;margin:8px auto 0;background:#607d8b;color:#fff}
 .pinball-wrap:before{content:"";position:absolute;inset:8px;border:2px solid rgba(255,224,178,.5);border-radius:12px;pointer-events:none}
@@ -171,11 +174,10 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 
     <div id="playerScratchArea" class="card" style="display:none">
       <div class="event-title">🎫 您的刮刮樂</div>
-      <div style="text-align:center;color:#795548;font-size:.85rem;margin-bottom:8px">此區會覆蓋在彈珠台上方，完成刮獎後可繼續操作。</div>
+      <div style="text-align:center;color:#795548;font-size:.85rem;margin-bottom:8px">刮刮樂會固定顯示在兌換區塊下方，可連續刮獎。</div>
       <div id="playerPokeBox" class="poke-box"></div>
       <div id="playerUnopenedBox" class="unopened-prizes-box" style="display:none"><div class="unopened-prizes-title">🎁 未開出獎品</div><div class="unopened-prizes-grid" id="playerUnopenedList"></div></div>
       <div class="footer-row"><div class="note-display" id="playerNoteDisplay"></div><div class="copyright-display">©2026乳蕉四妻🐸</div></div>
-      <button class="close-scratch-btn" onclick="closeScratchOverlay()">✕ 關閉刮獎區</button>
     </div>
   </div>
 </div>
@@ -362,14 +364,18 @@ function closeScratchOverlay(){
 }
 
 function renderPlayerScratch(){
- let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
+ let d=currentGameData;if(!d||!currentPlayerName)return;
+ let unit=Math.max(1,Number(d.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
  let box=document.getElementById('playerPokeBox');box.innerHTML='';
- if(available<=0){box.innerHTML='<div style="color:white;font-weight:bold">目前沒有刮獎資格</div>';return}
+ if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}
  let idxs=d.cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);
- if(!idxs.length){box.innerHTML='<div style="color:white;font-weight:bold">所有刮刮樂都已開完</div>';return}
- let i=idxs[Math.floor(Math.random()*idxs.length)],c=d.cells[i],el=document.createElement('div');el.className='cell';el.innerHTML=String(c.prize).includes("烏龜")?'<div style="font-size:4rem">🐢</div>':'<div style="font-size:3rem">🎁</div>';
+ if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}
+ let i=idxs[Math.floor(Math.random()*idxs.length)],c=d.cells[i];
+ let el=document.createElement('div');el.className='cell';
+ el.innerHTML='<div style="font-size:3rem">🎁</div>';
  setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el);
 }
+
 function claimScratch(i,c){
  if(c.isPoked){renderPlayerScratch();return}
  let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
@@ -378,12 +384,18 @@ function claimScratch(i,c){
  ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.pokedAt=Date.now();return cell}).then(r=>{
   if(!r.committed){renderPlayerScratch();return}
   playerScore-=unit;savePlayerScore();updatePlayerScore();
-  showScratchResult(c);
-  if(String(c.prize).includes("烏龜"))alert("🐢 這次沒有中獎，再接再厲！");
+  let box=document.getElementById('playerPokeBox');
+  let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';
+  let isTurtle=String(c.prize).includes('烏龜');
+  box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;
+  let next=document.createElement('button');next.className='next-scratch-btn';next.innerText=available-1>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=available-1<=0;
+  next.onclick=()=>renderPlayerScratch();box.appendChild(next);
+  if(isTurtle)alert("🐢 這次沒有中獎，再接再厲！");
   else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
   renderWinnerTable(currentGameData);
  })
 }
+
 function renderPlayerBoard(d){
  if(!currentPlayerName)return;
  document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:"🎯 夜市彈珠台";
