@@ -183,16 +183,18 @@
             user-select: text;
         }
 
+        /* 調整獎品設定列：加入圖片上傳按鈕與預覽 */
         .prize-item-row {
             display: flex;
             gap: 6px;
             align-items: center;
             margin-bottom: 6px;
+            flex-wrap: wrap;
         }
 
         .prize-item-row .a-prize-name {
-            width: 170px;
-            flex-grow: 0;
+            flex: 1;
+            min-width: 120px;
             padding: 6px 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -202,7 +204,7 @@
         }
 
         .prize-item-row .a-prize-count {
-            width: 75px;
+            width: 65px;
             padding: 6px;
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -210,6 +212,30 @@
             font-size: 0.85rem;
             height: 36px;
             user-select: text;
+        }
+
+        .btn-upload-label {
+            background-color: #0288d1;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .prize-img-preview {
+            width: 36px;
+            height: 36px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            display: none;
         }
 
         .btn-add-item {
@@ -456,6 +482,14 @@
             line-height: 1;
         }
 
+        .cell-img {
+            max-width: 80%;
+            max-height: 50%;
+            object-fit: contain;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+
         .winner-name {
             color: #0d47a1;
             font-size: 0.7rem;
@@ -524,12 +558,27 @@
             border: 1px solid #ffe082;
         }
 
+        .unopened-prize-content {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 70%;
+            overflow: hidden;
+        }
+
+        .unopened-prize-img {
+            width: 20px;
+            height: 20px;
+            object-fit: cover;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
         .unopened-prize-name {
             font-weight: bold;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 70%;
         }
 
         .unopened-prize-count {
@@ -679,6 +728,11 @@
                         <div class="prize-item-row">
                             <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
                             <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                            <label class="btn-upload-label">
+                                📷 上傳圖片
+                                <input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
+                            </label>
+                            <img class="prize-img-preview" src="" alt="預覽">
                             <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
                         </div>
                     </div>
@@ -939,16 +993,39 @@
             row.innerHTML = `
                 <input type="text" class="a-prize-name" placeholder="獎品名稱" maxlength="20">
                 <input type="number" class="a-prize-count" placeholder="數量" value="1" min="1">
+                <label class="btn-upload-label">
+                    📷 上傳圖片
+                    <input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
+                </label>
+                <img class="prize-img-preview" src="" alt="預覽">
                 <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
             `;
             container.appendChild(row);
             row.querySelector('.a-prize-name').focus();
         }
 
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const row = input.closest('.prize-item-row');
+                const imgPreview = row.querySelector('.prize-img-preview');
+                imgPreview.src = e.target.result;
+                imgPreview.style.display = 'block';
+                row.dataset.image = e.target.result; // 將 Base64 數據暫存於 data 屬性
+            };
+            reader.readAsDataURL(file);
+        }
+
         function removePrizeRow(btn) {
             const container = document.getElementById('prizeListContainer');
-            if (container.children.length > 1) btn.parentElement.remove();
-            else alert("至少需要保留一組獎品！");
+            if (container.children.length > 1) {
+                btn.parentElement.remove(); // 刪除整個項目，圖片資料會同步從記憶體與頁面上移除
+            } else {
+                alert("至少需要保留一組獎品！");
+            }
         }
 
         function shuffle(array) {
@@ -981,23 +1058,30 @@
                 document.querySelectorAll('.prize-item-row').forEach(row => {
                     const name = row.querySelector('.a-prize-name').value.trim();
                     const count = parseInt(row.querySelector('.a-prize-count').value) || 0;
+                    const imgData = row.dataset.image || "";
                     if (name && count > 0) {
-                        for (let i = 0; i < count; i++) prizeList.push(name);
+                        for (let i = 0; i < count; i++) {
+                            prizeList.push({ name: name, image: imgData });
+                        }
                     }
                 });
             } else {
                 const rawInput = document.getElementById('prizeInput').value;
-                prizeList = rawInput.split(/[,，\n]/).map(i => i.trim()).filter(i => i !== "");
+                const items = rawInput.split(/[,，\n]/).map(i => i.trim()).filter(i => i !== "");
+                items.forEach(item => {
+                    prizeList.push({ name: item, image: "" });
+                });
             }
 
-            while (prizeList.length < totalCells) prizeList.push("🐢 烏龜");
+            while (prizeList.length < totalCells) prizeList.push({ name: "🐢 烏龜", image: "" });
             if (prizeList.length > totalCells) prizeList = prizeList.slice(0, totalCells);
 
             const shuffledPrizes = shuffle(prizeList);
 
-            const cellsData = shuffledPrizes.map((prize, idx) => ({
+            const cellsData = shuffledPrizes.map((item, idx) => ({
                 id: idx + 1,
-                prize: prize,
+                prize: item.name,
+                image: item.image || "",
                 isPoked: false,
                 winner: "",
                 pokedAt: 0,
@@ -1032,12 +1116,15 @@
             renderWinnerTable(data);
         });
 
-        // 核心功能：計算未開出的大獎清單
+        // 核心功能：計算未開出的大獎清單 (支援圖片資訊統計)
         function calculateUnopenedPrizes(cells) {
             const unopenedMap = {};
             cells.forEach(cell => {
                 if (!cell.isPoked && !cell.prize.includes("烏龜")) {
-                    unopenedMap[cell.prize] = (unopenedMap[cell.prize] || 0) + 1;
+                    if (!unopenedMap[cell.prize]) {
+                        unopenedMap[cell.prize] = { count: 0, image: cell.image || "" };
+                    }
+                    unopenedMap[cell.prize].count += 1;
                 }
             });
             return unopenedMap;
@@ -1062,10 +1149,15 @@
             boxEl.style.display = "block";
             let html = "";
             prizeKeys.forEach(name => {
+                const item = unopenedMap[name];
+                const imgHtml = item.image ? `<img src="${item.image}" class="unopened-prize-img" alt="">` : '';
                 html += `
                     <div class="unopened-prize-item">
-                        <span class="unopened-prize-name" title="${name}">🎁 ${name}</span>
-                        <span class="unopened-prize-count">剩 ${unopenedMap[name]} 份</span>
+                        <div class="unopened-prize-content">
+                            ${imgHtml}
+                            <span class="unopened-prize-name" title="${name}">🎁 ${name}</span>
+                        </div>
+                        <span class="unopened-prize-count">剩 ${item.count} 份</span>
                     </div>
                 `;
             });
@@ -1181,17 +1273,19 @@
                 const isTurtle = cell.prize.includes("烏龜");
                 cellEl.className = `cell ${cell.isPoked ? (isTurtle ? 'turtle' : 'winning') : ''}`;
 
+                const imgHtml = cell.image ? `<img src="${cell.image}" class="cell-img" alt="">` : '';
+
                 if (cell.isPoked) {
                     const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
 
                     if (isTurtle) {
                         cellEl.innerHTML = `<div class="turtle-icon">🐢</div>${winnerHtml}`;
                     } else {
-                        cellEl.innerHTML = `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                        cellEl.innerHTML = `${imgHtml}<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
                     }
                 } else {
                     const winnerHtml = cell.winner ? `<div class="winner-name">${cell.winner}</div>` : '';
-                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>${winnerHtml}` : `<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
+                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>${winnerHtml}` : `${imgHtml}<div style="font-weight:bold;">${cell.prize}</div>${winnerHtml}`;
                     
                     setupScratchCanvas(cellEl, () => {
                         handleAdminPoke(cell.id - 1, cell);
@@ -1278,9 +1372,10 @@
                 if (lastPokedCell) {
                     const cellEl = document.createElement('div');
                     const isTurtle = lastPokedCell.prize.includes("烏龜");
+                    const imgHtml = lastPokedCell.image ? `<img src="${lastPokedCell.image}" class="cell-img" alt="">` : '';
                     cellEl.className = `cell ${isTurtle ? 'turtle' : 'winning'}`;
                     const winnerHtml = `<div class="winner-name">${lastPokedCell.winner}</div>`;
-                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>${winnerHtml}` : `<div style="font-weight:bold;">${lastPokedCell.prize}</div>${winnerHtml}`;
+                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>${winnerHtml}` : `${imgHtml}<div style="font-weight:bold;">${lastPokedCell.prize}</div>${winnerHtml}`;
                     pokeBox.appendChild(cellEl);
                 }
             } else {
@@ -1295,7 +1390,8 @@
                     const cellEl = document.createElement('div');
                     cellEl.className = 'cell';
                     const isTurtle = targetCell.prize.includes("烏龜");
-                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>` : `<div style="font-weight:bold;">${targetCell.prize}</div>`;
+                    const imgHtml = targetCell.image ? `<img src="${targetCell.image}" class="cell-img" alt="">` : '';
+                    cellEl.innerHTML = isTurtle ? `<div class="turtle-icon">🐢</div>` : `${imgHtml}<div style="font-weight:bold;">${targetCell.prize}</div>`;
                     
                     setupScratchCanvas(cellEl, () => {
                         handlePlayerPoke(targetCell.id - 1, targetCell, hasReachedLimit, isExpired, hasBigPrizesLeft, maxPokes);
@@ -1524,7 +1620,7 @@
                 console.error("截圖複製失敗:", err);
                 btn.innerText = originalText;
                 btn.disabled = false;
-                alert("複製截圖失敗！\n請確認網頁是在安全連線 (https://) Roma 或本機環境下執行，或請改用手動截圖。");
+                alert("複製截圖失敗！\n請確認網頁是在安全連線 (https://) 或本機環境下執行，或請改用手動截圖。");
             }
         }
 
