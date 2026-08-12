@@ -572,8 +572,15 @@ async function copyPlayerInfo(){
  try{await navigator.clipboard.writeText(txt);alert("✅ 玩家網址與規則已複製！")}catch(e){alert(txt)}
 }
 async function copyWinnerList(){
- if(!currentGameData)return;let rows=currentGameData.cells.filter(c=>c.isPoked),txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n`;
- rows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
+ if(!currentGameData)return;
+ let rows=currentGameData.cells.filter(c=>c.isPoked);
+ let turtleRows=rows.filter(c=>String(c.prize||'').includes("烏龜"));
+ let winnerRows=rows.filter(c=>!String(c.prize||'').includes("烏龜"));
+ let txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n`;
+ txt+=`得獎名單\n`;
+ winnerRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
+ txt+=`\n烏龜名單\n`;
+ turtleRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
  try{await navigator.clipboard.writeText(txt);alert("得獎列表已複製！")}catch(e){alert(txt)}
 }
 async function copyScreenshot(){
