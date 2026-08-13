@@ -146,9 +146,10 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 <div id="pagePlayer" class="page">
   <div id="playerLoginCard" class="login-card">
     <h2 id="loginCardTitle">🎮 夜市彈珠台</h2>
+    <div id="closedGameMessage" style="display:none;padding:18px 12px;border-radius:10px;background:#ffebee;color:#b71c1c;text-align:center;font-size:1.15rem;font-weight:bold">遊戲已結束。下次清早</div>
     <input type="password" id="inputRoomPass" placeholder="房間密碼">
     <input type="text" id="inputPlayerName" placeholder="您的暱稱">
-    <button class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
+    <button id="playerLoginBtn" class="btn-apply" onclick="loginPlayer()">進入遊戲</button>
     <a href="#" class="btn-lobby" onclick="switchView('main');return false">返回管理頁</a>
   </div>
 
@@ -205,7 +206,7 @@ const activeGameRef=db.ref('activeGameId');
 
 let currentGameId=null,currentGameData=null,activeMode='A',currentPlayerName='',currentPlayerId='',playerScore=0;
 let playerState=null,ball=null,animationId=null,lastTime=0,timerId=null,gameStarted=false,gameEndAt=0;
-let configListener=null,cellsListener=null,sessionRestoreBusy=false;
+let configListener=null,cellsListener=null,cellsChangedListener=null,sessionRestoreBusy=false;
 const ADMIN_EMAIL_HINT='請輸入 Firebase Authentication 管理員帳號';
 
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -218,13 +219,42 @@ function configRef(){return gameBase()?.child('config')}
 function cellsRef(){return gameBase()?.child('cells')}
 function playersRef(){return gameBase()?.child('players')}
 function usedNamesRef(){return gameBase()?.child('usedNames')}
-function mergeData(){if(!currentGameData)currentGameData={};renderMainBoard(currentGameData);renderWinnerTable(currentGameData);renderPlayerBoard(currentGameData)}
-function detachGameListeners(){if(configListener&&configRef())configRef().off('value',configListener);if(cellsListener&&cellsRef())cellsRef().off('value',cellsListener);configListener=null;cellsListener=null}
-function listenToGame(gameId){if(!gameId)return;if(gameId===currentGameId&&configListener)return;detachGameListeners();currentGameId=gameId;localStorage.setItem('pinballLastGameId',gameId);currentGameData={cells:[]};
- const cRef=configRef(),cellRef=cellsRef();
- configListener=async snap=>{const c=snap.val();if(!c)return;currentGameData={...(currentGameData||{}),...c,cells:currentGameData.cells||[]};mergeData();if(location.hash==='#player'&&!currentPlayerName&&!sessionRestoreBusy){sessionRestoreBusy=true;try{await restorePlayerSession()}finally{sessionRestoreBusy=false}}};
- cellsListener=snap=>{const v=snap.val()||{};const arr=Object.keys(v).sort((a,b)=>(Number(a)-Number(b))).map(k=>v[k]);currentGameData={...(currentGameData||{}),cells:arr};mergeData()};
- cRef.on('value',configListener);cellRef.on('value',cellsListener);
+function mergeData(){
+  if(!currentGameData)currentGameData={};
+  // 玩家頁不再重繪管理員整張棋盤與得獎表，降低多人同時遊玩時的前端負擔。
+  if(location.hash==='#player'){renderPlayerBoard(currentGameData);return}
+  renderMainBoard(currentGameData);renderWinnerTable(currentGameData);renderPlayerBoard(currentGameData)
+}
+function detachGameListeners(){
+  const cr=configRef(),xr=cellsRef();
+  if(configListener&&cr)cr.off('value',configListener);
+  if(cellsListener&&xr)xr.off('value',cellsListener);
+  if(cellsChangedListener&&xr)xr.off('child_changed',cellsChangedListener);
+  configListener=null;cellsListener=null;cellsChangedListener=null
+}
+function listenToGame(gameId){
+  if(!gameId)return;if(gameId===currentGameId&&configListener)return;
+  detachGameListeners();currentGameId=gameId;localStorage.setItem('pinballLastGameId',gameId);currentGameData={cells:[]};
+  const cRef=configRef(),cellRef=cellsRef();
+  configListener=async snap=>{
+    const c=snap.val();if(!c)return;
+    currentGameData={...(currentGameData||{}),...c,cells:currentGameData.cells||[]};mergeData();
+    if(location.hash==='#player'&&!currentPlayerName&&!sessionRestoreBusy){sessionRestoreBusy=true;try{await restorePlayerSession()}finally{sessionRestoreBusy=false}}
+  };
+  // 第一次只下載一次完整 cells；之後只監聽單格變化，避免每次刮獎都讓所有玩家重新下載整個 cells 節點。
+  cellsListener=async snap=>{
+    const v=snap.val()||{};
+    currentGameData={...(currentGameData||{}),cells:Object.keys(v).sort((a,b)=>(Number(a)-Number(b))).map(k=>v[k])};
+    mergeData();
+  };
+  cellsChangedListener=snap=>{
+    if(!currentGameData)currentGameData={cells:[]};
+    const key=Number(snap.key);
+    if(Number.isFinite(key)){currentGameData.cells[key]=snap.val();mergeData()}
+  };
+  cRef.on('value',configListener);
+  cellRef.once('value').then(cellsListener).catch(e=>console.error('load cells',e));
+  cellRef.on('child_changed',cellsChangedListener);
 }
 
 async function loginAdmin(){
@@ -288,6 +318,33 @@ async function copyScreenshot(){let area=document.getElementById('captureArea');
 function normalizeName(name){return String(name).trim().toLocaleLowerCase().replace(/\s+/g,' ')}
 function nameKey(name){return normalizeName(name).replace(/[.#$[\]/]/g,'_').slice(0,80)}
 function playerSessionKey(){return `pinballPlayer:${currentGameId}`}
+function isGameClosed(d){
+  if(!d)return false;
+  const end=Number(d.endTime)||0;
+  if(end>0 && Date.now()>=end)return true;
+  const cells=Array.isArray(d.cells)?d.cells:[];
+  const total=Math.max(0,Number(d.totalCells)||0);
+  if(total>0 && cells.length>=total && cells.length>0 && cells.every(c=>c&&c.isPoked===true))return true;
+  return false;
+}
+function showGameClosed(){
+  const msg=document.getElementById('closedGameMessage');
+  const pass=document.getElementById('inputRoomPass');
+  const name=document.getElementById('inputPlayerName');
+  const btn=document.getElementById('playerLoginBtn');
+  if(msg)msg.style.display='block';
+  if(pass)pass.disabled=true;if(name)name.disabled=true;if(btn)btn.disabled=true;
+  const area=document.getElementById('playerGameArea');if(area)area.style.display='none';
+}
+function waitForGameReady(timeout=4000){
+  return new Promise(resolve=>{
+    const started=Date.now();
+    const timer=setInterval(()=>{
+      const ready=!!(currentGameData&&currentGameId&&currentGameData.password!==undefined&&Array.isArray(currentGameData.cells)&&currentGameData.cells.length>0);
+      if(ready||Date.now()-started>=timeout){clearInterval(timer);resolve(ready)}
+    },100);
+  });
+}
 async function loginPlayer(){
  let p=document.getElementById('inputRoomPass').value.trim(),n=document.getElementById('inputPlayerName').value.trim();
  if(!n){alert('請輸入暱稱');return}
@@ -309,7 +366,9 @@ async function loginPlayer(){
        await new Promise(r=>setTimeout(r,150));
      }
    }
+   await waitForGameReady();
    if(!currentGameData||!currentGameId){alert('目前沒有可參加的活動，請重新開啟玩家網址。');return}
+   if(isGameClosed(currentGameData)){showGameClosed();alert('遊戲已結束。下次清早');return}
    if(p!==String(currentGameData.password??'')){alert('房間密碼錯誤');return}
    const uid=auth.currentUser.uid;
    let nk=nameKey(n),nameRef=usedNamesRef().child(nk),playerRef=playersRef().child(uid),pid=uid;
@@ -324,7 +383,7 @@ async function loginPlayer(){
    updatePlayerScore();startPinballGame();
  }catch(e){console.error(e);alert('進入遊戲失敗：'+e.message)}
 }
-async function restorePlayerSession(){if(!currentGameId||!currentGameData)return;let pid=sessionStorage.getItem(playerSessionKey());if(!pid)return;try{if(!auth.currentUser)await auth.signInAnonymously();if(auth.currentUser.uid!==pid){sessionStorage.removeItem(playerSessionKey());return}let snap=await playersRef().child(pid).once('value');let p=snap.val();if(!p)return;currentPlayerId=pid;currentPlayerName=p.name||'';playerState=p;playerScore=Number(p.score)||0;document.getElementById('displayName').innerText=currentPlayerName;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';updatePlayerScore();startPinballGame(p)}catch(e){console.error('restore player session',e);sessionStorage.removeItem(playerSessionKey())}}
+async function restorePlayerSession(){if(!currentGameId||!currentGameData)return;await waitForGameReady(4000);if(isGameClosed(currentGameData)){showGameClosed();return}let pid=sessionStorage.getItem(playerSessionKey());if(!pid)return;try{if(!auth.currentUser)await auth.signInAnonymously();if(auth.currentUser.uid!==pid){sessionStorage.removeItem(playerSessionKey());return}let snap=await playersRef().child(pid).once('value');let p=snap.val();if(!p)return;currentPlayerId=pid;currentPlayerName=p.name||'';playerState=p;playerScore=Number(p.score)||0;document.getElementById('displayName').innerText=currentPlayerName;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';updatePlayerScore();startPinballGame(p)}catch(e){console.error('restore player session',e);sessionStorage.removeItem(playerSessionKey())}}
 function playerRef(){return playersRef().child(currentPlayerId)}
 function updatePlayerScore(){let el=document.getElementById('playerScore');if(el)el.innerText=playerScore.toLocaleString();renderRedeem()}
 async function savePlayerScore(final=false){if(!currentPlayerId)return false;try{await playerRef().update({score:playerScore,updatedAt:Date.now(),gameFinished:final});let snap=await playerRef().once('value');let saved=snap.val();if(saved){playerState=saved;playerScore=Number(saved.score)||0;updatePlayerScore()}return true}catch(e){console.error('save score',e);return false}}
@@ -332,11 +391,12 @@ function renderRedeem(){if(!currentGameData)return;let unit=Math.max(1,Number(cu
 function startPinballGame(existingPlayer){if(!currentGameData||!currentPlayerId)return;gameStarted=true;playerScore=Number(existingPlayer?.score??playerState?.score)||0;let duration=Math.max(1,Number(currentGameData.gameMinutes)||2)*60000;let started=Number(existingPlayer?.gameStartedAt||playerState?.gameStartedAt||Date.now());gameEndAt=started+duration;if(Date.now()>=gameEndAt){finishPinball();return}document.getElementById('launchBallBtn').disabled=false;clearInterval(timerId);timerId=setInterval(()=>{let left=Math.max(0,gameEndAt-Date.now());document.getElementById('playerTimer').innerText=`${String(Math.floor(left/60000)).padStart(2,'0')}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`;if(left<=0)finishPinball()},250);resetPinballCanvas();renderRedeem()}
 async function finishPinball(){if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText='00:00';let ok=await savePlayerScore(true);if(!ok){alert('⚠️ 積分同步到資料庫失敗，請確認網路後再試一次。');return}await refreshPlayerScoreFromServer();renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||200))} 次刮刮樂`)}
 async function refreshPlayerScoreFromServer(){if(!currentPlayerId||!playerRef())return false;try{let snap=await playerRef().once('value');let p=snap.val();if(!p)return false;playerState=p;playerScore=Number(p.score)||0;updatePlayerScore();return true}catch(e){console.error('refresh player score',e);return false}}
-async function startRedeem(){if(gameStarted){alert('請等彈珠台時間結束後再兌換');return}let synced=await refreshPlayerScoreFromServer();if(!synced){alert('目前無法取得最新積分，請確認網路後再試一次。');return}let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);if(available<=0){alert(`目前資料庫中的積分為 ${playerScore}，不足 ${unit} 分，無法兌換刮刮樂。`);renderRedeem();return}document.getElementById('redeemBtn').disabled=true;document.getElementById('playerScratchArea').style.display='block';renderPlayerScratch();document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`}
+async function startRedeem(){if(isGameClosed(currentGameData)&&(!gameStarted)){const cells=currentGameData?.cells||[];const allUsed=Number(currentGameData?.totalCells)>0&&cells.length>=Number(currentGameData.totalCells)&&cells.every(c=>c&&c.isPoked===true);if(allUsed){alert('遊戲已結束。下次清早');return}}if(gameStarted){alert('請等彈珠台時間結束後再兌換');return}let synced=await refreshPlayerScoreFromServer();if(!synced){alert('目前無法取得最新積分，請確認網路後再試一次。');return}let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);if(available<=0){alert(`目前資料庫中的積分為 ${playerScore}，不足 ${unit} 分，無法兌換刮刮樂。`);renderRedeem();return}document.getElementById('redeemBtn').disabled=true;document.getElementById('playerScratchArea').style.display='block';renderPlayerScratch();document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`}
 function closeScratchOverlay(){document.getElementById('playerScratchArea').style.display='none'}
 async function renderPlayerScratch(){let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200);await refreshPlayerScoreFromServer();let available=Math.floor(playerScore/unit),box=document.getElementById('playerPokeBox');box.innerHTML='';if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}let cells=d.cells||[],idxs=cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}let i=idxs[Math.floor(Math.random()*idxs.length)],c=cells[i],el=document.createElement('div');el.className='cell';el.innerHTML='<div style="font-size:3rem">🎁</div>';setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el)}
 async function claimScratch(i,c){
   if(!currentGameId||!currentPlayerId)return;
+  if(isGameClosed(currentGameData)){alert('遊戲已結束。下次清早');return;}
 
   // 參考 V11：先確認目前資格，再鎖定刮刮樂；
   // 積分不再使用玩家父節點 transaction，改回 V11 的直接更新流程。
@@ -647,6 +707,6 @@ async function bootstrap(){
 }
 window.onload=bootstrap;
 </script>
-<div id="appVersion" style="position:fixed;bottom:4px;right:6px;font-size:.65rem;color:#999;opacity:.65;z-index:9999">V12.2.1</div>
+<div id="appVersion" style="position:fixed;bottom:4px;right:6px;font-size:.65rem;color:#999;opacity:.65;z-index:9999">V12.2.8</div>
 </body>
 </html>
