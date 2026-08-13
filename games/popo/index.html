@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>夜市彈珠台 × 刮刮樂 V12.2.7</title>
+<title>夜市彈珠台 × 刮刮樂</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:"Microsoft JhengHei","PingFang TC",sans-serif}
 body{background:#fce4ec;background-image:url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");background-repeat:no-repeat;background-position:center;background-attachment:fixed;background-size:cover;min-height:100vh;padding:15px 10px;color:#333}
@@ -71,7 +70,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 <meta name="version" content="12.2.6">
 </head>
 <body>
-<h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 <small style="font-size:.55em;opacity:.75">V12.2.7</small> 🎫</h1>
+<h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 🎫</h1>
 
 <div id="pageMain" class="page active">
   <div id="adminLoginCard" class="login-card">
@@ -116,7 +115,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
             <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
           </div>
         </div>
-        <div style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:8px;margin:8px 0;font-size:.82rem;color:#6d4c41">💡 <b>圖片使用方式（V11/Firebase Storage）</b>：按「圖片上傳」後會先顯示預覽，再自動上傳 Firebase Storage；上傳成功後會自動取得圖片網址並保存。圖片限制 2MB、僅接受圖片檔。若 Firebase Storage 尚未啟用，請先在 Firebase Console 啟用 Storage；也可直接貼上外部圖片網址。</div>
+        <div style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:8px;margin:8px 0;font-size:.82rem;color:#6d4c41">💡 <b>圖片使用方式（V11 直存版）</b>：按「圖片上傳」後會立即建立本機預覽；建立遊戲時會直接把圖片資料存進遊戲，不需要 Firebase Storage，也不需要升級 Blaze。圖片建議小於 2MB。</div>
         <button class="btn-add-item" onclick="addPrizeRow()">＋ 新增獎品</button>
       </div>
       <div id="modeB" class="mode-content">
@@ -195,14 +194,12 @@ const firebaseConfig={
  authDomain:"gogogame-ce8ba.firebaseapp.com",
  databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",
  projectId:"gogogame-ce8ba",
- storageBucket:"gogogame-ce8ba.firebasestorage.app",
  messagingSenderId:"823932242561",
  appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"
 };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const auth=firebase.auth();
-const storage=firebase.storage();
 const gamesRef=db.ref('games');
 const activeGameRef=db.ref('activeGameId');
 
@@ -252,41 +249,13 @@ function copyPlayerInfo(){if(!currentGameData||!currentGameId){alert('請先建�
 function switchView(v){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));if(v==='player'){document.getElementById('pagePlayer').classList.add('active');document.getElementById('mainTitleHeader').style.display='none'}else{document.getElementById('pageMain').classList.add('active');document.getElementById('mainTitleHeader').style.display='block'}}
 window.onhashchange=()=>{location.hash==='#player'?switchView('player'):switchView('main')};
 function switchMode(m){activeMode=m;document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0)===(m==='A')));document.getElementById('modeA').classList.toggle('active',m==='A');document.getElementById('modeB').classList.toggle('active',m==='B')}
-function addPrizeRow(){let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址（可留空，自動上傳）" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><img class="prize-preview" alt="圖片預覽"><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r);savePrizeDraft()}
+function addPrizeRow(){let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><img class="prize-preview" alt="圖片預覽"><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r);savePrizeDraft()}
 function removePrizeRow(b){let c=document.getElementById('prizeListContainer');if(c.children.length>1)b.parentElement.remove();else alert('至少需要保留一組獎品！');savePrizeDraft()}
-function savePrizeDraft(){let rows=[];document.querySelectorAll('.prize-item-row').forEach(r=>rows.push({name:r.querySelector('.a-prize-name')?.value||'',count:r.querySelector('.a-prize-count')?.value||1,url:r.querySelector('.a-prize-img-url')?.value||'',image:r.dataset.image||'',preview:r.dataset.preview||''}));try{localStorage.setItem('pinballPrizeDraft',JSON.stringify(rows))}catch(e){}}
+function savePrizeDraft(){let rows=[];document.querySelectorAll('.prize-item-row').forEach(r=>rows.push({name:r.querySelector('.a-prize-name')?.value||'',count:r.querySelector('.a-prize-count')?.value||1,url:r.querySelector('.a-prize-img-url')?.value||'',preview:r.dataset.preview||''}));try{localStorage.setItem('pinballPrizeDraft',JSON.stringify(rows))}catch(e){}}
 function setPrizePreview(r,src){let img=r.querySelector('.prize-preview');if(!img)return;if(src){img.src=src;img.classList.add('show')}else{img.removeAttribute('src');img.classList.remove('show')}}
-function handleImageUrlInput(i){let r=i.closest('.prize-item-row');let v=i.value.trim();r.dataset.image=v;r.dataset.imageStatus=v?'url':'';r.dataset.preview='';setPrizePreview(r,v);savePrizeDraft()}
-async function handleImageUpload(i){
- let f=i.files?.[0];if(!f)return;
- if(f.size>2*1024*1024){alert('圖片請小於 2MB');i.value='';return}
- if(!f.type.startsWith('image/')){alert('請選擇圖片檔案');i.value='';return}
- let r=i.closest('.prize-item-row');
- let rd=new FileReader();
- rd.onload=e=>{r.dataset.preview=e.target.result;r.dataset.imageStatus='local-preview';setPrizePreview(r,e.target.result);savePrizeDraft()};
- rd.readAsDataURL(f);
- try{
-   if(!auth.currentUser||!auth.currentUser.email)throw new Error('管理員尚未登入 Firebase Authentication');
-   if(!storage)throw new Error('Firebase Storage 尚未初始化');
-   let uid=auth.currentUser.uid;
-   let safeName=f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-   let path=`prize-images/${uid}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safeName}`;
-   let ref=storage.ref(path);
-   let task=await ref.put(f,{contentType:f.type,cacheControl:'public,max-age=31536000'});
-   let url=await task.ref.getDownloadURL();
-   r.dataset.image=url;r.dataset.imageStatus='uploaded';r.dataset.preview='';
-   let urlInput=r.querySelector('.a-prize-img-url');if(urlInput)urlInput.value=url;
-   setPrizePreview(r,url);savePrizeDraft();
-   alert('✅ 圖片上傳成功！\n\n圖片已存入 Firebase Storage，獎項發布時會自動使用這張圖片。');
- }catch(err){
-   console.error('handleImageUpload',err);
-   savePrizeDraft();
-   let msg=String(err?.message||err||'未知錯誤');
-   if(/permission|unauth|storage|bucket|not found|billing/i.test(msg))msg+='\n\n請確認 Firebase Console 的 Storage 已啟用，且 Storage Rules 允許已登入管理員上傳。若 Console 顯示需要升級方案，必須先啟用 Firebase Storage 對應方案。';
-   alert('⚠️ 圖片已建立本機預覽，但 Firebase Storage 上傳失敗。\n\n'+msg+'\n\n你也可以直接把圖片網址貼到「圖片網址」欄位後再發布。');
- }
-}
-function restorePrizeDraft(){try{let rows=JSON.parse(localStorage.getItem('pinballPrizeDraft')||'[]');if(!rows.length)return;let box=document.getElementById('prizeListContainer');box.innerHTML='';rows.forEach(x=>{addPrizeRow();let r=box.lastElementChild;r.querySelector('.a-prize-name').value=x.name||'';r.querySelector('.a-prize-count').value=x.count||1;let url=x.url||x.image||'';r.querySelector('.a-prize-img-url').value=url.startsWith('data:')?'':url;r.dataset.image=x.image||x.url||'';r.dataset.preview=x.preview||'';r.dataset.imageStatus=(r.dataset.image||'').startsWith('data:')?'local':(r.dataset.image?'uploaded':(r.dataset.preview?'local-preview':''));setPrizePreview(r,r.dataset.image||r.dataset.preview||'')})}catch(e){}}
+function handleImageUrlInput(i){let r=i.closest('.prize-item-row');let v=i.value.trim();r.dataset.image=v;r.dataset.imageStatus=v?'url':'';setPrizePreview(r,v||r.dataset.preview||'');savePrizeDraft()}
+function handleImageUpload(i){let f=i.files[0];if(!f)return;if(f.size>2*1024*1024){alert('圖片請小於 2MB');i.value='';return}if(!f.type.startsWith('image/')){alert('請選擇圖片檔案');i.value='';return}let r=i.closest('.prize-item-row');let rd=new FileReader();rd.onload=e=>{r.dataset.preview=e.target.result;r.dataset.imageStatus='local-preview';setPrizePreview(r,e.target.result);savePrizeDraft();alert('✅ 圖片已建立預覽！\n\n建立遊戲時會直接使用這張圖片，不需要 Firebase Storage。')};rd.readAsDataURL(f)}
+function restorePrizeDraft(){try{let rows=JSON.parse(localStorage.getItem('pinballPrizeDraft')||'[]');if(!rows.length)return;let box=document.getElementById('prizeListContainer');box.innerHTML='';rows.forEach(x=>{addPrizeRow();let r=box.lastElementChild;r.querySelector('.a-prize-name').value=x.name||'';r.querySelector('.a-prize-count').value=x.count||1;r.querySelector('.a-prize-img-url').value=x.url||'';r.dataset.image=x.url||'';r.dataset.preview=x.preview||'';r.dataset.imageStatus=x.url?'url':(x.preview?'local-preview':'');setPrizePreview(r,x.url||x.preview||'')})}catch(e){}}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
 async function publishNewGame(){
@@ -296,7 +265,7 @@ async function publishNewGame(){
  if(!password){alert('請設定房間密碼');return}
  let prizeList=[];
  if(activeMode==='A'){
-  for(const r of document.querySelectorAll('.prize-item-row')){let n=r.querySelector('.a-prize-name').value.trim(),c=parseInt(r.querySelector('.a-prize-count').value)||0,img=r.dataset.image||r.querySelector('.a-prize-img-url').value.trim();if(n&&c>0){if(img.startsWith('data:'))img='';if(r.dataset.preview && !img){alert(`獎項「${n}」的圖片目前只有本機預覽。\n\n請完成 Firebase Storage 上傳，或貼上圖片網址後再發布。`);return}for(let i=0;i<c;i++)prizeList.push({name:n,image:img})}}
+  for(const r of document.querySelectorAll('.prize-item-row')){let n=r.querySelector('.a-prize-name').value.trim(),c=parseInt(r.querySelector('.a-prize-count').value)||0,img=r.dataset.image||r.dataset.preview||r.querySelector('.a-prize-img-url').value.trim();if(n&&c>0){for(let i=0;i<c;i++)prizeList.push({name:n,image:img||''})}}
  }else document.getElementById('prizeInput').value.split(/[,，\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>prizeList.push({name:n,image:''}));
  while(prizeList.length<totalCells)prizeList.push({name:'🐢 烏龜',image:''});prizeList=prizeList.slice(0,totalCells);shuffle(prizeList);
  let cells={};prizeList.forEach((x,i)=>cells[i]={id:i+1,prize:x.name,image:x.image||'',isPoked:false,winner:'',pokedAt:0,coverEmoji:'🎫'});
