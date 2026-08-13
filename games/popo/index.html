@@ -67,6 +67,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 .launch-btn{box-shadow:0 3px 0 #b26a00,0 5px 10px rgba(0,0,0,.35)}
 </style>
 
+<meta name="version" content="12.2.5">
 </head>
 <body>
 <h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 🎫</h1>
@@ -323,7 +324,7 @@ async function loginPlayer(){
    updatePlayerScore();startPinballGame();
  }catch(e){console.error(e);alert('進入遊戲失敗：'+e.message)}
 }
-async function restorePlayerSession(){if(!currentGameId||!currentGameData)return;let pid=sessionStorage.getItem(playerSessionKey());if(!pid)return;let snap=await playersRef().child(pid).once('value');let p=snap.val();if(!p)return;currentPlayerId=pid;currentPlayerName=p.name||'';playerState=p;playerScore=Number(p.score)||0;document.getElementById('displayName').innerText=currentPlayerName;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';updatePlayerScore();startPinballGame(p)}
+async function restorePlayerSession(){if(!currentGameId||!currentGameData)return;let pid=sessionStorage.getItem(playerSessionKey());if(!pid)return;try{if(!auth.currentUser)await auth.signInAnonymously();if(auth.currentUser.uid!==pid){sessionStorage.removeItem(playerSessionKey());return}let snap=await playersRef().child(pid).once('value');let p=snap.val();if(!p)return;currentPlayerId=pid;currentPlayerName=p.name||'';playerState=p;playerScore=Number(p.score)||0;document.getElementById('displayName').innerText=currentPlayerName;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';updatePlayerScore();startPinballGame(p)}catch(e){console.error('restore player session',e);sessionStorage.removeItem(playerSessionKey())}}
 function playerRef(){return playersRef().child(currentPlayerId)}
 function updatePlayerScore(){let el=document.getElementById('playerScore');if(el)el.innerText=playerScore.toLocaleString();renderRedeem()}
 async function savePlayerScore(final=false){if(!currentPlayerId)return false;try{await playerRef().update({score:playerScore,updatedAt:Date.now(),gameFinished:final});let snap=await playerRef().once('value');let saved=snap.val();if(saved){playerState=saved;playerScore=Number(saved.score)||0;updatePlayerScore()}return true}catch(e){console.error('save score',e);return false}}
@@ -344,23 +345,7 @@ async function claimScratch(i,c){
    if(!latestPlayer){alert('找不到玩家資料，請重新登入房間。');return}
    if(latestScore<unit){playerScore=latestScore;updatePlayerScore();alert(`目前積分為 ${latestScore}，不足 ${unit} 分，無法兌換刮刮樂。`);return}
 
-   // 先鎖定刮刮樂，避免多人同時刮到同一格。
-   const cellRef=cellsRef().child(String(i));
-   const cellTx=await cellRef.transaction(cell=>{
-     if(!cell||cell.isPoked)return;
-     cell.isPoked=true;
-     cell.winner=currentPlayerName;
-     cell.winnerId=auth.currentUser?.uid||currentPlayerId;
-     cell.pokedAt=Date.now();
-     return cell;
-   });
-   if(!cellTx.committed){alert('這張刮刮樂已被其他玩家刮走，將自動換下一張。');currentGameData.cells[i]=cellTx.snapshot.val();await renderPlayerScratch();return}
-
-   // 重要：目前 Firebase Rules 會在 players/$uid 的父層驗證整個玩家物件。
-   // 因此不能只對 players/$uid/score 做 transaction，否則 newData 只是數字，
-   // 會觸發「newData.hasChildren(...)」驗證失敗而得到 PERMISSION_DENIED。
-   // 改成對整個玩家物件做 transaction，保留 name / authUid / score 等欄位，
-   // 同時在 Firebase 端原子扣除本次兌換所需積分。
+   // 先扣除玩家積分。整個玩家物件做 transaction，可通過 /players/$uid 的 validate。
    const playerNodeRef=playerRef();
    const playerTx=await playerNodeRef.transaction(player=>{
      if(!player)return;
@@ -371,11 +356,34 @@ async function claimScratch(i,c){
      return player;
    });
    if(!playerTx.committed){
-     // 扣分失敗就把剛才鎖定的刮刮樂復原，避免玩家白白少一張。
-     await cellRef.update({isPoked:false,winner:'',winnerId:null,pokedAt:0});
      const fresh=await playerRef().once('value');
      playerState=fresh.val()||playerState;playerScore=Number(playerState?.score)||0;updatePlayerScore();
-     alert('⚠️ 積分扣除失敗，這張刮刮樂已恢復，請再試一次。');
+     alert('⚠️ 積分扣除失敗，請重新整理後再試一次。');
+     return;
+   }
+
+   // 再搶一張尚未刮開的格子。多人同時搶同一格時只有一人成功。
+   const cellRef=cellsRef().child(String(i));
+   const cellTx=await cellRef.transaction(cell=>{
+     if(!cell||cell.isPoked)return;
+     cell.isPoked=true;
+     cell.winner=currentPlayerName;
+     cell.winnerId=auth.currentUser?.uid||currentPlayerId;
+     cell.pokedAt=Date.now();
+     return cell;
+   });
+   if(!cellTx.committed){
+     // 搶格失敗：退回本次扣除的積分。
+     await playerNodeRef.transaction(player=>{
+       if(!player)return;
+       player.score=(Number(player.score)||0)+unit;
+       player.updatedAt=Date.now();
+       return player;
+     });
+     await refreshPlayerScoreFromServer();
+     currentGameData.cells[i]=cellTx.snapshot.val();
+     await renderPlayerScratch();
+     alert('這張刮刮樂已被其他玩家刮走，已退回本次積分，請再試一次。');
      return;
    }
 
@@ -393,7 +401,7 @@ async function claimScratch(i,c){
    const remaining=Math.floor(playerScore/unit);next.innerText=remaining>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=remaining<=0;next.onclick=()=>renderPlayerScratch();box.appendChild(next);
    if(isTurtle)alert('🐢 這次沒有中獎，再接再厲！');else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
    renderWinnerTable(currentGameData);
- }catch(e){console.error('claimScratch',e);alert('刮獎失敗：'+e.message)}
+ }catch(e){console.error('claimScratch',e);await refreshPlayerScoreFromServer();alert('刮獎失敗：'+e.message+'\n\n如果畫面仍顯示 PERMISSION_DENIED，請重新整理後重新登入玩家。')}
 }
 function renderPlayerBoard(d){if(!currentPlayerName)return;document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:'🎯 夜市彈珠台';document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:'';if(!gameStarted)renderRedeem()}
 
