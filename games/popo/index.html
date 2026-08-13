@@ -334,7 +334,59 @@ async function refreshPlayerScoreFromServer(){if(!currentPlayerId||!playerRef())
 async function startRedeem(){if(gameStarted){alert('請等彈珠台時間結束後再兌換');return}let synced=await refreshPlayerScoreFromServer();if(!synced){alert('目前無法取得最新積分，請確認網路後再試一次。');return}let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);if(available<=0){alert(`目前資料庫中的積分為 ${playerScore}，不足 ${unit} 分，無法兌換刮刮樂。`);renderRedeem();return}document.getElementById('redeemBtn').disabled=true;document.getElementById('playerScratchArea').style.display='block';renderPlayerScratch();document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`}
 function closeScratchOverlay(){document.getElementById('playerScratchArea').style.display='none'}
 async function renderPlayerScratch(){let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200);await refreshPlayerScoreFromServer();let available=Math.floor(playerScore/unit),box=document.getElementById('playerPokeBox');box.innerHTML='';if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}let cells=d.cells||[],idxs=cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}let i=idxs[Math.floor(Math.random()*idxs.length)],c=cells[i],el=document.createElement('div');el.className='cell';el.innerHTML='<div style="font-size:3rem">🎁</div>';setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el)}
-async function claimScratch(i,c){if(!currentGameId||!currentPlayerId)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200);await refreshPlayerScoreFromServer();if(playerScore<unit){alert('已沒有刮獎資格');await renderPlayerScratch();return}let scoreRef=playerRef(),cellRef=cellsRef().child(String(i));try{let scoreTx=await scoreRef.transaction(p=>{if(!p)return;if((Number(p.score)||0)<unit)return;p.score=(Number(p.score)||0)-unit;p.updatedAt=Date.now();return p});if(!scoreTx.committed){alert('目前積分不足，或資料已更新，請再試一次。');return}let tx=await cellRef.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.winnerId=auth.currentUser?.uid||currentPlayerId;cell.pokedAt=Date.now();return cell});if(!tx.committed){await scoreRef.transaction(p=>{if(!p)return;p.score=(Number(p.score)||0)+unit;p.updatedAt=Date.now();return p});currentGameData.cells[i]=tx.snapshot.val();renderPlayerScratch();return}playerScore=Math.max(0,Number(scoreTx.snapshot.val().score)||0);playerState=scoreTx.snapshot.val();updatePlayerScore();let box=document.getElementById('playerPokeBox'),isTurtle=String(c.prize||'').includes('烏龜'),img=c.image?`<img src="${escapeHtml(c.image)}" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;let next=document.createElement('button');next.className='next-scratch-btn';let remaining=Math.floor(playerScore/unit);next.innerText=remaining>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=remaining<=0;next.onclick=()=>renderPlayerScratch();box.appendChild(next);if(isTurtle)alert('🐢 這次沒有中獎，再接再厲！');else alert(`🎉 恭喜！您刮中：【${c.prize}】`);currentGameData.cells[i]=tx.snapshot.val();renderWinnerTable(currentGameData)}catch(e){console.error(e);alert('刮獎失敗：'+e.message)}}
+async function claimScratch(i,c){
+ if(!currentGameId||!currentPlayerId)return;
+ const unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200);
+ try{
+   const latest=await playerRef().once('value');
+   const latestPlayer=latest.val();
+   const latestScore=Number(latestPlayer?.score)||0;
+   if(!latestPlayer){alert('找不到玩家資料，請重新登入房間。');return}
+   if(latestScore<unit){playerScore=latestScore;updatePlayerScore();alert(`目前積分為 ${latestScore}，不足 ${unit} 分，無法兌換刮刮樂。`);return}
+
+   // 先鎖定刮刮樂，避免多人同時刮到同一格。
+   const cellRef=cellsRef().child(String(i));
+   const cellTx=await cellRef.transaction(cell=>{
+     if(!cell||cell.isPoked)return;
+     cell.isPoked=true;
+     cell.winner=currentPlayerName;
+     cell.winnerId=auth.currentUser?.uid||currentPlayerId;
+     cell.pokedAt=Date.now();
+     return cell;
+   });
+   if(!cellTx.committed){alert('這張刮刮樂已被其他玩家刮走，將自動換下一張。');currentGameData.cells[i]=cellTx.snapshot.val();await renderPlayerScratch();return}
+
+   // 再以「只更新 score 欄位」的交易扣除 200 分，避免整個玩家物件 transaction 被 Rules/validate 影響。
+   const scoreRef=playerRef().child('score');
+   const scoreTx=await scoreRef.transaction(score=>{
+     const n=Number(score)||0;
+     if(n<unit)return;
+     return n-unit;
+   });
+   if(!scoreTx.committed){
+     // 扣分失敗就把剛才鎖定的刮刮樂復原，避免玩家白白少一張。
+     await cellRef.update({isPoked:false,winner:'',winnerId:null,pokedAt:0});
+     const fresh=await playerRef().once('value');
+     playerState=fresh.val()||playerState;playerScore=Number(playerState?.score)||0;updatePlayerScore();
+     alert('⚠️ 積分扣除失敗，這張刮刮樂已恢復，請再試一次。');
+     return;
+   }
+
+   playerScore=Math.max(0,Number(scoreTx.snapshot.val())||0);
+   playerState={...(playerState||{}),score:playerScore};
+   updatePlayerScore();
+   currentGameData.cells[i]=cellTx.snapshot.val();
+
+   const box=document.getElementById('playerPokeBox');
+   const isTurtle=String(c.prize||'').includes('烏龜');
+   const img=c.image?`<img src="${escapeHtml(c.image)}" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';
+   box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;
+   const next=document.createElement('button');next.className='next-scratch-btn';
+   const remaining=Math.floor(playerScore/unit);next.innerText=remaining>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=remaining<=0;next.onclick=()=>renderPlayerScratch();box.appendChild(next);
+   if(isTurtle)alert('🐢 這次沒有中獎，再接再厲！');else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
+   renderWinnerTable(currentGameData);
+ }catch(e){console.error('claimScratch',e);alert('刮獎失敗：'+e.message)}
+}
 function renderPlayerBoard(d){if(!currentPlayerName)return;document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:'🎯 夜市彈珠台';document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:'';if(!gameStarted)renderRedeem()}
 
 function resetPinballCanvas(){
