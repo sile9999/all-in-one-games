@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:"Microsoft JhengHei","PingFang TC",sans-serif}
 body{background:#fce4ec;background-image:url("https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png");background-repeat:no-repeat;background-position:center;background-attachment:fixed;background-size:cover;min-height:100vh;padding:15px 10px;color:#333}
@@ -73,7 +74,8 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 <div id="pageMain" class="page active">
   <div id="adminLoginCard" class="login-card">
     <h2>🔑 管理員登入</h2>
-    <input type="password" id="inputAdminPass" placeholder="請輸入主控密碼">
+    <input type="email" id="inputAdminEmail" placeholder="管理員 Email">
+    <input type="password" id="inputAdminPass" placeholder="管理員密碼">
     <button class="btn-apply" onclick="loginAdmin()">進入管理後台</button>
     <a href="https://sile9999.github.io/all-in-one-games/" class="btn-lobby">🏠 回到遊戲大廳</a>
   </div>
@@ -106,12 +108,13 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
             <input class="a-prize-name" type="text" placeholder="獎品名稱">
             <input class="a-prize-count" type="number" value="1" min="1" placeholder="數量">
             <input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)">
-            <label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳
+            <label class="btn-blue" style="padding:9px;cursor:pointer">📷 選擇圖片預覽
               <input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             </label><img class="prize-preview" alt="圖片預覽">
             <button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>
           </div>
         </div>
+        <div style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:8px;margin:8px 0;font-size:.82rem;color:#6d4c41">💡 <b>圖片使用方式（GitHub 版）</b>：可先按「選擇圖片預覽」確認圖片，但發布活動前，請把圖片放到 GitHub 專案的 <code>images</code> 資料夾，再把 GitHub Pages 圖片網址貼到「圖片網址」欄位。這樣不需要 Firebase Storage，也不需要升級 Blaze。</div>
         <button class="btn-add-item" onclick="addPrizeRow()">＋ 新增獎品</button>
       </div>
       <div id="modeB" class="mode-content">
@@ -182,8 +185,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
   </div>
 </div>
 
-<script>
-document.addEventListener('contextmenu',e=>e.preventDefault());
+<script>document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('keydown',e=>{if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key.toUpperCase()))||(e.ctrlKey&&e.key.toUpperCase()==='U')){e.preventDefault();return false}});
 
 const firebaseConfig={
@@ -191,217 +193,129 @@ const firebaseConfig={
  authDomain:"gogogame-ce8ba.firebaseapp.com",
  databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",
  projectId:"gogogame-ce8ba",
- storageBucket:"gogogame-ce8ba.firebasestorage.app",
  messagingSenderId:"823932242561",
  appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"
 };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
-const gameRef=db.ref("sharedPokeGame");
+const auth=firebase.auth();
+const gamesRef=db.ref('games');
+const activeGameRef=db.ref('activeGameId');
 
-let currentGameData=null,activeMode='A',currentPlayerName="",playerScore=0;
-let playerState=null,ball=null,animationId=null,lastTime=0,timerId=null,gameStarted=false;
-const ADMIN_DEFAULT_PASS="594200";
+let currentGameId=null,currentGameData=null,activeMode='A',currentPlayerName='',currentPlayerId='',playerScore=0;
+let playerState=null,ball=null,animationId=null,lastTime=0,timerId=null,gameStarted=false,gameEndAt=0;
+let configListener=null,cellsListener=null,sessionRestoreBusy=false;
+const ADMIN_EMAIL_HINT='請輸入 Firebase Authentication 管理員帳號';
 
-function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function formatDate(ts){if(!ts)return"-";let d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`}
-function formatShortDate(ts){return ts?formatDate(ts).slice(0,16):"未設定"}
-function updateClock(){let s=formatDate(Date.now());document.getElementById('clock').innerText=s}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function formatDate(ts){if(!ts)return'-';let d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`}
+function updateClock(){let el=document.getElementById('clock');if(el)el.innerText=formatDate(Date.now())}
 setInterval(updateClock,1000);
+function getGameIdFromUrl(){return new URLSearchParams(location.search).get('game')||localStorage.getItem('pinballLastGameId')||null}
+function gameBase(){return currentGameId?gamesRef.child(currentGameId):null}
+function configRef(){return gameBase()?.child('config')}
+function cellsRef(){return gameBase()?.child('cells')}
+function playersRef(){return gameBase()?.child('players')}
+function usedNamesRef(){return gameBase()?.child('usedNames')}
+function mergeData(){if(!currentGameData)currentGameData={};renderMainBoard(currentGameData);renderWinnerTable(currentGameData);renderPlayerBoard(currentGameData)}
+function detachGameListeners(){if(configListener&&configRef())configRef().off('value',configListener);if(cellsListener&&cellsRef())cellsRef().off('value',cellsListener);configListener=null;cellsListener=null}
+function listenToGame(gameId){if(!gameId)return;if(gameId===currentGameId&&configListener)return;detachGameListeners();currentGameId=gameId;localStorage.setItem('pinballLastGameId',gameId);currentGameData={cells:[]};
+ const cRef=configRef(),cellRef=cellsRef();
+ configListener=async snap=>{const c=snap.val();if(!c)return;currentGameData={...(currentGameData||{}),...c,cells:currentGameData.cells||[]};mergeData();if(location.hash==='#player'&&!currentPlayerName&&!sessionRestoreBusy){sessionRestoreBusy=true;try{await restorePlayerSession()}finally{sessionRestoreBusy=false}}};
+ cellsListener=snap=>{const v=snap.val()||{};const arr=Object.keys(v).sort((a,b)=>(Number(a)-Number(b))).map(k=>v[k]);currentGameData={...(currentGameData||{}),cells:arr};mergeData()};
+ cRef.on('value',configListener);cellRef.on('value',cellsListener);
+}
 
-function loginAdmin(){
- if(document.getElementById('inputAdminPass').value.trim()===ADMIN_DEFAULT_PASS){
-  document.getElementById('adminLoginCard').style.display='none';document.getElementById('adminContentArea').style.display='block';
- }else alert("管理員密碼錯誤！");
+async function loginAdmin(){
+ const email=document.getElementById('inputAdminEmail').value.trim();
+ const pass=document.getElementById('inputAdminPass').value;
+ if(!email||!pass){alert('請輸入管理員 Email 與密碼');return}
+ try{
+   await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+   const cred=await auth.signInWithEmailAndPassword(email,pass);
+   const snap=await db.ref(`admins/${cred.user.uid}`).once('value');
+   if(snap.val()!==true){await auth.signOut();alert('此帳號不是管理員，無法進入控制頁。');return}
+   document.getElementById('adminLoginCard').style.display='none';
+   document.getElementById('adminContentArea').style.display='block';
+ }catch(e){console.error(e);alert('管理員登入失敗：'+e.message)}
 }
-function openPlayerWindow(){
-  const url=location.href.split('#')[0]+'#player';
-  const w=window.open(url,'playerWindow','width=520,height=900,resizable=yes,scrollbars=yes');
-  if(!w) alert('瀏覽器阻擋了新視窗，請允許此網站開啟彈出視窗。');
-  else w.focus();
-}
-
-function switchView(v){
- document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
- if(v==='player'){document.getElementById('pagePlayer').classList.add('active');document.getElementById('mainTitleHeader').style.display='none'}
- else{document.getElementById('pageMain').classList.add('active');document.getElementById('mainTitleHeader').style.display='block'}
-}
+function openPlayerWindow(){if(!currentGameId){alert('請先建立活動，再開啟玩家頁。');return}const url=location.href.split('#')[0]+'?game='+encodeURIComponent(currentGameId)+'#player';const w=window.open(url,'playerWindow','width=520,height=900,resizable=yes,scrollbars=yes');if(!w)alert('瀏覽器阻擋了新視窗，請允許此網站開啟彈出視窗。');else w.focus()}
+function copyPlayerInfo(){if(!currentGameData||!currentGameId){alert('請先建立活動');return}let url=location.href.split('#')[0]+'?game='+encodeURIComponent(currentGameId)+'#player';let txt=`🎯 夜市彈珠台 × 刮刮樂\n玩家網址：${url}\n房間密碼：${currentGameData.password||''}\n遊戲時間：${currentGameData.gameMinutes||2} 分鐘\n兌換規則：${currentGameData.pointsPerScratch||200} 積分 = 1 次刮刮樂`;navigator.clipboard?.writeText(txt).then(()=>alert('✅ 玩家網址與規則已複製！')).catch(()=>alert(txt))}
+function switchView(v){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));if(v==='player'){document.getElementById('pagePlayer').classList.add('active');document.getElementById('mainTitleHeader').style.display='none'}else{document.getElementById('pageMain').classList.add('active');document.getElementById('mainTitleHeader').style.display='block'}}
 window.onhashchange=()=>{location.hash==='#player'?switchView('player'):switchView('main')};
 function switchMode(m){activeMode=m;document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0)===(m==='A')));document.getElementById('modeA').classList.toggle('active',m==='A');document.getElementById('modeB').classList.toggle('active',m==='B')}
-function addPrizeRow(){
- let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷 圖片上傳<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><img class="prize-preview" alt="圖片預覽"><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r);savePrizeDraft()
-}
-function removePrizeRow(b){let c=document.getElementById('prizeListContainer');if(c.children.length>1)b.parentElement.remove();else alert("至少需要保留一組獎品！")}
-function savePrizeDraft(){
- let rows=[];document.querySelectorAll('.prize-item-row').forEach(r=>{rows.push({name:r.querySelector('.a-prize-name')?.value||'',count:r.querySelector('.a-prize-count')?.value||1,url:r.querySelector('.a-prize-img-url')?.value||'',image:r.dataset.image||''})});
- try{localStorage.setItem('pinballPrizeDraft',JSON.stringify(rows))}catch(e){}
-}
+function addPrizeRow(){let r=document.createElement('div');r.className='prize-item-row';r.innerHTML=`<input class="a-prize-name" type="text" placeholder="獎品名稱"><input class="a-prize-count" type="number" value="1" min="1"><input class="a-prize-img-url" type="text" placeholder="圖片網址" onchange="handleImageUrlInput(this)"><label class="btn-blue" style="padding:9px;cursor:pointer">📷 選擇圖片預覽<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload(this)"></label><img class="prize-preview" alt="圖片預覽"><button class="btn-del-item" onclick="removePrizeRow(this)">✕</button>`;document.getElementById('prizeListContainer').appendChild(r);savePrizeDraft()}
+function removePrizeRow(b){let c=document.getElementById('prizeListContainer');if(c.children.length>1)b.parentElement.remove();else alert('至少需要保留一組獎品！');savePrizeDraft()}
+function savePrizeDraft(){let rows=[];document.querySelectorAll('.prize-item-row').forEach(r=>rows.push({name:r.querySelector('.a-prize-name')?.value||'',count:r.querySelector('.a-prize-count')?.value||1,url:r.querySelector('.a-prize-img-url')?.value||'',preview:r.dataset.preview||''}));try{localStorage.setItem('pinballPrizeDraft',JSON.stringify(rows))}catch(e){}}
 function setPrizePreview(r,src){let img=r.querySelector('.prize-preview');if(!img)return;if(src){img.src=src;img.classList.add('show')}else{img.removeAttribute('src');img.classList.remove('show')}}
-function handleImageUrlInput(i){let r=i.closest('.prize-item-row');let v=i.value.trim();r.dataset.image=v;setPrizePreview(r,v);savePrizeDraft()}
-function handleImageUpload(i){let f=i.files[0];if(!f)return;if(f.size>2*1024*1024){alert('圖片請小於 2MB');i.value='';return}let rd=new FileReader();rd.onload=e=>{let r=i.closest('.prize-item-row');r.dataset.image=e.target.result;setPrizePreview(r,e.target.result);savePrizeDraft()};rd.readAsDataURL(f)}
-function restorePrizeDraft(){try{let rows=JSON.parse(localStorage.getItem('pinballPrizeDraft')||'[]');if(!rows.length)return;let box=document.getElementById('prizeListContainer');box.innerHTML='';rows.forEach((x,idx)=>{addPrizeRow();let r=box.lastElementChild;r.querySelector('.a-prize-name').value=x.name||'';r.querySelector('.a-prize-count').value=x.count||1;r.querySelector('.a-prize-img-url').value=x.url||'';r.dataset.image=x.image||x.url||'';setPrizePreview(r,r.dataset.image)});}catch(e){}}
+function handleImageUrlInput(i){let r=i.closest('.prize-item-row');let v=i.value.trim();r.dataset.image=v;r.dataset.imageStatus=v?'url':'';setPrizePreview(r,v||r.dataset.preview||'');savePrizeDraft()}
+function handleImageUpload(i){let f=i.files[0];if(!f)return;if(f.size>2*1024*1024){alert('圖片請小於 2MB');i.value='';return}if(!f.type.startsWith('image/')){alert('請選擇圖片檔案');i.value='';return}let r=i.closest('.prize-item-row');let rd=new FileReader();rd.onload=e=>{r.dataset.preview=e.target.result;r.dataset.imageStatus='local-preview';setPrizePreview(r,e.target.result);savePrizeDraft();alert('圖片預覽已建立！\n\n目前採用「GitHub 圖片版」，此圖片不會上傳 Firebase。\n請將圖片放到 GitHub 的 images 資料夾後，把圖片網址貼到「圖片網址」欄位，發布活動時才會讓玩家看到。')};rd.readAsDataURL(f)}
+function restorePrizeDraft(){try{let rows=JSON.parse(localStorage.getItem('pinballPrizeDraft')||'[]');if(!rows.length)return;let box=document.getElementById('prizeListContainer');box.innerHTML='';rows.forEach(x=>{addPrizeRow();let r=box.lastElementChild;r.querySelector('.a-prize-name').value=x.name||'';r.querySelector('.a-prize-count').value=x.count||1;r.querySelector('.a-prize-img-url').value=x.url||'';r.dataset.image=x.url||'';r.dataset.preview=x.preview||'';r.dataset.imageStatus=x.url?'url':(x.preview?'local-preview':'');setPrizePreview(r,x.url||x.preview||'')})}catch(e){}}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
-function publishNewGame(){
+async function publishNewGame(){
  const eventName=document.getElementById('eventName').value.trim(),password=document.getElementById('roomPassword').value.trim();
  const endVal=document.getElementById('endTime').value,gameMinutes=Math.max(1,parseInt(document.getElementById('gameMinutes').value)||2);
- const pointsPerScratch=Math.max(1,parseInt(document.getElementById('pointsPerScratch').value)||200);
- const totalCells=Math.max(5,parseInt(document.getElementById('totalCount').value)||36),note=document.getElementById('eventNote').value.trim();
- if(!password){alert("請設定房間密碼");return}
+ const pointsPerScratch=Math.max(1,parseInt(document.getElementById('pointsPerScratch').value)||200),totalCells=Math.max(5,parseInt(document.getElementById('totalCount').value)||36),note=document.getElementById('eventNote').value.trim();
+ if(!password){alert('請設定房間密碼');return}
  let prizeList=[];
  if(activeMode==='A'){
-  document.querySelectorAll('.prize-item-row').forEach(r=>{let n=r.querySelector('.a-prize-name').value.trim(),c=parseInt(r.querySelector('.a-prize-count').value)||0,img=r.dataset.image||r.querySelector('.a-prize-img-url').value.trim();if(n&&c>0)for(let i=0;i<c;i++)prizeList.push({name:n,image:img})})
- }else document.getElementById('prizeInput').value.split(/[,，\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>prizeList.push({name:n,image:""}));
- while(prizeList.length<totalCells)prizeList.push({name:"🐢 烏龜",image:""});
- prizeList=prizeList.slice(0,totalCells);shuffle(prizeList);
- let cells=prizeList.map((x,i)=>({id:i+1,prize:x.name,image:x.image||"",isPoked:false,winner:"",pokedAt:0,coverEmoji:"🎫"}));
- let endTime=endVal?new Date(endVal).getTime():0;
- let payload={eventName,password,endTime,note,totalCells,showUnopenedPrizes:document.getElementById('showUnopenedPrizes').checked,cells,
-  gameMinutes,pointsPerScratch,players:{},updatedAt:Date.now()};
- gameRef.set(payload).then(()=>alert("🎉 新的夜市彈珠台活動已建立！"))
+  for(const r of document.querySelectorAll('.prize-item-row')){let n=r.querySelector('.a-prize-name').value.trim(),c=parseInt(r.querySelector('.a-prize-count').value)||0,img=r.querySelector('.a-prize-img-url').value.trim();if(n&&c>0){if(img.startsWith('data:')){img=''}if(r.dataset.preview && !img){alert(`獎項「${n}」目前只有本機預覽。\n\n請先把圖片放到 GitHub 的 images 資料夾，再把圖片網址貼到「圖片網址」欄位。\n\n例如：https://你的帳號.github.io/你的專案/images/prize1.jpg`);return}for(let i=0;i<c;i++)prizeList.push({name:n,image:img})}}
+ }else document.getElementById('prizeInput').value.split(/[,，\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>prizeList.push({name:n,image:''}));
+ while(prizeList.length<totalCells)prizeList.push({name:'🐢 烏龜',image:''});prizeList=prizeList.slice(0,totalCells);shuffle(prizeList);
+ let cells={};prizeList.forEach((x,i)=>cells[i]={id:i+1,prize:x.name,image:x.image||'',isPoked:false,winner:'',pokedAt:0,coverEmoji:'🎫'});
+ let gameId=gamesRef.push().key,endTime=endVal?new Date(endVal).getTime():0;
+ let config={eventName,password,endTime,note,totalCells,showUnopenedPrizes:document.getElementById('showUnopenedPrizes').checked,gameMinutes,pointsPerScratch,createdAt:Date.now(),status:'active'};
+ let updates={};updates[`games/${gameId}/config`]=config;updates[`games/${gameId}/cells`]=cells;updates.activeGameId=gameId;
+ try{await db.ref().update(updates);currentGameId=gameId;localStorage.setItem('pinballLastGameId',gameId);alert(`🎉 新的夜市彈珠台活動已建立！\n活動代碼：${gameId}`)}catch(e){console.error(e);alert('建立活動失敗：'+e.message)}
 }
 
-gameRef.on('value',snap=>{
- const d=snap.val();if(!d)return;currentGameData=d;renderMainBoard(d);renderWinnerTable(d);renderPlayerBoard(d);
-});
+function calculateUnopenedPrizes(cells){let m={};(cells||[]).forEach(c=>{if(!c.isPoked&&!String(c.prize).includes('烏龜')){if(!m[c.prize])m[c.prize]={count:0,image:c.image||''};m[c.prize].count++}});return m}
+function renderUnopenedBox(box,list,show,cells){if(!box||!list)return;if(!show){box.style.display='none';return}let m=calculateUnopenedPrizes(cells||[]),keys=Object.keys(m);box.style.display='block';if(!keys.length){list.innerHTML='<div style="grid-column:span 2;text-align:center;color:#888">🎉 所有大獎已開出</div>';return}list.innerHTML=keys.map(n=>`<div class="unopened-prize-item"><span>${m[n].image?`<img src="${escapeHtml(m[n].image)}" style="width:20px;height:20px;object-fit:cover;vertical-align:middle">`:''} 🎁 ${escapeHtml(n)}</span><span class="unopened-prize-count">剩 ${m[n].count} 份</span></div>`).join('')}
+function setupScratchCanvas(cellEl,onDone){let c=document.createElement('canvas');c.className='scratch-canvas';cellEl.appendChild(c);requestAnimationFrame(()=>{let r=cellEl.getBoundingClientRect();c.width=Math.max(80,r.width);c.height=Math.max(80,r.height);let x=c.getContext('2d');let g=x.createLinearGradient(0,0,c.width,c.height);g.addColorStop(0,'#b2f0e8');g.addColorStop(.5,'#81e6d9');g.addColorStop(1,'#4fd1c5');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);x.font=`${Math.floor(c.width*.4)}px sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText('🎁',c.width/2,c.height/2);let down=false,done=false;function pos(e){let rr=c.getBoundingClientRect(),q=e.touches?e.touches[0]:e;return{x:(q.clientX-rr.left)*c.width/rr.width,y:(q.clientY-rr.top)*c.height/rr.height}}function scratch(e){if(!down||done)return;e.preventDefault();let p=pos(e);x.globalCompositeOperation='destination-out';x.beginPath();x.arc(p.x,p.y,Math.max(14,c.width*.1),0,Math.PI*2);x.fill();let d=x.getImageData(0,0,c.width,c.height).data,z=0;for(let j=3;j<d.length;j+=4)if(d[j]===0)z++;if(z/(d.length/4)>.35){done=true;c.style.opacity='0';setTimeout(()=>c.remove(),300);onDone()}}c.onmousedown=e=>{down=true;scratch(e)};c.onmousemove=scratch;window.addEventListener('mouseup',()=>down=false);c.ontouchstart=e=>{down=true;scratch(e)};c.ontouchmove=scratch;c.ontouchend=()=>down=false})}
 
-function calculateUnopenedPrizes(cells){let m={};(cells||[]).forEach(c=>{if(!c.isPoked&&!String(c.prize).includes("烏龜")){if(!m[c.prize])m[c.prize]={count:0,image:c.image||""};m[c.prize].count++}});return m}
-function renderUnopenedBox(box,list,show,cells){
- if(!show){box.style.display='none';return}let m=calculateUnopenedPrizes(cells),keys=Object.keys(m);box.style.display='block';
- if(!keys.length){list.innerHTML='<div style="grid-column:span 2;text-align:center;color:#888">🎉 所有大獎已開出</div>';return}
- list.innerHTML=keys.map(n=>`<div class="unopened-prize-item"><span>${m[n].image?`<img src="${escapeHtml(m[n].image)}" style="width:20px;height:20px;object-fit:cover;vertical-align:middle">`:''} 🎁 ${escapeHtml(n)}</span><span class="unopened-prize-count">剩 ${m[n].count} 份</span></div>`).join('')
-}
+function renderMainBoard(d){if(!d)return;document.getElementById('eventTitleDisplay').innerText=d.eventName?`🎯 ${d.eventName} × 刮刮樂 🎫`:'🎯 夜市彈珠台 × 刮刮樂';document.getElementById('noteDisplay').innerText=d.note?`※ ${d.note} ※`:'';let cells=d.cells||[],big=cells.filter(c=>!String(c.prize).includes('烏龜')).length,rev=cells.filter(c=>c.isPoked&&!String(c.prize).includes('烏龜')).length;document.getElementById('remainingPrizesCount').innerText=`${Math.max(0,big-rev)} / ${big}`;let box=document.getElementById('mainPokeBox');if(!box)return;box.innerHTML='';cells.forEach((c,i)=>{let e=document.createElement('div'),t=String(c.prize).includes('烏龜');e.className=`cell ${c.isPoked?(t?'turtle':'winning'):''}`;let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img" onerror="this.style.display='none'">`:'';if(c.isPoked)e.innerHTML=t?`<div style="font-size:1.7rem">🐢</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`:`${img}<div>${escapeHtml(c.prize)}</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`;else{e.innerHTML='<div style="font-size:1.5rem">🎫</div>';setupScratchCanvas(e,()=>handleAdminPoke(i,c))}box.appendChild(e)});renderUnopenedBox(document.getElementById('mainUnopenedBox'),document.getElementById('mainUnopenedList'),d.showUnopenedPrizes!==false,cells)}
+async function handleAdminPoke(i,c){if(c.isPoked||!currentGameId)return;const ref=cellsRef().child(String(i));try{await ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner='';cell.pokedAt=Date.now();return cell})}catch(e){console.error(e)}}
+function renderWinnerTable(d){let c=document.getElementById('winnerTableContainer');if(!c)return;let rows=(d?.cells||[]).filter(x=>x.isPoked);if(!rows.length){c.innerHTML='<div style="text-align:center;color:#999">尚無紀錄</div>';return}c.innerHTML=`<table class="winner-table"><thead><tr><th>格</th><th>獎品</th><th>玩家</th><th>時間</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.id}</td><td>${escapeHtml(x.prize)}</td><td>${escapeHtml(x.winner||'管理者')}</td><td>${formatDate(x.pokedAt)}</td></tr>`).join('')}</tbody></table>`}
+function copyWinnerList(){if(!currentGameData)return;let rows=currentGameData.cells||[],turtleRows=rows.filter(c=>c.isPoked&&String(c.prize||'').includes('烏龜')),winnerRows=rows.filter(c=>c.isPoked&&!String(c.prize||'').includes('烏龜'));let txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n得獎名單\n`;winnerRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);txt+='\n烏龜名單\n';turtleRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);navigator.clipboard?.writeText(txt).then(()=>alert('得獎列表已複製！')).catch(()=>alert(txt))}
+async function copyScreenshot(){let area=document.getElementById('captureArea');try{let canvas=await html2canvas(area,{scale:2,useCORS:true});canvas.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert('截圖已複製！')}catch(e){alert('瀏覽器不允許直接複製圖片，請手動截圖')}})}catch(e){alert('截圖失敗')}}
 
-function setupScratchCanvas(cellEl,onDone){
- let c=document.createElement('canvas');c.className='scratch-canvas';cellEl.appendChild(c);
- requestAnimationFrame(()=>{let r=cellEl.getBoundingClientRect();c.width=Math.max(80,r.width);c.height=Math.max(80,r.height);let x=c.getContext('2d');
- let g=x.createLinearGradient(0,0,c.width,c.height);g.addColorStop(0,'#b2f0e8');g.addColorStop(.5,'#81e6d9');g.addColorStop(1,'#4fd1c5');x.fillStyle=g;x.fillRect(0,0,c.width,c.height);x.font=`${Math.floor(c.width*.4)}px sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText('🎁',c.width/2,c.height/2);
- let down=false,done=false;
- function pos(e){let r=c.getBoundingClientRect(),q=e.touches?e.touches[0]:e;return{x:(q.clientX-r.left)*c.width/r.width,y:(q.clientY-r.top)*c.height/r.height}}
- function scratch(e){if(!down||done)return;e.preventDefault();let p=pos(e);x.globalCompositeOperation='destination-out';x.beginPath();x.arc(p.x,p.y,Math.max(14,c.width*.1),0,Math.PI*2);x.fill();let d=x.getImageData(0,0,c.width,c.height).data,z=0;for(let i=3;i<d.length;i+=4)if(d[i]===0)z++;if(z/(d.length/4)>.35){done=true;c.style.opacity='0';setTimeout(()=>c.remove(),300);onDone()}}
- c.onmousedown=e=>{down=true;scratch(e)};c.onmousemove=scratch;window.addEventListener('mouseup',()=>down=false);
- c.ontouchstart=e=>{down=true;scratch(e)};c.ontouchmove=scratch;c.ontouchend=()=>down=false;
- });
-}
-
-function renderMainBoard(d){
- document.getElementById('eventTitleDisplay').innerText=d.eventName?`🎯 ${d.eventName} × 刮刮樂 🎫`:"🎯 夜市彈珠台 × 刮刮樂";
- document.getElementById('noteDisplay').innerText=d.note?`※ ${d.note} ※`:"";
- let big=d.cells.filter(c=>!String(c.prize).includes("烏龜")).length,rev=d.cells.filter(c=>c.isPoked&&!String(c.prize).includes("烏龜")).length;
- document.getElementById('remainingPrizesCount').innerText=`${Math.max(0,big-rev)} / ${big}`;
- let box=document.getElementById('mainPokeBox');box.innerHTML='';
- d.cells.forEach((c,i)=>{let e=document.createElement('div'),t=String(c.prize).includes("烏龜");e.className=`cell ${c.isPoked?(t?'turtle':'winning'):''}`;
- let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img">`:'';if(c.isPoked)e.innerHTML=t?`<div style="font-size:1.7rem">🐢</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`:`${img}<div>${escapeHtml(c.prize)}</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`;else{e.innerHTML=`<div style="font-size:1.5rem">🎫</div>`;setupScratchCanvas(e,()=>handleAdminPoke(i,c))}box.appendChild(e)});
- renderUnopenedBox(document.getElementById('mainUnopenedBox'),document.getElementById('mainUnopenedList'),d.showUnopenedPrizes!==false,d.cells)
-}
-function handleAdminPoke(i,c){if(c.isPoked)return;db.ref(`sharedPokeGame/cells/${i}`).update({isPoked:true,winner:"",pokedAt:Date.now()})}
-
-function loginPlayer(){
- if(!currentGameData){alert("主持人尚未建立活動");return}
+function normalizeName(name){return String(name).trim().toLocaleLowerCase().replace(/\s+/g,' ')}
+function nameKey(name){return normalizeName(name).replace(/[.#$[\]/]/g,'_').slice(0,80)}
+function playerSessionKey(){return `pinballPlayer:${currentGameId}`}
+async function loginPlayer(){
+ if(!currentGameData||!currentGameId){alert('目前沒有可參加的活動');return}
  let p=document.getElementById('inputRoomPass').value.trim(),n=document.getElementById('inputPlayerName').value.trim();
- if(p!==currentGameData.password){alert("房間密碼錯誤");return}
- if(!n){alert("請輸入暱稱");return}
- const normalizedName=n.toLocaleLowerCase().replace(/\\s+/g,' ').trim();
- const ref=db.ref(`sharedPokeGame/players/${playerKeyFor(n)}`);
- ref.transaction(existing=>{
-   if(existing)return;
-   return {name:n,nameNormalized:normalizedName,score:0,joinedAt:Date.now(),updatedAt:Date.now(),participated:true};
- }).then(r=>{
-   if(!r.committed){
-     alert("此暱稱已經參加過本次活動，不能重複參加！\\n請使用尚未參加過的暱稱。");
-     return;
-   }
-   currentPlayerName=n;
-   playerScore=0;
-   playerState=r.snapshot.val()||{};
-   document.getElementById('displayName').innerText=n;
-   document.getElementById('playerLoginCard').style.display='none';
-   document.getElementById('playerGameArea').style.display='block';
-   updatePlayerScore();
-   startPinballGame();
- });
+ if(p!==currentGameData.password){alert('房間密碼錯誤');return}
+ if(!n){alert('請輸入暱稱');return}
+ try{
+   await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+   if(!auth.currentUser || !auth.currentUser.isAnonymous) await auth.signInAnonymously();
+   const uid=auth.currentUser.uid;
+   let nk=nameKey(n),nameRef=usedNamesRef().child(nk),playerRef=playersRef().child(uid),pid=uid;
+   let tx=await nameRef.transaction(existing=>existing||{name:n,nameNormalized:normalizeName(n),playerId:pid,joinedAt:Date.now()});
+   if(!tx.committed){alert('此暱稱已經參加過本次活動，不能重複參加！\n請使用尚未參加過的暱稱。');return}
+   let startedAt=Date.now();
+   let player={name:n,nameNormalized:normalizeName(n),score:0,joinedAt:startedAt,updatedAt:startedAt,gameStartedAt:startedAt,gameFinished:false,authUid:uid};
+   await playerRef.set(player);
+   currentPlayerName=n;currentPlayerId=pid;playerScore=0;playerState=player;
+   sessionStorage.setItem(playerSessionKey(),pid);
+   document.getElementById('displayName').innerText=n;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';
+   updatePlayerScore();startPinballGame();
+ }catch(e){console.error(e);alert('進入遊戲失敗：'+e.message)}
 }
-
-function playerKeyFor(name){
- return String(name).trim().toLocaleLowerCase().replace(/[.#$[\]/]/g,'_').replace(/\\s+/g,' ').slice(0,60);
-}
-function playerKey(){return playerKeyFor(currentPlayerName)}
-function loadPlayerState(){
- let ref=db.ref(`sharedPokeGame/players/${playerKey()}`);
- ref.once('value').then(s=>{let p=s.val()||{};playerScore=Number(p.score)||0;playerState=p;updatePlayerScore();renderRedeem();});
-}
-function savePlayerScore(){db.ref(`sharedPokeGame/players/${playerKey()}`).update({name:currentPlayerName,score:playerScore,updatedAt:Date.now()})}
-function updatePlayerScore(){document.getElementById('playerScore').innerText=playerScore.toLocaleString();renderRedeem()}
-function renderRedeem(){
- if(!currentGameData)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),count=Math.floor(playerScore/unit);
- document.getElementById('pointsRule').innerText=unit;document.getElementById('redeemCount').innerText=count;
- let ended=!gameStarted||Date.now()>=Number(currentGameData.endTime||0);
- document.getElementById('redeemBtn').disabled=!(ended&&count>0);
- document.getElementById('redeemMessage').innerText=ended?(count>0?`🎉 您目前有 ${count} 次刮刮樂兌換資格！`:"積分不足，無法兌換刮刮樂。"):"⏳ 遊戲尚未結束，請繼續玩彈珠台！";
-}
-function startPinballGame(){
- if(!currentGameData)return;gameStarted=true;playerScore=Number(playerState?.score)||0;
- let duration=Math.max(1,Number(currentGameData.gameMinutes)||2)*60*1000;
- let end=Date.now()+duration;
- document.getElementById('launchBallBtn').disabled=false;
- clearInterval(timerId);
- timerId=setInterval(()=>{let left=Math.max(0,end-Date.now());document.getElementById('playerTimer').innerText=`${String(Math.floor(left/60000)).padStart(2,'0')}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`;if(left<=0){finishPinball();}},250);
- resetPinballCanvas();renderRedeem()
-}
-function finishPinball(){
- if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText="00:00";savePlayerScore();renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||200))} 次刮刮樂`)}
-function startRedeem(){
- if(gameStarted){alert("請等彈珠台時間結束後再兌換");return}
- let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
- if(available<=0){alert("積分不足");return}
- document.getElementById('redeemBtn').disabled=true;
- document.getElementById('playerScratchArea').style.display='block';
- renderPlayerScratch();
- document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`;
-}
-function closeScratchOverlay(){
- document.getElementById('playerScratchArea').style.display='none';
-}
-
-function renderPlayerScratch(){
- let d=currentGameData;if(!d||!currentPlayerName)return;
- let unit=Math.max(1,Number(d.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
- let box=document.getElementById('playerPokeBox');box.innerHTML='';
- if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}
- let idxs=d.cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);
- if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}
- let i=idxs[Math.floor(Math.random()*idxs.length)],c=d.cells[i];
- let el=document.createElement('div');el.className='cell';
- el.innerHTML='<div style="font-size:3rem">🎁</div>';
- setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el);
-}
-
-function claimScratch(i,c){
- if(c.isPoked){renderPlayerScratch();return}
- let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);
- if(available<=0){alert("已沒有刮獎資格");return}
- let ref=db.ref(`sharedPokeGame/cells/${i}`);
- ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.pokedAt=Date.now();return cell}).then(r=>{
-  if(!r.committed){renderPlayerScratch();return}
-  playerScore-=unit;savePlayerScore();updatePlayerScore();
-  let box=document.getElementById('playerPokeBox');
-  let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';
-  let isTurtle=String(c.prize).includes('烏龜');
-  box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;
-  let next=document.createElement('button');next.className='next-scratch-btn';next.innerText=available-1>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=available-1<=0;
-  next.onclick=()=>renderPlayerScratch();box.appendChild(next);
-  if(isTurtle)alert("🐢 這次沒有中獎，再接再厲！");
-  else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
-  renderWinnerTable(currentGameData);
- })
-}
-
-function renderPlayerBoard(d){
- if(!currentPlayerName)return;
- document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:"🎯 夜市彈珠台";
- document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:"";
- if(!gameStarted)renderRedeem()
-}
+async function restorePlayerSession(){if(!currentGameId||!currentGameData)return;let pid=sessionStorage.getItem(playerSessionKey());if(!pid)return;let snap=await playersRef().child(pid).once('value');let p=snap.val();if(!p)return;currentPlayerId=pid;currentPlayerName=p.name||'';playerState=p;playerScore=Number(p.score)||0;document.getElementById('displayName').innerText=currentPlayerName;document.getElementById('playerLoginCard').style.display='none';document.getElementById('playerGameArea').style.display='block';updatePlayerScore();startPinballGame(p)}
+function playerRef(){return playersRef().child(currentPlayerId)}
+function updatePlayerScore(){let el=document.getElementById('playerScore');if(el)el.innerText=playerScore.toLocaleString();renderRedeem()}
+async function savePlayerScore(final=false){if(!currentPlayerId)return;try{await playerRef().update({score:playerScore,updatedAt:Date.now(),gameFinished:final})}catch(e){console.error('save score',e)}}
+function renderRedeem(){if(!currentGameData)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),count=Math.floor(playerScore/unit);document.getElementById('pointsRule').innerText=unit;document.getElementById('redeemCount').innerText=count;let ended=!gameStarted||Date.now()>=gameEndAt;document.getElementById('redeemBtn').disabled=!(ended&&count>0);document.getElementById('redeemMessage').innerText=ended?(count>0?`🎉 您目前有 ${count} 次刮刮樂兌換資格！`:'積分不足，無法兌換刮刮樂。'):'⏳ 遊戲尚未結束，請繼續玩彈珠台！'}
+function startPinballGame(existingPlayer){if(!currentGameData||!currentPlayerId)return;gameStarted=true;playerScore=Number(existingPlayer?.score??playerState?.score)||0;let duration=Math.max(1,Number(currentGameData.gameMinutes)||2)*60000;let started=Number(existingPlayer?.gameStartedAt||playerState?.gameStartedAt||Date.now());gameEndAt=started+duration;if(Date.now()>=gameEndAt){finishPinball();return}document.getElementById('launchBallBtn').disabled=false;clearInterval(timerId);timerId=setInterval(()=>{let left=Math.max(0,gameEndAt-Date.now());document.getElementById('playerTimer').innerText=`${String(Math.floor(left/60000)).padStart(2,'0')}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`;if(left<=0)finishPinball()},250);resetPinballCanvas();renderRedeem()}
+async function finishPinball(){if(!gameStarted)return;gameStarted=false;clearInterval(timerId);document.getElementById('launchBallBtn').disabled=true;document.getElementById('playerTimer').innerText='00:00';await savePlayerScore(true);renderRedeem();alert(`⏰ 遊戲時間結束！\n您的總積分：${playerScore}\n可兌換：${Math.floor(playerScore/(Number(currentGameData.pointsPerScratch)||200))} 次刮刮樂`)}
+function startRedeem(){if(gameStarted){alert('請等彈珠台時間結束後再兌換');return}let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200),available=Math.floor(playerScore/unit);if(available<=0){alert('積分不足');return}document.getElementById('redeemBtn').disabled=true;document.getElementById('playerScratchArea').style.display='block';renderPlayerScratch();document.getElementById('redeemMessage').innerText=`🎫 您共有 ${available} 次刮獎資格，已開放刮刮樂。`}
+function closeScratchOverlay(){document.getElementById('playerScratchArea').style.display='none'}
+function renderPlayerScratch(){let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200),available=Math.floor(playerScore/unit),box=document.getElementById('playerPokeBox');box.innerHTML='';if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}let cells=d.cells||[],idxs=cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}let i=idxs[Math.floor(Math.random()*idxs.length)],c=cells[i],el=document.createElement('div');el.className='cell';el.innerHTML='<div style="font-size:3rem">🎁</div>';setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el)}
+async function claimScratch(i,c){if(!currentGameId||!currentPlayerId)return;let unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200);if(playerScore<unit){alert('已沒有刮獎資格');return}let scoreRef=playerRef(),cellRef=cellsRef().child(String(i));try{let scoreTx=await scoreRef.transaction(p=>{if(!p)return;if((Number(p.score)||0)<unit)return;p.score=(Number(p.score)||0)-unit;p.updatedAt=Date.now();return p});if(!scoreTx.committed){alert('目前積分不足，或資料已更新，請再試一次。');return}let tx=await cellRef.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner=currentPlayerName;cell.winnerId=auth.currentUser?.uid||currentPlayerId;cell.pokedAt=Date.now();return cell});if(!tx.committed){await scoreRef.transaction(p=>{if(!p)return;p.score=(Number(p.score)||0)+unit;p.updatedAt=Date.now();return p});currentGameData.cells[i]=tx.snapshot.val();renderPlayerScratch();return}playerScore=Math.max(0,Number(scoreTx.snapshot.val().score)||0);playerState=scoreTx.snapshot.val();updatePlayerScore();let box=document.getElementById('playerPokeBox'),isTurtle=String(c.prize||'').includes('烏龜'),img=c.image?`<img src="${escapeHtml(c.image)}" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;let next=document.createElement('button');next.className='next-scratch-btn';let remaining=Math.floor(playerScore/unit);next.innerText=remaining>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=remaining<=0;next.onclick=()=>renderPlayerScratch();box.appendChild(next);if(isTurtle)alert('🐢 這次沒有中獎，再接再厲！');else alert(`🎉 恭喜！您刮中：【${c.prize}】`);currentGameData.cells[i]=tx.snapshot.val();renderWinnerTable(currentGameData)}catch(e){console.error(e);alert('刮獎失敗：'+e.message)}}
+function renderPlayerBoard(d){if(!currentPlayerName)return;document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:'🎯 夜市彈珠台';document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:'';if(!gameStarted)renderRedeem()}
 
 function resetPinballCanvas(){
  cancelAnimationFrame(animationId);ball=null;lastTime=0;drawPinball();
@@ -559,34 +473,11 @@ function updateBall(t){
  drawPinball();
  animationId=requestAnimationFrame(updateBall);
 }
-function addScore(n){playerScore+=n;updatePlayerScore();savePlayerScore()}
 
-function renderWinnerTable(d){
- let c=document.getElementById('winnerTableContainer'),rows=(d.cells||[]).filter(x=>x.isPoked);
- if(!rows.length){c.innerHTML='<div style="text-align:center;color:#999">尚無紀錄</div>';return}
- c.innerHTML=`<table class="winner-table"><thead><tr><th>格</th><th>獎品</th><th>玩家</th><th>時間</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.id}</td><td>${escapeHtml(x.prize)}</td><td>${escapeHtml(x.winner||'管理者')}</td><td>${formatDate(x.pokedAt)}</td></tr>`).join('')}</tbody></table>`
-}
-async function copyPlayerInfo(){
- let url=location.href.split('#')[0]+'#player',pass=currentGameData?.password||document.getElementById('roomPassword').value.trim();
- let txt=`🎯 夜市彈珠台 × 刮刮樂\n玩家網址：${url}\n房間密碼：${pass}\n遊戲時間：${currentGameData?.gameMinutes||document.getElementById('gameMinutes').value} 分鐘\n兌換規則：${currentGameData?.pointsPerScratch||document.getElementById('pointsPerScratch').value} 積分 = 1 次刮刮樂`;
- try{await navigator.clipboard.writeText(txt);alert("✅ 玩家網址與規則已複製！")}catch(e){alert(txt)}
-}
-async function copyWinnerList(){
- if(!currentGameData)return;
- let rows=currentGameData.cells.filter(c=>c.isPoked);
- let turtleRows=rows.filter(c=>String(c.prize||'').includes("烏龜"));
- let winnerRows=rows.filter(c=>!String(c.prize||'').includes("烏龜"));
- let txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n`;
- txt+=`得獎名單\n`;
- winnerRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
- txt+=`\n烏龜名單\n`;
- turtleRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);
- try{await navigator.clipboard.writeText(txt);alert("得獎列表已複製！")}catch(e){alert(txt)}
-}
-async function copyScreenshot(){
- let area=document.getElementById('captureArea');try{let canvas=await html2canvas(area,{scale:2,useCORS:true});canvas.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert("截圖已複製！")}catch(e){alert("瀏覽器不允許直接複製圖片，請手動截圖")}})}catch(e){alert("截圖失敗")}
-}
-window.onload=()=>{updateClock();restorePrizeDraft();location.hash==='#player'?switchView('player'):switchView('main')};
+function addScore(n){playerScore+=Number(n)||0;updatePlayerScore();}
+
+async function bootstrap(){updateClock();restorePrizeDraft();const gameId=getGameIdFromUrl();if(gameId)listenToGame(gameId);else{let s=await activeGameRef.once('value');if(s.val())listenToGame(s.val())}if(location.hash==='#player')switchView('player');else switchView('main');setTimeout(async()=>{if(location.hash==='#player'&&currentGameData)await restorePlayerSession()},500)}
+window.onload=bootstrap;
 </script>
 </body>
 </html>
