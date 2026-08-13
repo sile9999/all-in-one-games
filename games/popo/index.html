@@ -356,14 +356,21 @@ async function claimScratch(i,c){
    });
    if(!cellTx.committed){alert('這張刮刮樂已被其他玩家刮走，將自動換下一張。');currentGameData.cells[i]=cellTx.snapshot.val();await renderPlayerScratch();return}
 
-   // 再以「只更新 score 欄位」的交易扣除 200 分，避免整個玩家物件 transaction 被 Rules/validate 影響。
-   const scoreRef=playerRef().child('score');
-   const scoreTx=await scoreRef.transaction(score=>{
-     const n=Number(score)||0;
+   // 重要：目前 Firebase Rules 會在 players/$uid 的父層驗證整個玩家物件。
+   // 因此不能只對 players/$uid/score 做 transaction，否則 newData 只是數字，
+   // 會觸發「newData.hasChildren(...)」驗證失敗而得到 PERMISSION_DENIED。
+   // 改成對整個玩家物件做 transaction，保留 name / authUid / score 等欄位，
+   // 同時在 Firebase 端原子扣除本次兌換所需積分。
+   const playerNodeRef=playerRef();
+   const playerTx=await playerNodeRef.transaction(player=>{
+     if(!player)return;
+     const n=Number(player.score)||0;
      if(n<unit)return;
-     return n-unit;
+     player.score=n-unit;
+     player.updatedAt=Date.now();
+     return player;
    });
-   if(!scoreTx.committed){
+   if(!playerTx.committed){
      // 扣分失敗就把剛才鎖定的刮刮樂復原，避免玩家白白少一張。
      await cellRef.update({isPoked:false,winner:'',winnerId:null,pokedAt:0});
      const fresh=await playerRef().once('value');
@@ -372,8 +379,9 @@ async function claimScratch(i,c){
      return;
    }
 
-   playerScore=Math.max(0,Number(scoreTx.snapshot.val())||0);
-   playerState={...(playerState||{}),score:playerScore};
+   const savedPlayer=playerTx.snapshot.val()||{};
+   playerScore=Math.max(0,Number(savedPlayer.score)||0);
+   playerState=savedPlayer;
    updatePlayerScore();
    currentGameData.cells[i]=cellTx.snapshot.val();
 
