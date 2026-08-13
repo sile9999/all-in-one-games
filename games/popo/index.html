@@ -67,7 +67,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 .launch-btn{box-shadow:0 3px 0 #b26a00,0 5px 10px rgba(0,0,0,.35)}
 </style>
 
-<meta name="version" content="12.2.5">
+<meta name="version" content="12.2.6">
 </head>
 <body>
 <h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 🎫</h1>
@@ -336,72 +336,132 @@ async function startRedeem(){if(gameStarted){alert('請等彈珠台時間結束�
 function closeScratchOverlay(){document.getElementById('playerScratchArea').style.display='none'}
 async function renderPlayerScratch(){let d=currentGameData;if(!d||!currentPlayerName)return;let unit=Math.max(1,Number(d.pointsPerScratch)||200);await refreshPlayerScoreFromServer();let available=Math.floor(playerScore/unit),box=document.getElementById('playerPokeBox');box.innerHTML='';if(available<=0){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">目前沒有剩餘刮獎資格</div>';return}let cells=d.cells||[],idxs=cells.map((c,i)=>c.isPoked?-1:i).filter(i=>i>=0);if(!idxs.length){box.innerHTML='<div style="padding:30px;text-align:center;font-weight:bold;color:#795548">所有刮刮樂都已開完</div>';return}let i=idxs[Math.floor(Math.random()*idxs.length)],c=cells[i],el=document.createElement('div');el.className='cell';el.innerHTML='<div style="font-size:3rem">🎁</div>';setupScratchCanvas(el,()=>claimScratch(i,c));box.appendChild(el)}
 async function claimScratch(i,c){
- if(!currentGameId||!currentPlayerId)return;
- const unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200);
- try{
-   const latest=await playerRef().once('value');
-   const latestPlayer=latest.val();
-   const latestScore=Number(latestPlayer?.score)||0;
-   if(!latestPlayer){alert('找不到玩家資料，請重新登入房間。');return}
-   if(latestScore<unit){playerScore=latestScore;updatePlayerScore();alert(`目前積分為 ${latestScore}，不足 ${unit} 分，無法兌換刮刮樂。`);return}
+  if(!currentGameId||!currentPlayerId)return;
 
-   // 先扣除玩家積分。整個玩家物件做 transaction，可通過 /players/$uid 的 validate。
-   const playerNodeRef=playerRef();
-   const playerTx=await playerNodeRef.transaction(player=>{
-     if(!player)return;
-     const n=Number(player.score)||0;
-     if(n<unit)return;
-     player.score=n-unit;
-     player.updatedAt=Date.now();
-     return player;
-   });
-   if(!playerTx.committed){
-     const fresh=await playerRef().once('value');
-     playerState=fresh.val()||playerState;playerScore=Number(playerState?.score)||0;updatePlayerScore();
-     alert('⚠️ 積分扣除失敗，請重新整理後再試一次。');
-     return;
-   }
+  // 參考 V11：先確認目前資格，再鎖定刮刮樂；
+  // 積分不再使用玩家父節點 transaction，改回 V11 的直接更新流程。
+  const unit=Math.max(1,Number(currentGameData.pointsPerScratch)||200);
 
-   // 再搶一張尚未刮開的格子。多人同時搶同一格時只有一人成功。
-   const cellRef=cellsRef().child(String(i));
-   const cellTx=await cellRef.transaction(cell=>{
-     if(!cell||cell.isPoked)return;
-     cell.isPoked=true;
-     cell.winner=currentPlayerName;
-     cell.winnerId=auth.currentUser?.uid||currentPlayerId;
-     cell.pokedAt=Date.now();
-     return cell;
-   });
-   if(!cellTx.committed){
-     // 搶格失敗：退回本次扣除的積分。
-     await playerNodeRef.transaction(player=>{
-       if(!player)return;
-       player.score=(Number(player.score)||0)+unit;
-       player.updatedAt=Date.now();
-       return player;
-     });
-     await refreshPlayerScoreFromServer();
-     currentGameData.cells[i]=cellTx.snapshot.val();
-     await renderPlayerScratch();
-     alert('這張刮刮樂已被其他玩家刮走，已退回本次積分，請再試一次。');
-     return;
-   }
+  try{
+    // 先從伺服器取得最新玩家資料
+    const latest=await playerRef().once('value');
+    const latestPlayer=latest.val();
 
-   const savedPlayer=playerTx.snapshot.val()||{};
-   playerScore=Math.max(0,Number(savedPlayer.score)||0);
-   playerState=savedPlayer;
-   updatePlayerScore();
-   currentGameData.cells[i]=cellTx.snapshot.val();
+    if(!latestPlayer){
+      alert('找不到玩家資料，請重新登入房間。');
+      return;
+    }
 
-   const box=document.getElementById('playerPokeBox');
-   const isTurtle=String(c.prize||'').includes('烏龜');
-   const img=c.image?`<img src="${escapeHtml(c.image)}" onerror="this.style.display='none'">`:'<div style="font-size:5rem">🎁</div>';
-   box.innerHTML=`<div class="scratch-result">${isTurtle?'<div style="font-size:5rem">🐢</div>':img}<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div><div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div></div>`;
-   const next=document.createElement('button');next.className='next-scratch-btn';
-   const remaining=Math.floor(playerScore/unit);next.innerText=remaining>0?'🎫 繼續刮下一張':'🎉 已無剩餘刮獎資格';next.disabled=remaining<=0;next.onclick=()=>renderPlayerScratch();box.appendChild(next);
-   if(isTurtle)alert('🐢 這次沒有中獎，再接再厲！');else alert(`🎉 恭喜！您刮中：【${c.prize}】`);
-   renderWinnerTable(currentGameData);
- }catch(e){console.error('claimScratch',e);await refreshPlayerScoreFromServer();alert('刮獎失敗：'+e.message+'\n\n如果畫面仍顯示 PERMISSION_DENIED，請重新整理後重新登入玩家。')}
+    const latestScore=Number(latestPlayer.score)||0;
+    const available=Math.floor(latestScore/unit);
+
+    if(available<=0){
+      playerScore=latestScore;
+      playerState=latestPlayer;
+      updatePlayerScore();
+      alert('已沒有刮獎資格');
+      return;
+    }
+
+    // ① 先用 transaction 搶這一張刮刮樂。
+    // 同一張被多人同時刮時，只會有一人成功。
+    const cellRef=cellsRef().child(String(i));
+    const cellTx=await cellRef.transaction(cell=>{
+      if(!cell||cell.isPoked)return;
+      cell.isPoked=true;
+      cell.winner=currentPlayerName;
+      cell.winnerId=auth.currentUser?.uid||currentPlayerId;
+      cell.pokedAt=Date.now();
+      return cell;
+    });
+
+    if(!cellTx.committed){
+      currentGameData.cells[i]=cellTx.snapshot.val();
+      await renderPlayerScratch();
+      return;
+    }
+
+    // ② 參考 V11：直接扣除本次 200 積分，再用 playerRef().update()
+    // 不再對整個 players/$uid 做 transaction。
+    const newScore=latestScore-unit;
+
+    try{
+      await playerRef().update({
+        score:newScore,
+        updatedAt:Date.now(),
+        gameFinished:true
+      });
+    }catch(scoreError){
+      // 積分更新失敗：嘗試把剛剛鎖定的刮刮樂恢復。
+      try{
+        await cellRef.update({
+          isPoked:false,
+          winner:null,
+          winnerId:null,
+          pokedAt:null
+        });
+      }catch(rollbackError){
+        console.error('scratch rollback failed',rollbackError);
+      }
+
+      console.error('scratch score update failed',scoreError);
+      alert('⚠️ 積分更新失敗：'+scoreError.message+'\n請重新整理後再試一次。');
+      await refreshPlayerScoreFromServer();
+      return;
+    }
+
+    // ③ 寫入成功後同步本機資料
+    playerScore=newScore;
+    playerState={
+      ...latestPlayer,
+      score:newScore,
+      updatedAt:Date.now(),
+      gameFinished:true
+    };
+    updatePlayerScore();
+
+    currentGameData.cells[i]=cellTx.snapshot.val();
+
+    // ④ 顯示得獎結果
+    const box=document.getElementById('playerPokeBox');
+    const isTurtle=String(c.prize||'').includes('烏龜');
+    const img=c.image
+      ? `<img src="${escapeHtml(c.image)}" onerror="this.style.display='none'">`
+      : '<div style="font-size:5rem">🎁</div>';
+
+    box.innerHTML=
+      `<div class="scratch-result">`+
+      `${isTurtle?'<div style="font-size:5rem">🐢</div>':img}`+
+      `<div class="prize-name">${escapeHtml(c.prize||'未命名獎項')}</div>`+
+      `<div style="margin-top:6px;color:#666;font-size:.85rem">得獎者：${escapeHtml(currentPlayerName)}</div>`+
+      `</div>`;
+
+    // ⑤ 還有資格就可以繼續刮
+    const next=document.createElement('button');
+    next.className='next-scratch-btn';
+
+    const remaining=Math.floor(playerScore/unit);
+    next.innerText=remaining>0
+      ? '🎫 繼續刮下一張'
+      : '🎉 已無剩餘刮獎資格';
+
+    next.disabled=remaining<=0;
+    next.onclick=()=>renderPlayerScratch();
+    box.appendChild(next);
+
+    if(isTurtle){
+      alert('🐢 這次沒有中獎，再接再厲！');
+    }else{
+      alert(`🎉 恭喜！您刮中：【${c.prize}】`);
+    }
+
+    renderWinnerTable(currentGameData);
+
+  }catch(e){
+    console.error('claimScratch',e);
+    await refreshPlayerScoreFromServer();
+    alert('刮獎失敗：'+e.message);
+  }
 }
 function renderPlayerBoard(d){if(!currentPlayerName)return;document.getElementById('playerEventTitle').innerText=d.eventName?`🎯 ${d.eventName} × 夜市彈珠台`:'🎯 夜市彈珠台';document.getElementById('playerNoteDisplay').innerText=d.note?`※ ${d.note} ※`:'';if(!gameStarted)renderRedeem()}
 
