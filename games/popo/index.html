@@ -70,7 +70,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
 <meta name="version" content="12.2.6">
 </head>
 <body>
-<h1 id="mainTitleHeader">🎯 夜市彈珠台 × 刮刮樂 🎫</h1>
+<h1 id="mainTitleHeader">🎯  × 刮刮樂 🎫</h1>
 
 <div id="pageMain" class="page active">
   <div id="adminLoginCard" class="login-card">
@@ -121,7 +121,7 @@ button,.btn-lobby{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;
       <div id="modeB" class="mode-content">
         <textarea id="prizeInput" style="width:100%;height:70px" placeholder="例如：100元紅包, 飲料一杯, 精美小禮物"></textarea>
       </div>
-      <button class="btn-apply" onclick="publishNewGame()" style="margin-top:10px">🚀 建立新的夜市彈珠台活動</button>
+      <button class="btn-apply" onclick="publishNewGame()" style="margin-top:10px">🚀 建立新的活動</button>
       <div class="button-group">
         <button class="btn-orange" onclick="openPlayerWindow()">🎮 開啟玩家頁</button>
         <button class="btn-purple" onclick="copyPlayerInfo()">📋 複製玩家網址與密碼</button>
@@ -312,7 +312,7 @@ function setupScratchCanvas(cellEl,onDone){let c=document.createElement('canvas'
 function renderMainBoard(d){if(!d)return;document.getElementById('eventTitleDisplay').innerText=d.eventName?`🎯 ${d.eventName} × 刮刮樂 🎫`:'🎯 夜市彈珠台 × 刮刮樂';document.getElementById('noteDisplay').innerText=d.note?`※ ${d.note} ※`:'';let cells=d.cells||[],big=cells.filter(c=>!String(c.prize).includes('烏龜')).length,rev=cells.filter(c=>c.isPoked&&!String(c.prize).includes('烏龜')).length;document.getElementById('remainingPrizesCount').innerText=`${Math.max(0,big-rev)} / ${big}`;let box=document.getElementById('mainPokeBox');if(!box)return;box.innerHTML='';cells.forEach((c,i)=>{let e=document.createElement('div'),t=String(c.prize).includes('烏龜');e.className=`cell ${c.isPoked?(t?'turtle':'winning'):''}`;let img=c.image?`<img src="${escapeHtml(c.image)}" class="cell-img" onerror="this.style.display='none'">`:'';if(c.isPoked)e.innerHTML=t?`<div style="font-size:1.7rem">🐢</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`:`${img}<div>${escapeHtml(c.prize)}</div><div class="winner-name">${escapeHtml(c.winner||'管理者')}</div>`;else{e.innerHTML='<div style="font-size:1.5rem">🎫</div>';setupScratchCanvas(e,()=>handleAdminPoke(i,c))}box.appendChild(e)});renderUnopenedBox(document.getElementById('mainUnopenedBox'),document.getElementById('mainUnopenedList'),d.showUnopenedPrizes!==false,cells)}
 async function handleAdminPoke(i,c){if(c.isPoked||!currentGameId)return;const ref=cellsRef().child(String(i));try{await ref.transaction(cell=>{if(!cell||cell.isPoked)return;cell.isPoked=true;cell.winner='';cell.pokedAt=Date.now();return cell})}catch(e){console.error(e)}}
 function renderWinnerTable(d){let c=document.getElementById('winnerTableContainer');if(!c)return;let rows=(d?.cells||[]).filter(x=>x.isPoked);if(!rows.length){c.innerHTML='<div style="text-align:center;color:#999">尚無紀錄</div>';return}c.innerHTML=`<table class="winner-table"><thead><tr><th>格</th><th>獎品</th><th>玩家</th><th>時間</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.id}</td><td>${escapeHtml(x.prize)}</td><td>${escapeHtml(x.winner||'管理者')}</td><td>${formatDate(x.pokedAt)}</td></tr>`).join('')}</tbody></table>`}
-function copyWinnerList(){if(!currentGameData)return;let rows=currentGameData.cells||[],turtleRows=rows.filter(c=>c.isPoked&&String(c.prize||'').includes('烏龜')),winnerRows=rows.filter(c=>c.isPoked&&!String(c.prize||'').includes('烏龜'));let txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n得獎名單\n`;winnerRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);txt+='\n烏龜名單\n';turtleRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);navigator.clipboard?.writeText(txt).then(()=>alert('得獎列表已複製！')).catch(()=>alert(txt))}
+function copyWinnerList(){if(!currentGameData)return;let rows=currentGameData.cells||[],turtleRows=rows.filter(c=>c.isPoked&&String(c.prize||'').includes('烏龜')),winnerRows=rows.filter(c=>c.isPoked&&!String(c.prize||'').includes('烏龜'));let txt=`🏆【${currentGameData.eventName||'夜市彈珠台'}】\n得獎名單\n`;winnerRows.forEach(c=>txt+=`• ${c.prize} ➔ @${c.winner||'管理者'}\n`);txt+='\n烏龜名單\n';turtleRows.forEach(c=>txt+=`• ${c.prize} ➔ ${c.winner||'管理者'}\n`);navigator.clipboard?.writeText(txt).then(()=>alert('得獎列表已複製！')).catch(()=>alert(txt))}
 async function copyScreenshot(){let area=document.getElementById('captureArea');try{let canvas=await html2canvas(area,{scale:2,useCORS:true});canvas.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);alert('截圖已複製！')}catch(e){alert('瀏覽器不允許直接複製圖片，請手動截圖')}})}catch(e){alert('截圖失敗')}}
 
 function normalizeName(name){return String(name).trim().toLocaleLowerCase().replace(/\s+/g,' ')}
