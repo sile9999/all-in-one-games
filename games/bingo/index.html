@@ -11,7 +11,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
     
-    /* 修正點 2：加入指定背景圖片並置中防重複 */
+    /* 指定背景圖片並置中防重複 */
     body { 
       background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
       background-size: cover;
@@ -49,7 +49,7 @@
     .btn-start { background-color: #10b981; }
     .btn-start:hover { background-color: #059669; }
     
-    /* 修正點 1：回到遊戲大廳按鈕樣式 (置中與特別顏色區隔) */
+    /* 回到遊戲大廳按鈕樣式 */
     .btn-lobby { background-color: #0284c7; width: auto; min-width: 200px; margin: 16px auto 0 auto; display: block; }
     .btn-lobby:hover { background-color: #0369a1; }
 
@@ -75,12 +75,37 @@
     .grid { display: grid; gap: 6px; }
 
     /* 格子樣式 */
-    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; padding: 4px; }
+    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; padding: 4px; }
     .tile img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
     .tile:hover { transform: scale(1.04); }
     
-    .tile.marked { background-color: #81d8d0; color: #0f172a; transform: scale(0.96); box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
-    .tile.marked img { filter: brightness(1.05); }
+    /* 修正點 1：成功的格子改為蓋牌樣式（蓋住原本圖片，顯示質感牌背與完成標誌） */
+    .tile.marked { 
+      background: repeating-linear-gradient(
+        45deg,
+        #1e293b,
+        #1e293b 10px,
+        #0f172a 10px,
+        #0f172a 20px
+      ); 
+      border: 2px solid #f59e0b;
+      transform: scale(0.96); 
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); 
+    }
+    
+    /* 蓋牌後隱藏格內的原本圖片/文字 */
+    .tile.marked img { 
+      display: none;
+    }
+    
+    /* 蓋牌後顯示的金色對勾符號 */
+    .tile.marked::after {
+      content: '✓';
+      color: #f59e0b;
+      font-size: 24px;
+      font-weight: 900;
+      text-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+    }
     
     .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
 
@@ -881,7 +906,7 @@
     </div>
   </div>
 
-  <!-- 修正點 1：主設定頁面的回到大廳按鈕 (置中) -->
+  <!-- 主設定頁面的回到大廳按鈕 (置中) -->
   <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
