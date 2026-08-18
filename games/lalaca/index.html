@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> 翻牌連連看 </title>
+  <title> 唐詩對對碰 </title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
     
-    /* 修正點 2：加入指定背景圖片並設定居中 cover 貼合 */
     body { 
       background-color: #f0f4f8; 
       background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
@@ -25,7 +24,6 @@
     .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 680px; text-align: center; position: relative; }
     h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
     
-    /* 修正點 1：大廳按鈕專用置中樣式 */
     .btn-lobby {
       display: inline-block;
       width: auto;
@@ -70,24 +68,21 @@
     .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
     .grid-container { position: relative; margin-bottom: 16px; }
     
-    /* 預設網格結構 (JS動態給予 grid-template-columns) */
     .grid { display: grid; gap: 8px; }
 
-    /* 未翻牌卡牌基礎樣式 */
     .tile { aspect-ratio: 1; background-color: #81e6d9; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; color: #1e293b; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .tile:hover { transform: scale(1.04); }
     
-    /* 已翻牌/成功配對樣式 */
     .tile.selected { background-color: #ffffff; border: 3px solid #fde047; transform: scale(0.95); }
     .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
     
-    /* 成語文字專用樣式 */
+    /* 詩句字體適性調整 */
     .tile-text { 
-      font-size: 18px; 
+      font-size: 15px; 
       font-weight: bold; 
       color: #1e293b; 
       text-align: center; 
-      line-height: 1.2; 
+      line-height: 1.25; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -97,15 +92,13 @@
       word-break: break-all;
     }
 
-    /* 手機螢幕裝置專用 (螢幕寬度 <= 600px) */
+    /* 手機螢幕適應 */
     @media (max-width: 600px) {
-      /* 24格（含以下）：4格一列 */
       .grid, .grid.grid-24 { 
         grid-template-columns: repeat(4, 1fr) !important; 
         gap: 8px !important; 
       }
 
-      /* 24格以上（36~96格）：6格一列 */
       .grid.grid-large { 
         grid-template-columns: repeat(6, 1fr) !important; 
         gap: 4px !important; 
@@ -117,7 +110,7 @@
       }
       
       .tile-text {
-        font-size: 12px;
+        font-size: 11px;
         padding: 2px;
       }
     }
@@ -141,7 +134,6 @@
     .hidden { display: none !important; }
     .disabled-area { opacity: 0.5; pointer-events: none; }
 
-    /* 活動結束專用全螢幕樣式 */
     .expired-card { background: white; padding: 40px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
     .expired-icon { font-size: 64px; margin-bottom: 16px; }
     .expired-title { color: #ef4444; font-size: 24px; font-weight: bold; margin-bottom: 12px; }
@@ -165,16 +157,56 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // 四字成語題庫
-    const idiomPool = [
-      "一心一意", "三心二意", "四海為家", "五湖四海", "六六大順", "七上八下", "八仙過海", "九牛一毛", 
-      "十全十美", "百發百中", "千方百計", "萬無一失", "守株待兔", "畫蛇添足", "胸有成竹", "拔苗助長", 
-      "盲人摸象", "井底之蛙", "對牛彈琴", "刻舟求劍", "狐假虎威", "亡羊補牢", "葉公好龍", "自相矛盾", 
-      "掩耳盜鈴", "買櫝還珠", "愚公移山", "精衛填海", "夸父追日", "女媧補天", "嫦娥奔月", "後羿射日", 
-      "水滴石穿", "海枯石爛", "風調雨順", "國泰民安", "車水馬龍", "門庭若市", "欣欣向榮", "蓬勃發展", 
-      "迎刃而解", "破竹之勢", "勢如破竹", "全力以赴", "堅持不懈", "持之以恆", "腳踏實地", "實事求是", 
-      "同心協力", "眾志成城", "臥薪嘗膽", "聞雞起舞", "懸梁刺股", "程門立雪", "鑿壁偷光", "錦上添花",
-      "雪中送炭", "溫故知新", "學無止境", "學以致用", "溫文儒雅", "高瞻遠矚", "一馬當先", "出類拔萃"
+    // 唐詩三百首 上下句對應題庫
+    const poemPool = [
+      { pairId: 1, text: "床前明月光" }, { pairId: 1, text: "疑是地上霜" },
+      { pairId: 2, text: "舉頭望明月" }, { pairId: 2, text: "低頭思故鄉" },
+      { pairId: 3, text: "紅豆生南國" }, { pairId: 3, text: "春來發幾枝" },
+      { pairId: 4, text: "願君多採擷" }, { pairId: 4, text: "此物最相思" },
+      { pairId: 5, text: "白日依山盡" }, { pairId: 5, text: "黃河入海流" },
+      { pairId: 6, text: "欲窮千里目" }, { pairId: 6, text: "更上一層樓" },
+      { pairId: 7, text: "千山鳥飛絕" }, { pairId: 7, text: "萬徑人蹤滅" },
+      { pairId: 8, text: "孤舟蓑笠翁" }, { pairId: 8, text: "獨釣寒江雪" },
+      { pairId: 9, text: "松下問童子" }, { pairId: 9, text: "言師採藥去" },
+      { pairId: 10, text: "只在此山中" }, { pairId: 10, text: "雲深不知處" },
+      { pairId: 11, text: "春眠不覺曉" }, { pairId: 11, text: "處處聞啼鳥" },
+      { pairId: 12, text: "夜來風雨聲" }, { pairId: 12, text: "花落知多少" },
+      { pairId: 13, text: "慈母手中線" }, { pairId: 13, text: "遊子身上衣" },
+      { pairId: 14, text: "臨行密密縫" }, { pairId: 14, text: "意恐遲遲歸" },
+      { pairId: 15, text: "誰言寸草心" }, { pairId: 15, text: "報得三春暉" },
+      { pairId: 16, text: "獨在異鄉為異客" }, { pairId: 16, text: "每逢佳節倍思親" },
+      { pairId: 17, text: "遙知兄弟登高處" }, { pairId: 17, text: "遍插茱萸少一人" },
+      { pairId: 18, text: "清明時節雨紛紛" }, { pairId: 18, text: "路上行人欲斷魂" },
+      { pairId: 19, text: "借問酒家何處有" }, { pairId: 19, text: "牧童遙指杏花村" },
+      { pairId: 20, text: "朝辭白帝彩雲間" }, { pairId: 20, text: "千里江陵一日還" },
+      { pairId: 21, text: "兩岸猿聲啼不住" }, { pairId: 21, text: "輕舟已過萬重山" },
+      { pairId: 22, text: "葡萄美酒夜光杯" }, { pairId: 22, text: "欲飲琵琶馬上催" },
+      { pairId: 23, text: "醉臥沙場君莫笑" }, { pairId: 23, text: "古來征戰幾人回" },
+      { pairId: 24, text: "黃河遠上白雲間" }, { pairId: 24, text: "一片孤城萬仞山" },
+      { pairId: 25, text: "羌笛何須怨楊柳" }, { pairId: 25, text: "春風不度玉門關" },
+      { pairId: 26, text: "月落烏啼霜滿天" }, { pairId: 26, text: "江楓漁火對愁眠" },
+      { pairId: 27, text: "姑蘇城外寒山寺" }, { pairId: 27, text: "夜半鐘聲到客船" },
+      { pairId: 28, text: "寒雨連江夜入吳" }, { pairId: 28, text: "平明送客楚山孤" },
+      { pairId: 29, text: "洛陽親友如相問" }, { pairId: 29, text: "一片冰心在玉壺" },
+      { pairId: 30, text: "朱雀橋邊野草花" }, { pairId: 30, text: "烏衣巷口夕陽斜" },
+      { pairId: 31, text: "舊時王謝堂前燕" }, { pairId: 31, text: "飛入尋常百姓家" },
+      { pairId: 32, text: "遠上寒山石徑斜" }, { pairId: 32, text: "白雲生處有人家" },
+      { pairId: 33, text: "停車坐愛楓林晚" }, { pairId: 33, text: "霜葉紅於二月花" },
+      { pairId: 34, text: "折戟沉沙鐵未銷" }, { pairId: 34, text: "自將磨洗認前朝" },
+      { pairId: 35, text: "東風不與周郎便" }, { pairId: 35, text: "銅雀春深鎖二喬" },
+      { pairId: 36, text: "勝敗兵家事不期" }, { pairId: 36, text: "包羞忍恥是男兒" },
+      { pairId: 37, text: "江東子弟多才俊" }, { pairId: 37, text: "卷土重來未可知" },
+      { pairId: 38, text: "國破山河在" }, { pairId: 38, text: "城春草木深" },
+      { pairId: 39, text: "感時花踐淚" }, { pairId: 39, text: "恨別鳥驚心" },
+      { pairId: 40, text: "烽火連三月" }, { pairId: 40, text: "家書抵萬金" },
+      { pairId: 41, text: "白頭搔更短" }, { pairId: 41, text: "渾欲不勝簪" },
+      { pairId: 42, text: "風急天高猿嘯哀" }, { pairId: 42, text: "渚清沙白鳥飛迴" },
+      { pairId: 43, text: "無邊落木蕭蕭下" }, { pairId: 43, text: "不盡長江滾滾來" },
+      { pairId: 44, text: "萬里悲秋常作客" }, { pairId: 44, text: "百年多病獨登臺" },
+      { pairId: 45, text: "艱難苦恨繁霜鬢" }, { pairId: 45, text: "潦倒新停濁酒杯" },
+      { pairId: 46, text: "錦瑟無端五十弦" }, { pairId: 46, text: "一弦一柱思華年" },
+      { pairId: 47, text: "莊生曉夢迷蝴蝶" }, { pairId: 47, text: "望帝春心托杜鵑" },
+      { pairId: 48, text: "滄海月明珠有淚" }, { pairId: 48, text: "藍田日暖玉生煙" }
     ];
 
     let roomId = null;
@@ -201,7 +233,7 @@
     window.openJoinModalNewTab = openJoinModalNewTab;
     window.joinRoomGame = joinRoomGame;
     window.closeModal = closeModal;
-    window.goToLobby = goToLobby; // 修正點 1：綁定全域轉跳函式
+    window.goToLobby = goToLobby;
 
     window.addEventListener('DOMContentLoaded', async () => {
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
@@ -225,7 +257,6 @@
       initSecurity();
     });
 
-    // 修正點 1：轉跳遊戲大廳函式（直接轉跳不另開新視窗）
     function goToLobby() {
       window.location.href = 'https://sile9999.github.io/all-in-one-games/';
     }
@@ -306,11 +337,11 @@
       const endTimeVal = document.getElementById('admin-endtime-input').value;
       const endTimeText = endTimeVal ? endTimeVal.replace('T', ' ') : '無限制';
 
-      let copyMsg = `🎮 成語連連看挑戰房\n`;
+      let copyMsg = `📜 唐詩對對碰挑戰房\n`;
       copyMsg += `🔗 遊戲連結：${fullLink}\n`;
       copyMsg += `⏱️ 競賽模式：完成耗時比拼\n`;
       copyMsg += `⏳ 結束時間：${endTimeText}\n`;
-      copyMsg += `💡 說明：點擊連結進入後即可開始個人計時挑戰！\n`;
+      copyMsg += `💡 說明：點擊連結進入後即可開始唐詩對句挑戰！\n`;
       copyMsg += `📝 備註：${noteText}\n`;
 
       navigator.clipboard.writeText(copyMsg).then(() => {
@@ -327,7 +358,7 @@
         return (a.timeUsedMs || Infinity) - (b.timeUsedMs || Infinity);
       });
 
-      let text = `🏆【 成語翻牌排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
+      let text = `🏆【 唐詩對對碰排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
       sorted.forEach((p, idx) => { 
         const timeStr = p.timeUsedMs ? `${(p.timeUsedMs / 1000).toFixed(3)} 秒` : '進行中/未完成';
         text += `第 ${idx + 1} 名: ${p.name} - 耗時: ${timeStr}\n`; 
@@ -383,18 +414,17 @@
 
         const pairCount = totalTiles / 2;
         
-        // 隨機從成語庫中抽取 pairCount 個不重複成語
-        const shuffledPool = [...idiomPool].sort(() => Math.random() - 0.5);
-        const selectedIdioms = shuffledPool.slice(0, pairCount);
+        // 1. 取得所有不重複的詩句配對 ID
+        const uniquePairIds = [...new Set(poemPool.map(item => item.pairId))];
+        // 2. 隨機打亂並選出 pairCount 個 ID
+        const selectedPairIds = uniquePairIds.sort(() => Math.random() - 0.5).slice(0, pairCount);
 
-        // 每組成語生成 2 張卡牌並洗牌
-        let idioms = [];
-        selectedIdioms.forEach(item => {
-          idioms.push(item, item);
-        });
-        idioms.sort(() => Math.random() - 0.5);
+        // 3. 取出選定 ID 的完整上下句
+        let selectedPoemCards = poemPool.filter(item => selectedPairIds.includes(item.pairId));
+        // 4. 洗牌
+        selectedPoemCards.sort(() => Math.random() - 0.5);
 
-        gridTiles = idioms;
+        gridTiles = selectedPoemCards;
         matchedTiles = [];
         timeUsedMs = null;
         selectedIndices = [];
@@ -410,7 +440,6 @@
         document.getElementById('main-setup-view').classList.add('hidden');
         document.getElementById('player-game-view').classList.remove('hidden');
 
-        // 記錄開始遊戲精準時間 (毫秒)
         startTime = Date.now();
         renderGrid();
         startPersonalTimer();
@@ -442,22 +471,19 @@
       const gridEl = document.getElementById('grid');
       gridEl.innerHTML = '';
 
-      // 1. 設定手機版專用的格子類別標記 (<=24格為4欄，>24格為6欄)
       if (totalTiles <= 24) {
         gridEl.className = 'grid grid-24';
       } else {
         gridEl.className = 'grid grid-large';
       }
 
-      // 2. 大螢幕（桌機 / 平板，螢幕寬度 > 600px）的動態欄數設定
       let cols = 6;
       if (totalTiles <= 48) cols = 6;
       else cols = 8;
 
       gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
-      // 3. 渲染卡牌成語
-      gridTiles.forEach((val, idx) => {
+      gridTiles.forEach((tileObj, idx) => {
         const tile = document.createElement('div');
         const isMatched = matchedTiles.includes(idx);
         const isSelected = selectedIndices.includes(idx);
@@ -468,10 +494,10 @@
         if (isRevealed) {
           tileClass += ' selected';
           tile.className = tileClass;
-          tile.innerHTML = `<span class="tile-text">${val}</span>`;
+          tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
         } else {
           tile.className = tileClass;
-          tile.innerText = '👻';
+          tile.innerText = '📜';
         }
 
         if (!isMatched && !isCheckingPair && isGameActive) {
@@ -492,15 +518,15 @@
       if (selectedIndices.length === 2) {
         const [firstIdx, secondIdx] = selectedIndices;
         
-        if (gridTiles[firstIdx] === gridTiles[secondIdx]) {
+        // 核心邏輯修改：比對兩張牌的 pairId 是否相同（即上下句相匹配）
+        if (gridTiles[firstIdx].pairId === gridTiles[secondIdx].pairId) {
           matchedTiles.push(firstIdx, secondIdx);
           selectedIndices = [];
           renderGrid();
 
-          // 判斷是否全部配對完畢
           if (matchedTiles.length === gridTiles.length) {
             const finishTime = Date.now();
-            timeUsedMs = finishTime - startTime; // 計算消耗毫秒數
+            timeUsedMs = finishTime - startTime;
 
             if (timer) clearInterval(timer);
             isGameActive = false;
@@ -509,7 +535,6 @@
             document.getElementById('final-time-text').innerText = `完成總耗時：${secondsFormatted} 秒`;
             document.getElementById('game-over-mask').classList.remove('hidden');
 
-            // 更新完成時間與狀態至 Firebase
             update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), { 
               timeUsedMs: timeUsedMs,
               status: 'ended'
@@ -534,7 +559,6 @@
       const lbEl = document.getElementById(elementId);
       if (!lbEl) return;
       
-      // 排序規則：已完成者排前面，同為已完成者比用時（短到長，毫秒級別）
       const sorted = Object.entries(players)
         .map(([id, p]) => ({ id, ...p }))
         .sort((a, b) => {
@@ -590,10 +614,9 @@
 </div>
 
 <div id="main-setup-view" class="container">
-  <!-- 修正點 1：加入回到遊戲大廳按鈕 -->
   <button class="btn-lobby" onclick="goToLobby()">🏠 回到遊戲大廳</button>
 
-  <h1>⚙️  成語翻牌連連看 </h1>
+  <h1>📜 唐詩對對碰 </h1>
 
   <div id="setting-fields" class="disabled-area">
     <div class="menu-group">
@@ -616,7 +639,7 @@
 
     <div class="menu-group">
       <label>房間備註說明 (選填)：</label>
-      <input type="text" id="admin-note-input" class="input-box" placeholder="例：三年一班成語速度大賽" maxlength="30">
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例：三年一班唐詩對句大賽" maxlength="30">
     </div>
   </div>
 
@@ -641,7 +664,6 @@
 </div>
 
 <div id="player-game-view" class="container hidden">
-  <!-- 修正點 1：個人遊戲頁面亦可擺放大廳按鈕 -->
 
   <div class="status-bar">
     <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">個人挑戰中</div>
@@ -668,7 +690,6 @@
   <div class="expired-title">本次活動已結束</div>
   <div class="expired-desc">感謝您的關注！本房間的挑戰時間已過，目前已不再開放進入。</div>
   <br>
-  <!-- 修正點 1：活動過期畫面亦有大廳轉跳按鈕 -->
   <button class="btn-lobby" style="margin-bottom:0;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
 </div>
 
