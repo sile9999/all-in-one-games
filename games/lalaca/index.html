@@ -266,6 +266,7 @@
     let playerName = '';
     let totalTiles = 24;
     let poemCategory = 'all'; // 預設類型：不限
+    let coverMode = 'covered'; // 新增預設蓋牌模式：covered (蓋牌), open (不蓋牌)
     let gridTiles = [];
     let matchedTiles = [];
     let selectedIndices = [];
@@ -276,7 +277,7 @@
     let isCheckingPair = false;
     let startTime = null;
     let timeUsedMs = null;
-    let roomSettings = { totalTiles: 24, poemCategory: 'all', endTime: null };
+    let roomSettings = { totalTiles: 24, poemCategory: 'all', coverMode: 'covered', endTime: null };
 
     window.openAdminModal = openAdminModal;
     window.checkPassword = checkPassword;
@@ -291,6 +292,7 @@
     window.addEventListener('DOMContentLoaded', async () => {
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
       setupOptionGroup('category-options', (val) => poemCategory = val);
+      setupOptionGroup('cover-options', (val) => coverMode = val);
 
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
@@ -368,6 +370,7 @@
       set(roomRef, {
         totalTiles: totalTiles,
         poemCategory: poemCategory,
+        coverMode: coverMode,
         note: noteText,
         endTime: endTimeStamp,
         players: {}
@@ -391,9 +394,11 @@
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
       const endTimeVal = document.getElementById('admin-endtime-input').value;
       const endTimeText = endTimeVal ? endTimeVal.replace('T', ' ') : '無限制';
+      const modeText = coverMode === 'covered' ? '蓋牌模式' : '不蓋牌模式';
 
       let copyMsg = `📜 唐詩對對碰挑戰房\n`;
       copyMsg += `🔗 遊戲連結：${fullLink}\n`;
+      copyMsg += `🎯 遊戲模式：${modeText}\n`;
       copyMsg += `⏱️ 競賽模式：完成耗時比拼\n`;
       copyMsg += `⏳ 結束時間：${endTimeText}\n`;
       copyMsg += `💡 說明：點擊連結進入後即可開始唐詩對句挑戰！\n`;
@@ -466,6 +471,7 @@
 
         roomSettings.totalTiles = data.totalTiles || 24;
         roomSettings.poemCategory = data.poemCategory || 'all';
+        roomSettings.coverMode = data.coverMode || 'covered';
         totalTiles = roomSettings.totalTiles;
 
         // 根據類型進行題庫過濾
@@ -552,13 +558,15 @@
 
       gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
+      const isUncoveredMode = roomSettings.coverMode === 'open';
+
       gridTiles.forEach((tileObj, idx) => {
         const tile = document.createElement('div');
         const isMatched = matchedTiles.includes(idx);
         const isSelected = selectedIndices.includes(idx);
 
         let tileClass = 'tile';
-        const isRevealed = isMatched || isSelected;
+        const isRevealed = isMatched || isSelected || isUncoveredMode;
 
         if (isRevealed) {
           tileClass += ' selected';
@@ -587,7 +595,7 @@
       if (selectedIndices.length === 2) {
         const [firstIdx, secondIdx] = selectedIndices;
         
-        // 核心邏輯修改：比對兩張牌的 pairId 是否相同（即上下句相匹配）
+        // 比對兩張牌的 pairId 是否相同（即上下句相匹配）
         if (gridTiles[firstIdx].pairId === gridTiles[secondIdx].pairId) {
           matchedTiles.push(firstIdx, secondIdx);
           selectedIndices = [];
@@ -694,6 +702,14 @@
         <button class="btn-option active" data-val="all">不限</button>
         <button class="btn-option" data-val="5">五言絕句</button>
         <button class="btn-option" data-val="7">七言絕句</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>卡牌顯示模式：</label>
+      <div class="btn-group" id="cover-options">
+        <button class="btn-option active" data-val="covered">蓋牌</button>
+        <button class="btn-option" data-val="open">不蓋牌</button>
       </div>
     </div>
 
