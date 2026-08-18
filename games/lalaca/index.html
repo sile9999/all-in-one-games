@@ -75,6 +75,7 @@
     
     .tile.selected { background-color: #ffffff; border: 3px solid #fde047; transform: scale(0.95); }
     .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
+    .tile.covered-done { background-color: #94a3b8; color: #64748b; opacity: 0.7; cursor: not-allowed; }
     
     /* 詩句字體適性調整 */
     .tile-text { 
@@ -266,7 +267,7 @@
     let playerName = '';
     let totalTiles = 24;
     let poemCategory = 'all'; // 預設類型：不限
-    let coverMode = 'covered'; // 新增預設蓋牌模式：covered (蓋牌), open (不蓋牌)
+    let coverMode = 'covered'; // 新增預設蓋牌模式：covered (蓋牌), open (不蓋牌/反向蓋牌)
     let gridTiles = [];
     let matchedTiles = [];
     let selectedIndices = [];
@@ -394,7 +395,7 @@
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
       const endTimeVal = document.getElementById('admin-endtime-input').value;
       const endTimeText = endTimeVal ? endTimeVal.replace('T', ' ') : '無限制';
-      const modeText = coverMode === 'covered' ? '蓋牌模式' : '不蓋牌模式';
+      const modeText = coverMode === 'covered' ? '蓋牌模式' : '不蓋牌（反向蓋牌模式）';
 
       let copyMsg = `📜 唐詩對對碰挑戰房\n`;
       copyMsg += `🔗 遊戲連結：${fullLink}\n`;
@@ -566,15 +567,34 @@
         const isSelected = selectedIndices.includes(idx);
 
         let tileClass = 'tile';
-        const isRevealed = isMatched || isSelected || isUncoveredMode;
 
-        if (isRevealed) {
-          tileClass += ' selected';
-          tile.className = tileClass;
-          tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+        if (isUncoveredMode) {
+          /* === 反向玩法：不蓋牌模式 === */
+          if (isMatched) {
+            // 成功配對後 -> 變成蓋牌 (並且鎖定無法點擊)
+            tile.className = tileClass + ' covered-done';
+            tile.innerText = '📜';
+          } else if (isSelected) {
+            // 選取中的牌 -> 黃色框強調
+            tile.className = tileClass + ' selected';
+            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+          } else {
+            // 未配對牌 -> 預設直接顯示文字
+            tile.className = tileClass;
+            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+          }
         } else {
-          tile.className = tileClass;
-          tile.innerText = '📜';
+          /* === 正向玩法：傳統蓋牌模式 === */
+          const isRevealed = isMatched || isSelected;
+
+          if (isRevealed) {
+            tileClass += ' selected';
+            tile.className = tileClass;
+            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+          } else {
+            tile.className = tileClass;
+            tile.innerText = '📜';
+          }
         }
 
         if (!isMatched && !isCheckingPair && isGameActive) {
@@ -709,7 +729,7 @@
       <label>卡牌顯示模式：</label>
       <div class="btn-group" id="cover-options">
         <button class="btn-option active" data-val="covered">蓋牌</button>
-        <button class="btn-option" data-val="open">不蓋牌</button>
+        <button class="btn-option" data-val="open">不蓋牌（反向蓋牌）</button>
       </div>
     </div>
 
