@@ -35,12 +35,12 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 <body>
 <div id="setup" class="card">
 <h1>🀄 四人麻將刮刮樂</h1>
-<p>四人同桌競賽，胡牌者取得一次刮刮樂。</p>
+<p id="setupDesc">四人同桌競賽，胡牌者取得一次刮刮樂。</p>
 <div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
 <div class="field"><label>房號（加入既有房間時）</label><input id="joinRoom" class="input" placeholder="六位數房號"></div>
 <div class="row">
 <button class="primary" onclick="join()">加入房間</button>
-<button class="success" onclick="admin()">管理員建立房間</button>
+<button id="adminBtn" class="success" onclick="admin()">管理員建立房間</button>
 </div>
 <div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
 <div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
@@ -48,23 +48,26 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 <div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
 <button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">建立四人麻將房</button>
 </div>
-<div id="roomInfo" class="hidden" style="margin-top:12px">
-  房號：<span id="roomNo" class="room"></span><br>
+<div id="roomInfo" class="hidden" style="margin-top:12px;border-top:1px solid #ddd;padding-top:12px">
+  <div><b>房間已建立</b></div>
+  <div>房號：<span id="roomNo" class="room"></span></div>
   <small>管理員只負責建立房間，不佔 4 名玩家名額。</small>
   <div class="field">
     <label>📎 玩家加入連結</label>
     <input id="joinLink" class="input" readonly>
   </div>
+  <div id="adminRoomStatus" style="margin:8px 0;font-weight:800">目前 0 / 4 人，等待玩家加入</div>
   <div class="row">
-    <button class="primary" onclick="copyLink()">複製加入連結</button>
+    <button class="primary" onclick="copyLink()">複製連結</button>
     <button class="gray" onclick="copyRoom()">複製房號</button>
+    <button class="success" onclick="watchGame()">觀看賽局</button>
   </div>
 </div>
 </div>
 
 <div id="game" class="container hidden">
 <div class="card">
-<div class="row" style="justify-content:space-between"><h2>🀄 四人麻將</h2><div>房號：<b id="gameRoom"></b></div></div>
+<div class="row" style="justify-content:space-between"><h2>🀄 四人麻將</h2><div>房號：<b id="gameRoom"></b></div></div><div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理</button><span>管理員觀看模式（不佔玩家名額）</span></div>
 <div id="players" class="players"></div><div id="seatStatus" style="text-align:center;font-weight:800;margin:8px 0;color:#334155"></div>
 <div class="table">
 <div class="center"><div class="big" id="turnText">等待四人...</div><div class="small" id="roundText">等待玩家加入</div></div>
@@ -91,7 +94,7 @@ import {getDatabase,ref,set,onValue,get,update,runTransaction} from "https://www
 const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
-let roomId=null,playerId=localStorage.getItem("mahjong4PlayerId")||("p_"+Math.random().toString(36).slice(2,9)),playerName="",roomData=null,myIndex=-1,selected=-1,myTicketId=null; localStorage.setItem("mahjong4PlayerId",playerId);
+let roomId=null,playerId=localStorage.getItem("mahjong4PlayerId")||("p_"+Math.random().toString(36).slice(2,9)),playerName="",roomData=null,myIndex=-1,selected=-1,myTicketId=null,viewMode="player"; localStorage.setItem("mahjong4PlayerId",playerId);
 const suits=["萬","筒","條"], emojis=["🀇","🀈","🀉","🀊","🀋","🀌","🀍","🀎","🀏"];
 const winds=["東","南","西","北"], dragons=["中","發","白"];
 function tileName(id){if(id<27){let s=Math.floor(id/9),n=id%9+1;return n+suits[s]}if(id<31)return winds[id-27];return dragons[id-31]}
@@ -112,7 +115,13 @@ window.createRoom=async()=>{
  let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
  roomId=String(Math.floor(100000+Math.random()*900000));let tickets=buildTickets(pr,n);
  await set(ref(db,"rooms_v4/"+roomId),{type:"mahjong4",status:"waiting",players:{},turn:0,wall:[],hands:{},melds:{},discards:[],round:0,scratchPrizes:pr,scratchTickets:tickets,logs:["房間建立，等待四名玩家加入。"]});
- el("roomInfo").classList.remove("hidden");el("roomNo").textContent=roomId;el("joinLink").value=makeJoinLink(roomId);await subscribe();alert("房間建立完成！\n房號："+roomId+"\n請把「玩家加入連結」傳給其他 4 位玩家。")
+ el("roomInfo").classList.remove("hidden");
+ el("roomNo").textContent=roomId;
+ el("joinLink").value=makeJoinLink(roomId);
+ viewMode="admin";
+ await watchRoomData();
+ el("adminBox").classList.add("hidden");
+ alert("房間建立完成！\n請按「複製連結」傳給其他玩家。\n管理員留在此頁，不會自動跳到賽局。");
 };
 function makeJoinLink(room){
  const u=new URL(location.href);
@@ -142,55 +151,117 @@ window.copyRoom=async()=>{
  alert(ok?"房號已複製！":"請手動複製房號："+roomId);
 };
 window.join=async()=>{
- try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message)+"\n請到 Firebase Console → Authentication → Sign-in method 開啟「匿名 Anonymous」。");}
+ try{
+   await ensureAuth();
+ }catch(e){
+   return alert("Firebase 登入失敗："+(e.code||e.message)+
+     "\n請到 Firebase Console → Authentication → Sign-in method 開啟「匿名 Anonymous」。");
+ }
+
  playerName=el("name").value.trim();
  roomId=el("joinRoom").value.trim()||new URLSearchParams(location.search).get("room");
  if(!playerName||!roomId)return alert("請輸入暱稱與房號");
 
  const roomRef=ref(db,"rooms_v4/"+roomId);
- const s=await get(roomRef);
- if(!s.exists())return alert("找不到房間");
- const d=s.val();
- if(d.status==="ended")return alert("這個房間的遊戲已結束，請建立新房間。");
+ try{
+   const s=await get(roomRef);
+   if(!s.exists())return alert("找不到房間："+roomId);
 
- const players=d.players||{};
- if(players[playerId]){
+   const d=s.val();
+   if(d.status==="ended")return alert("這個房間的遊戲已結束，請建立新房間。");
+
+   const players=d.players||{};
+   if(players[playerId]){
+     viewMode="player";
+     await subscribe();
+     return;
+   }
+
+   if(d.status!=="waiting"){
+     return alert("這個房間目前狀態是「"+d.status+"」，不是等待玩家狀態。\n請使用管理員剛建立的新房間連結。");
+   }
+
+   const playersRef=ref(db,"rooms_v4/"+roomId+"/players");
+   const tx=await runTransaction(playersRef,current=>{
+     const now=current||{};
+     if(Object.keys(now).length>=4)return;
+     const used=Object.values(now).map(p=>Number(p.index));
+     const idx=[0,1,2,3].find(i=>!used.includes(i));
+     if(idx===undefined)return;
+     if(now[playerId])return now;
+     return {
+       ...now,
+       [playerId]:{
+         name:playerName,index:idx,status:"waiting",wins:0,ticketCount:0
+       }
+     };
+   });
+
+   if(!tx.committed){
+     // 重新讀取一次，將真正原因轉成使用者看得懂的訊息。
+     const check=await get(roomRef);
+     const cd=check.exists()?check.val():null;
+     if(!cd)return alert("加入失敗：房間不存在。");
+     const count=Object.keys(cd.players||{}).length;
+     if(count>=4)return alert("加入失敗：房間已滿 4 人。");
+     if(cd.status!=="waiting")return alert("加入失敗：遊戲已經開始，無法中途加入。");
+     return alert("加入失敗：Firebase 拒絕寫入玩家資料。\n請確認 Realtime Database Rules 的 rooms_v4 允許玩家寫入。");
+   }
+
+   viewMode="player";
    await subscribe();
-   return;
+
+ }catch(e){
+   console.error("join error",e);
+   alert("加入房間發生錯誤：\n"+(e.code||"")+" "+(e.message||e));
  }
- if(d.status!=="waiting")return alert("遊戲已開始，現在無法加入。");
-
- const used=Object.values(players).map(p=>Number(p.index));
- const freeIndex=[0,1,2,3].find(i=>!used.includes(i));
- if(freeIndex===undefined)return alert("房間已滿四人，請使用其他房間。");
-
- const tx=await runTransaction(roomRef,current=>{
-   if(!current || current.status!=="waiting")return;
-   const now=current.players||{};
-   if(Object.keys(now).length>=4)return;
-   const usedNow=Object.values(now).map(p=>Number(p.index));
-   const idx=[0,1,2,3].find(i=>!usedNow.includes(i));
-   if(idx===undefined)return;
-   return {...current,players:{
-     ...now,
-     [playerId]:{name:playerName,index:idx,status:"waiting",wins:0,ticketCount:0}
-   }};
- });
- if(!tx.committed)return alert("加入失敗：房間可能已滿、遊戲已開始，或 Firebase 資料庫規則拒絕寫入。\n請重新整理後再試。");
- await subscribe();
 };
 
-async function subscribe(){
+async function watchRoomData(){
+ if(!roomId)return;
  onValue(ref(db,"rooms_v4/"+roomId),async s=>{
-  roomData=s.val();
-  if(!roomData)return;
-  render();
+   roomData=s.val();
+   if(!roomData)return;
 
-  const count=Object.keys(roomData.players||{}).length;
-  // 管理員建立房間不算玩家；一定要 4 位玩家才會開始。
-  if(roomData.status==="waiting" && count===4) await tryStartGame();
+   const count=Object.keys(roomData.players||{}).length;
+
+   if(viewMode==="admin"){
+     const statusText=
+       roomData.status==="playing" ? "🀄 四人已滿，遊戲進行中" :
+       roomData.status==="starting" ? "🎴 正在發牌…" :
+       "目前 "+count+" / 4 人，"+(count===4?"準備開始":"等待其他玩家加入");
+     if(el("adminRoomStatus"))el("adminRoomStatus").textContent=statusText;
+   }else{
+     render();
+   }
+
+   // 管理員也負責觸發「4人滿員才開始」。
+   if(roomData.status==="waiting" && count===4){
+     await tryStartGame();
+   }
  });
 }
+
+async function subscribe(){
+ viewMode="player";
+ await watchRoomData();
+}
+
+window.watchGame=async()=>{
+ if(!roomId)return;
+ viewMode="admin";
+ el("setup").classList.add("hidden");
+ el("game").classList.remove("hidden");
+ el("adminGameBar").classList.remove("hidden");
+ await watchRoomData();
+};
+
+window.backToRoomManager=()=>{
+ el("game").classList.add("hidden");
+ el("setup").classList.remove("hidden");
+ el("adminGameBar").classList.add("hidden");
+ viewMode="admin";
+};
 
 async function tryStartGame(){
  const roomRef=ref(db,"rooms_v4/"+roomId);
@@ -228,6 +299,7 @@ async function tryStartGame(){
 }
 
 function render(){
+ if(viewMode!=="player")return;
  el("setup").classList.add("hidden");
  el("game").classList.remove("hidden");
  el("gameRoom").textContent=roomId;
@@ -283,6 +355,7 @@ function render(){
 function renderHand(){
  const h=[...((roomData.hands||{})[playerId]||[])].sort((a,b)=>a-b);
  const isTurn=
+   viewMode==="player" &&
    roomData.status==="playing" &&
    roomData.players?.[playerId]?.index===roomData.turn;
 
@@ -369,7 +442,16 @@ function meldable(a){if(!a.length)return true;let x=a[0];let same=a.filter(v=>v=
 function removeOne(a,x){let i=a.indexOf(x);return i<0?a:a.slice(0,i).concat(a.slice(i+1))}
 function removeN(a,x,n){let r=[...a];for(let i=0;i<n;i++)r.splice(r.indexOf(x),1);return r}
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-window.addEventListener("load",()=>{let r=new URLSearchParams(location.search).get("room");if(r){el("joinRoom").value=r}});
+window.addEventListener("load",async()=>{
+ const r=new URLSearchParams(location.search).get("room");
+ if(r){
+   el("joinRoom").value=r;
+   el("adminBtn").classList.add("hidden");
+   el("adminBox").classList.add("hidden");
+   el("setupDesc").textContent="你收到了一個麻將房間邀請，輸入暱稱即可加入。";
+ }
+
+});
 </script>
 </body>
 </html>
