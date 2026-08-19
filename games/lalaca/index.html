@@ -518,6 +518,140 @@ async function restartGame(){
 }
 
 
+
+// ===== 麻將操作：摸牌、選牌、出牌、胡牌 =====
+window.pick=function(i){
+  if(viewMode!=="player" || !roomData || roomData.status!=="playing") return;
+  const me=roomData.players?.[playerId];
+  if(!me || Number(me.index)!==Number(roomData.turn)) return;
+  const hand=[...(roomData.hands?.[playerId]||[])];
+  if(i<0 || i>=hand.length) return;
+  selected=(selected===i ? -1 : i);
+  renderHand();
+};
+
+window.discard=async function(){
+  if(viewMode!=="player" || !roomData || roomData.status!=="playing") return;
+  const me=roomData.players?.[playerId];
+  if(!me || Number(me.index)!==Number(roomData.turn)) return alert("現在還不是你的回合。");
+
+  const hand=[...(roomData.hands?.[playerId]||[])];
+  if(hand.length!==14) return alert("目前你的手牌不是 14 張，不能出牌。");
+  if(selected<0 || selected>=hand.length) return alert("請先點選一張要打出的牌。");
+
+  const tile=hand[selected];
+  hand.splice(selected,1);
+  const nextIndex=(Number(me.index)+1)%4;
+  const nextPlayer=Object.values(roomData.players||{}).find(p=>Number(p.index)===nextIndex);
+  if(!nextPlayer) return alert("找不到下一位玩家。");
+
+  const latest=(await get(ref(db,"rooms_v4/"+roomId))).val();
+  if(!latest || latest.status!=="playing") return;
+  const latestMe=latest.players?.[playerId];
+  if(!latestMe || Number(latestMe.index)!==Number(latest.turn)) return alert("這一回合已經被其他操作完成，請稍候。");
+  const latestHand=[...(latest.hands?.[playerId]||[])];
+  if(latestHand.length!==14) return alert("牌局狀態已改變，請重新整理。");
+  latestHand.splice(selected,1);
+
+  const wall=[...(latest.wall||[])];
+  let nextHand=[...(latest.hands?.[nextPlayer && Object.keys(latest.players).find(id=>latest.players[id].index===nextIndex)]||[])];
+  const nextId=Object.keys(latest.players).find(id=>Number(latest.players[id].index)===nextIndex);
+  if(!nextId) return alert("找不到下一位玩家。");
+  if(!wall.length) return alert("牌牆已摸完，這局暫時沒有更多牌可摸。");
+  nextHand.push(wall.shift());
+
+  await update(ref(db,"rooms_v4/"+roomId),{
+    ["hands/"+playerId]:latestHand,
+    ["hands/"+nextId]:nextHand,
+    wall:wall,
+    turn:nextIndex,
+    discards:[...(latest.discards||[]),tile],
+    logs:[...(latest.logs||[]),latestMe.name+" 打出 "+tileName(tile)].slice(-80)
+  });
+  selected=-1;
+};
+
+window.hu=async function(){
+  if(viewMode!=="player" || !roomData || roomData.status!=="playing") return;
+  const me=roomData.players?.[playerId];
+  if(!me || Number(me.index)!==Number(roomData.turn)) return alert("現在還不是你的回合。");
+  const hand=[...(roomData.hands?.[playerId]||[])];
+  if(hand.length!==14 || !canHu(hand)) return alert("目前這手牌還不能胡。");
+
+  const roomRef=ref(db,"rooms_v4/"+roomId);
+  const snap=await get(roomRef);
+  const latest=snap.val();
+  if(!latest || latest.status!=="playing") return;
+  const latestMe=latest.players?.[playerId];
+  const latestHand=[...(latest.hands?.[playerId]||[])];
+  if(!latestMe || Number(latestMe.index)!==Number(latest.turn) || latestHand.length!==14 || !canHu(latestHand)) return alert("牌局狀態已改變，請稍候。");
+
+  const players={...(latest.players||{})};
+  players[playerId]={...players[playerId],status:"win",wins:(players[playerId].wins||0)+1};
+
+  // 一位贏家取得一張尚未領取的刮刮樂。
+  let tickets=[...(latest.scratchTickets||[])];
+  let ticketIndex=tickets.findIndex(t=>!t.claimed);
+  let ticket=null;
+  if(ticketIndex>=0){
+    ticket={...tickets[ticketIndex],claimed:true,claimedBy:playerId,claimedByName:playerName};
+    tickets[ticketIndex]=ticket;
+    players[playerId].ticketCount=(players[playerId].ticketCount||0)+1;
+  }
+
+  await update(roomRef,{
+    status:"finished",
+    players,
+    scratchTickets:tickets,
+    winnerId:playerId,
+    winnerName:playerName,
+    winnerTicketId:ticket?.id||null,
+    logs:[...(latest.logs||[]),playerName+" 胡牌！本局結束。"].slice(-80)
+  });
+
+  selected=-1;
+  if(ticket){
+    myTicketId=ticket.id;
+    showScratch(ticket);
+  }else{
+    alert("恭喜胡牌！但刮刮樂已經沒有可領取的票。");
+  }
+};
+
+function showScratch(ticket){
+  el("scratch")?.classList.remove("hidden");
+  el("game")?.classList.add("hidden");
+  const t=el("ticket");
+  const result=el("scratchResult");
+  if(t){t.classList.remove("revealed");t.innerHTML="刮開";t.dataset.ticketId=ticket.id;}
+  if(result) result.textContent="";
+}
+
+window.revealScratch=function(){
+  if(!myTicketId || !roomData) return;
+  const tickets=roomData.scratchTickets||[];
+  const ticket=tickets.find(t=>t.id===myTicketId);
+  if(!ticket) return;
+  const prizes=roomData.scratchPrizes||[];
+  const prize=prizes[ticket.prizeIndex]||{};
+  const t=el("ticket");
+  if(t){
+    t.classList.add("revealed");
+    if(ticket.isWinner && prize.image){
+      t.innerHTML='<img src="'+prize.image.replace(/"/g,'&quot;')+'" alt="獎項">';
+    }else{
+      t.innerHTML=ticket.isWinner?esc(ticket.prize):"🐢";
+    }
+  }
+  if(el("scratchResult")) el("scratchResult").textContent=ticket.isWinner?"🎉 恭喜中獎："+ticket.prize:"🐢 沒中獎，再接再厲！";
+};
+
+window.closeScratch=function(){
+  el("scratch")?.classList.add("hidden");
+  el("game")?.classList.remove("hidden");
+  render();
+};
+
 function render(){
  updateAdminToolbar();
  el("setup").classList.add("hidden");
