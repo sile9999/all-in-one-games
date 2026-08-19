@@ -117,6 +117,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {getDatabase,ref,set,onValue,get,update,runTransaction} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
+const PUBLIC_BASE_URL="https://sile9999.github.io/";
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 let roomId=null,playerId=sessionStorage.getItem("mahjong4PlayerId")||("p_"+crypto.randomUUID()),playerName="",roomData=null,myIndex=-1,selected=-1,myTicketId=null,viewMode="player",startCallBusy=false,isAdmin=false; sessionStorage.setItem("mahjong4PlayerId",playerId); localStorage.setItem("mahjong4PlayerId",playerId);
@@ -144,17 +145,18 @@ window.createRoom=async()=>{
  el("roomNo").textContent=roomId;
  el("joinLink").value=makeJoinLink(roomId);
  isAdmin=true;
- viewMode="admin"; updateAdminToolbar();
- await watchRoomData();
+ viewMode="admin";
+ el("game").classList.add("hidden");
+ el("setup").classList.remove("hidden");
+ el("adminGameBar").classList.add("hidden");
  el("adminBox").classList.add("hidden");
+ await watchRoomData();
+ el("adminRoomStatus").textContent="目前 0 / 4 人，等待玩家加入";
  alert("房間建立完成！\n請按「複製連結」傳給其他玩家。\n管理員留在此頁，不會自動跳到賽局。");
 };
 function makeJoinLink(room){
- const u=new URL(location.href);
- u.search="";
- u.hash="";
- u.searchParams.set("room",room);
- return u.toString();
+ const base=PUBLIC_BASE_URL.replace(/\/$/,'');
+ return base+'/?room='+encodeURIComponent(room);
 }
 async function copyText(text){
  try{
@@ -246,45 +248,53 @@ window.join=async()=>{
 async function watchRoomData(){
  if(!roomId)return;
  setDebugStatus("正在連線房間…","");
- onValue(ref(db,"rooms_v4/"+roomId),async s=>{
-   roomData=s.val();
+ onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
+   roomData=snap.val();
    if(!roomData){
      setDebugStatus("❌ 找不到房間資料","房號："+roomId);
+     if(el("adminRoomStatus"))el("adminRoomStatus").textContent="找不到房間";
      return;
    }
 
-   const count=updateDebugPanel(roomData);
-   render();
+   const count=Object.keys(roomData.players||{}).length;
+   updateDebugPanel(roomData);
+   if(el("adminRoomStatus"))
+     el("adminRoomStatus").textContent=
+       roomData.status==="playing" ? "目前 4 / 4 人，遊戲進行中" :
+       "目前 "+count+" / 4 人，"+(count===4?"四人已滿，準備開局":"等待玩家加入");
+
+   if(el("game") && !el("game").classList.contains("hidden")) render();
+   updateAdminToolbar();
+
+   if(count!==4){
+     setDebugStatus("等待其他玩家加入…","");
+     return;
+   }
 
    if(roomData.status==="playing"){
      setDebugStatus("🟢 遊戲已開始","");
      return;
    }
 
-   if(count<4){
-     setDebugStatus("等待其他玩家加入…","");
+   // 只有管理員負責自動開局，玩家端只同步結果。
+   if(viewMode!=="admin") {
+     setDebugStatus("👥 4 人已滿，等待管理員開局…","");
      return;
    }
 
-   if(roomData.status==="waiting"){
-     setDebugStatus("🎴 4 人已到齊，正在啟動發牌…","");
-     if(!startCallBusy){
-       startCallBusy=true;
-       try{ await tryStartGame(); }
-       catch(e){
-         console.error(e);
-         setDebugStatus("❌ 開局函式發生錯誤",e?.message||String(e));
-       }
-       finally{ startCallBusy=false; }
+   if(roomData.status==="waiting" && !startCallBusy){
+     startCallBusy=true;
+     try{ await tryStartGame(); }
+     catch(e){
+       console.error(e);
+       setDebugStatus("❌ 開局函式發生錯誤",e?.message||String(e));
      }
+     finally{ startCallBusy=false; }
    }else if(roomData.status==="starting"){
      setDebugStatus("🎴 正在發牌…","");
-   }else{
-     setDebugStatus("目前狀態："+roomData.status,"");
    }
  });
 }
-
 
 async function subscribe(){
  viewMode="player";
@@ -293,11 +303,12 @@ async function subscribe(){
 
 window.watchGame=async()=>{
  if(!roomId)return;
- viewMode="admin"; updateAdminToolbar();
+ viewMode="admin";
  el("setup").classList.add("hidden");
  el("game").classList.remove("hidden");
  el("adminGameBar").classList.remove("hidden");
- await watchRoomData();
+ updateAdminToolbar();
+ if(roomData)render();
 };
 
 window.backToRoomManager=()=>{
@@ -321,65 +332,43 @@ function updateDebugPanel(room){
 }
 
 async function tryStartGame(){
+ if(viewMode!=="admin")return;
  const roomRef=ref(db,"rooms_v4/"+roomId);
  try{
-   setDebugStatus("🔒 正在取得開局權…","");
    const snap=await get(roomRef);
    const room=snap.val();
-   const players=room?.players||{};
-   const entries=Object.entries(players).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+   if(!room)return;
+   const entries=Object.entries(room.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+   if(entries.length!==4)return;
+   if(room.status==="playing")return;
 
-   if(!room)return setDebugStatus("❌ 房間不存在","請重新建立房間。");
-   if(entries.length!==4)return setDebugStatus("等待 4 人…","目前只有 "+entries.length+" 人。");
-   if(room.status==="playing")return setDebugStatus("🟢 遊戲已開始","");
-   if(room.status!=="waiting")return setDebugStatus("目前狀態："+room.status,"");
+   setDebugStatus("🎴 4 人已到齊，正在發牌…","");
 
-   // 先把狀態切到 starting，避免四個瀏覽器同時重複發牌。
-   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),current=>{
-     return current==="waiting" ? "starting" : current;
-   });
-   if(!lock.committed){
-     setDebugStatus("🎴 另一個裝置正在發牌…","");
+   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>v==="waiting"?"starting":v);
+   if(!lock.committed)return;
+
+   const latest=(await get(roomRef)).val();
+   const latestEntries=Object.entries(latest?.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+   if(latestEntries.length!==4){
+     await set(ref(db,"rooms_v4/"+roomId+"/status"),"waiting");
      return;
    }
 
-   setDebugStatus("🎴 正在洗牌並建立 4 位玩家手牌…","");
-
-   const latest=(await get(roomRef)).val();
-   const latestEntries=Object.entries(latest?.players||{})
-     .sort((a,b)=>Number(a[1].index)-Number(b[1].index));
-
-   if(latestEntries.length!==4){
-     await set(ref(db,"rooms_v4/"+roomId+"/status"),"waiting");
-     return setDebugStatus("❌ 發牌取消","玩家數量已不是 4 人。");
-   }
-
-   const deck=makeDeck();
-   const hands={};
-   latestEntries.forEach(([id],i)=>{
-     hands[id]=deck.splice(0,i===0?14:13);
-   });
+   const deck=makeDeck(), hands={};
+   latestEntries.forEach(([id],i)=>{ hands[id]=deck.splice(0,i===0?14:13); });
 
    await update(roomRef,{
-     status:"playing",
-     round:1,
-     turn:0,
-     wall:deck,
-     hands:hands,
-     discards:[],
-     melds:{},
+     status:"playing", round:1, turn:0, wall:deck, hands, discards:[], melds:{},
      logs:[...(latest.logs||[]),"四位玩家已到齊，發牌完成，遊戲開始！"].slice(-80)
    });
-
    setDebugStatus("🟢 發牌完成！遊戲開始！","");
  }catch(e){
    console.error("tryStartGame error",e);
    try{await set(ref(db,"rooms_v4/"+roomId+"/status"),"waiting");}catch(_){}
-   setDebugStatus("❌ 發牌失敗",e?.code+" "+(e?.message||e));
+   setDebugStatus("❌ 發牌失敗",(e?.code||"")+" "+(e?.message||e));
    alert("4 人已到齊，但發牌失敗：\n"+(e?.code||"")+" "+(e?.message||e));
  }
 }
-
 
 function updateAdminToolbar(){
   const bar=el("adminGameToolbar");
@@ -389,20 +378,13 @@ function updateAdminToolbar(){
   bar.classList.toggle("hidden",!isAdmin);
   if(!isAdmin)return;
 
-  const joinUrl=new URL(location.href);
-  joinUrl.searchParams.set("room",roomId);
-  // 避免把管理員模式等參數帶給玩家。
-  joinUrl.searchParams.delete("admin");
-
+  const joinUrl=makeJoinLink(roomId);
   if(el("adminLinkText"))
-    el("adminLinkText").textContent="玩家加入連結："+joinUrl.href;
+    el("adminLinkText").textContent="玩家加入連結："+joinUrl;
 }
 
 async function copyJoinLink(){
-  const u=new URL(location.href);
-  u.searchParams.set("room",roomId);
-  u.searchParams.delete("admin");
-  const text=u.href;
+  const text=makeJoinLink(roomId);
 
   try{
     await navigator.clipboard.writeText(text);
