@@ -132,7 +132,126 @@
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
     
+    /* === 刮刮樂獎項設定 === */
+    .scratch-prize-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) 82px minmax(0, 1.2fr) 58px;
+      gap: 6px;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 8px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+    }
+    .scratch-prize-row .input-box { margin-bottom: 0; }
+    .scratch-file-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 40px;
+      padding: 7px 6px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      background: white;
+      color: #475569;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .scratch-file-label:hover { border-color: #3b82f6; color: #1d4ed8; }
+    .scratch-file-label input { display: none; }
+    .prize-image-preview {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      flex: 0 0 40px;
+    }
+    .prize-image-empty {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #94a3b8;
+      font-size: 20px;
+      flex: 0 0 40px;
+    }
+    .scratch-remove-btn {
+      min-height: 40px;
+      border: none;
+      border-radius: 8px;
+      background: #ef4444;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .scratch-remove-btn:hover { background: #dc2626; }
+    .scratch-total-info {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    .leaderboard-header,
+    .leaderboard-item {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .leaderboard-header {
+      padding: 5px 0;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: bold;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .leaderboard-item { justify-content: initial; }
+    .leaderboard-prize {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      min-width: 0;
+    }
+    .leaderboard-prize img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      border-radius: 5px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      flex: 0 0 28px;
+    }
+    .leaderboard-prize-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .scratch-result-image {
+      display: none;
+      max-width: 170px;
+      max-height: 120px;
+      object-fit: contain;
+      margin: 0 auto 8px;
+      border-radius: 10px;
+    }
+
     .hidden { display: none !important; }
+    textarea.input-box { resize: vertical; min-height: 110px; font-family: inherit; line-height: 1.5; }
+    #scratch-settings-box { display: block; }
     .disabled-area { opacity: 0.5; pointer-events: none; }
 
     .expired-card { background: white; padding: 40px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
@@ -143,7 +262,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update, get, runTransaction } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
@@ -274,11 +393,21 @@
     let timer = null;
     let roomRef = null;
     let currentPlayers = {};
+    let currentScratchTickets = {};
+    let currentScratchPrizes = [];
     let isGameActive = false;
     let isCheckingPair = false;
     let startTime = null;
     let timeUsedMs = null;
-    let roomSettings = { totalTiles: 24, poemCategory: 'all', coverMode: 'covered', endTime: null };
+    let scratchTicketCount = 30;
+    let roomSettings = {
+      totalTiles: 24,
+      poemCategory: 'all',
+      coverMode: 'covered',
+      endTime: null,
+      scratchEnabled: false,
+      scratchTicketCount: 30
+    };
 
     window.openAdminModal = openAdminModal;
     window.checkPassword = checkPassword;
@@ -289,11 +418,18 @@
     window.joinRoomGame = joinRoomGame;
     window.closeModal = closeModal;
     window.goToLobby = goToLobby;
+    window.revealScratch = revealScratch;
+    window.closeScratchModal = closeScratchModal;
+    window.addScratchPrizeRow = addScratchPrizeRow;
+    window.removeScratchPrizeRow = removeScratchPrizeRow;
 
     window.addEventListener('DOMContentLoaded', async () => {
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
       setupOptionGroup('category-options', (val) => poemCategory = val);
       setupOptionGroup('cover-options', (val) => coverMode = val);
+      setupOptionGroup('scratch-options', () => {});
+      initScratchPrizeRows();
+      document.getElementById('scratch-ticket-count')?.addEventListener('input', updateScratchTicketSummary);
 
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
@@ -354,26 +490,41 @@
       }
     }
 
-    function createRoom() {
+    async function createRoom() {
       const noteText = document.getElementById('admin-note-input').value.trim();
       const endTimeVal = document.getElementById('admin-endtime-input').value;
 
       let endTimeStamp = null;
-      if (endTimeVal) {
-        endTimeStamp = new Date(endTimeVal).getTime();
+      if (endTimeVal) endTimeStamp = new Date(endTimeVal).getTime();
+
+      if (totalTiles % 2 !== 0) totalTiles -= 1;
+
+      const scratchEnabled = document.querySelector('#scratch-options .btn-option.active')?.dataset.val === 'yes';
+      const scratchTicketCount = Math.max(1, parseInt(document.getElementById('scratch-ticket-count')?.value, 10) || 30);
+      const scratchPrizes = parseScratchPrizes();
+      const prizeCount = scratchPrizes.reduce((sum, item) => sum + item.count, 0);
+
+      if (scratchEnabled && prizeCount > scratchTicketCount) {
+        alert(`獎項數量合計為 ${prizeCount} 張，但刮刮樂總張數只有 ${scratchTicketCount} 張，請增加張數或減少獎項數量。`);
+        return;
       }
+
+      const scratchTickets = buildScratchTickets(scratchPrizes, scratchTicketCount);
 
       roomId = Math.floor(100000 + Math.random() * 900000).toString();
       roomRef = ref(db, 'rooms_v4/' + roomId);
 
-      if (totalTiles % 2 !== 0) totalTiles -= 1;
-
-      set(roomRef, {
+      await set(roomRef, {
         totalTiles: totalTiles,
         poemCategory: poemCategory,
         coverMode: coverMode,
         note: noteText,
         endTime: endTimeStamp,
+        scratchEnabled: scratchEnabled,
+        scratchTicketCount: scratchTicketCount,
+        scratchPrizes: scratchPrizes,
+        scratchTickets: scratchTickets,
+        usedNicknames: {},
         players: {}
       });
 
@@ -384,6 +535,8 @@
         const data = snapshot.val();
         if (!data) return;
         currentPlayers = data.players || {};
+        currentScratchTickets = data.scratchTickets || {};
+        currentScratchPrizes = data.scratchPrizes || [];
         renderLeaderboard('admin-leaderboard-list', currentPlayers);
       });
     }
@@ -412,7 +565,7 @@
 
     function copyScores(btn) {
       if (!currentPlayers || Object.keys(currentPlayers).length === 0) return;
-      
+
       const sorted = Object.values(currentPlayers).sort((a, b) => {
         if (a.status === 'ended' && b.status !== 'ended') return -1;
         if (a.status !== 'ended' && b.status === 'ended') return 1;
@@ -420,9 +573,10 @@
       });
 
       let text = `🏆【 唐詩對對碰排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
-      sorted.forEach((p, idx) => { 
+      sorted.forEach((p, idx) => {
         const timeStr = p.timeUsedMs ? `${(p.timeUsedMs / 1000).toFixed(3)} 秒` : '進行中/未完成';
-        text += `第 ${idx + 1} 名: ${p.name} - 耗時: ${timeStr}\n`; 
+        const prize = getPlayerPrize(p);
+        text += `第 ${idx + 1} 名: ${p.name} - 耗時: ${timeStr} - 獎項: ${prize ? prize.name : '尚未開獎'}\n`;
       });
 
       navigator.clipboard.writeText(text).then(() => {
@@ -470,10 +624,26 @@
           return;
         }
 
+        const nicknameKey = nicknameToKey(inputName);
+        if (data.usedNicknames && data.usedNicknames[nicknameKey]) {
+          alert(`暱稱【${inputName}】已完成過本房間挑戰，不能重複遊玩！`);
+          return;
+        }
+        const players = data.players || {};
+        const duplicatePlaying = Object.values(players).some(p => nicknameToKey(p.name || '') === nicknameKey && p.status !== 'ended');
+        if (duplicatePlaying) {
+          alert(`暱稱【${inputName}】目前正在遊戲中，請使用其他暱稱！`);
+          return;
+        }
+
         roomSettings.totalTiles = data.totalTiles || 24;
         roomSettings.poemCategory = data.poemCategory || 'all';
         roomSettings.coverMode = data.coverMode || 'covered';
+        roomSettings.scratchEnabled = data.scratchEnabled === true;
+        roomSettings.scratchTicketCount = data.scratchTicketCount || 0;
         totalTiles = roomSettings.totalTiles;
+        currentScratchTickets = data.scratchTickets || {};
+        currentScratchPrizes = data.scratchPrizes || [];
 
         // 根據類型進行題庫過濾
         let filteredPool = poemPool;
@@ -630,12 +800,16 @@
             
             const secondsFormatted = (timeUsedMs / 1000).toFixed(3);
             document.getElementById('final-time-text').innerText = `完成總耗時：${secondsFormatted} 秒`;
-            document.getElementById('game-over-mask').classList.remove('hidden');
 
-            update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), { 
-              timeUsedMs: timeUsedMs,
-              status: 'ended'
-            });
+            if (roomSettings.scratchEnabled) {
+              finishGameAndIssueScratch();
+            } else {
+              document.getElementById('game-over-mask').classList.remove('hidden');
+              update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), {
+                timeUsedMs: timeUsedMs,
+                status: 'ended'
+              });
+            }
           }
         } else {
           isCheckingPair = true;
@@ -652,10 +826,458 @@
       }
     }
 
+    function nicknameToKey(name) {
+      return String(name || '').trim().toLowerCase().replace(/[.#$\[\]\/]/g, '_').replace(/\s+/g, '_');
+    }
+
+    function initScratchPrizeRows() {
+      const list = document.getElementById('scratch-prize-list');
+      if (!list) return;
+      list.innerHTML = '';
+      addScratchPrizeRow({ name: '小禮物', count: 10 });
+      addScratchPrizeRow({ name: '咖啡券', count: 3 });
+      addScratchPrizeRow({ name: '飲料券', count: 5 });
+      updateScratchTicketSummary();
+    }
+
+    function addScratchPrizeRow(data = {}) {
+      const list = document.getElementById('scratch-prize-list');
+      if (!list) return;
+
+      const row = document.createElement('div');
+      row.className = 'scratch-prize-row';
+      row.dataset.image = data.image || '';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'input-box prize-name-input';
+      nameInput.placeholder = '獎項名稱';
+      nameInput.value = data.name || '';
+
+      const countInput = document.createElement('input');
+      countInput.type = 'number';
+      countInput.className = 'input-box prize-count-input';
+      countInput.min = '1';
+      countInput.max = '9999';
+      countInput.value = data.count || 1;
+      countInput.title = '獎項張數';
+
+      const fileLabel = document.createElement('label');
+      fileLabel.className = 'scratch-file-label';
+      fileLabel.title = '上傳獎項圖片';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+
+      const previewWrap = document.createElement('span');
+      const fileText = document.createElement('span');
+      fileText.textContent = data.image ? '已上傳' : '上傳圖片';
+
+      const renderPreview = (src) => {
+        previewWrap.innerHTML = '';
+        if (src) {
+          const img = document.createElement('img');
+          img.className = 'prize-image-preview';
+          img.src = src;
+          previewWrap.appendChild(img);
+        } else {
+          const empty = document.createElement('span');
+          empty.className = 'prize-image-empty';
+          empty.textContent = '🖼️';
+          previewWrap.appendChild(empty);
+        }
+      };
+      renderPreview(data.image || '');
+
+      fileLabel.appendChild(previewWrap);
+      fileLabel.appendChild(fileText);
+      fileLabel.appendChild(fileInput);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'scratch-remove-btn';
+      removeBtn.textContent = '×';
+      removeBtn.title = '刪除這個獎項';
+      removeBtn.onclick = () => removeScratchPrizeRow(row);
+
+      fileInput.onchange = async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          alert('請選擇圖片檔案。');
+          return;
+        }
+        try {
+          const dataUrl = await compressPrizeImage(file);
+          row.dataset.image = dataUrl;
+          renderPreview(dataUrl);
+          fileText.textContent = file.name.length > 12 ? file.name.slice(0, 10) + '…' : file.name;
+        } catch (err) {
+          console.error(err);
+          alert('圖片處理失敗，請換一張圖片再試。');
+        }
+      };
+
+      countInput.addEventListener('input', updateScratchTicketSummary);
+      nameInput.addEventListener('input', updateScratchTicketSummary);
+
+      row.appendChild(nameInput);
+      row.appendChild(countInput);
+      row.appendChild(fileLabel);
+      row.appendChild(removeBtn);
+      list.appendChild(row);
+      updateScratchTicketSummary();
+    }
+
+    function removeScratchPrizeRow(row) {
+      const list = document.getElementById('scratch-prize-list');
+      if (!list || !row) return;
+      row.remove();
+      if (!list.children.length) addScratchPrizeRow();
+      updateScratchTicketSummary();
+    }
+
+    function compressPrizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = reject;
+          img.onload = () => {
+            const maxSide = 600;
+            const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+            const w = Math.max(1, Math.round(img.naturalWidth * scale));
+            const h = Math.max(1, Math.round(img.naturalHeight * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/webp', 0.78));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function parseScratchPrizes() {
+      const rows = [...document.querySelectorAll('#scratch-prize-list .scratch-prize-row')];
+      return rows.map(row => {
+        const name = row.querySelector('.prize-name-input')?.value.trim() || '';
+        const count = parseInt(row.querySelector('.prize-count-input')?.value, 10) || 0;
+        const image = row.dataset.image || '';
+        return { name, count, image };
+      }).filter(item => item.name && item.count > 0);
+    }
+
+    function buildScratchTickets(prizes, ticketCount) {
+      const tickets = {};
+      let n = 0;
+
+      prizes.forEach(({ name, count }, prizeIndex) => {
+        for (let i = 0; i < count; i++) {
+          const id = `t${Date.now().toString(36)}_${n}_${Math.random().toString(36).slice(2,7)}`;
+          tickets[id] = {
+            prize: name,
+            prizeIndex,
+            isWinner: true,
+            claimed: false,
+            claimedBy: '',
+            claimedAt: null
+          };
+          n++;
+        }
+      });
+
+      while (n < ticketCount) {
+        const id = `t${Date.now().toString(36)}_${n}_${Math.random().toString(36).slice(2,7)}`;
+        tickets[id] = {
+          prize: '沒中',
+          prizeIndex: null,
+          isWinner: false,
+          claimed: false,
+          claimedBy: '',
+          claimedAt: null
+        };
+        n++;
+      }
+
+      return Object.fromEntries(Object.entries(tickets).sort(() => Math.random() - 0.5));
+    }
+
+    function updateScratchTicketSummary() {
+      const countEl = document.getElementById('scratch-ticket-count');
+      const summaryEl = document.getElementById('scratch-ticket-summary');
+      if (!countEl || !summaryEl) return;
+
+      const total = Math.max(1, parseInt(countEl.value, 10) || 1);
+      const prizes = parseScratchPrizes();
+      const winning = prizes.reduce((sum, item) => sum + item.count, 0);
+      const noWin = Math.max(0, total - winning);
+
+      summaryEl.innerHTML =
+        `目前設定：<b>${total}</b> 張刮刮樂　｜　` +
+        `獎項 <b>${winning}</b> 張　｜　` +
+        `沒中 🐢 <b>${noWin}</b> 張` +
+        (winning > total ? `<br><span style="color:#dc2626;font-weight:bold;">⚠️ 獎項數量超過總張數，無法建立房間。</span>` : '');
+    }
+
+    function getPlayerPrize(player) {
+      if (!player) return null;
+      if (player.prize) {
+        return {
+          name: player.prize,
+          image: player.prizeImage || '',
+          isWinner: player.prize !== '沒中'
+        };
+      }
+      if (player.scratchTicketId && currentScratchTickets[player.scratchTicketId]) {
+        const ticket = currentScratchTickets[player.scratchTicketId];
+        const image = ticket.prizeIndex !== null && ticket.prizeIndex !== undefined
+          ? (currentScratchPrizes?.[ticket.prizeIndex]?.image || '')
+          : (ticket.image || '');
+        return {
+          name: ticket.prize || '沒中',
+          image,
+          isWinner: ticket.isWinner !== false && ticket.prize !== '沒中'
+        };
+      }
+      return null;
+    }
+
+    function formatPrizeDisplay(prize, compact = false) {
+      if (!prize) return '—';
+      if (!prize.isWinner || prize.name === '沒中') {
+        return `<span class="leaderboard-prize"><span style="font-size:${compact ? '18px' : '20px'};">🐢</span><span class="leaderboard-prize-name">沒中</span></span>`;
+      }
+      const img = prize.image
+        ? `<img src="${prize.image}" alt="">`
+        : `<span style="font-size:${compact ? '18px' : '20px'};">🎁</span>`;
+      return `<span class="leaderboard-prize">${img}<span class="leaderboard-prize-name">${escapeHtml(prize.name)}</span></span>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, ch => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
+      }[ch]));
+    }
+
+    async function finishGameAndIssueScratch() {
+      const roomRoot = ref(db, `rooms_v4/${roomId}`);
+      let awarded = null;
+      let nicknameAlreadyUsed = false;
+
+      try {
+        const result = await runTransaction(roomRoot, current => {
+          if (!current) return current;
+          current.usedNicknames = current.usedNicknames || {};
+          current.scratchTickets = current.scratchTickets || {};
+          const key = nicknameToKey(playerName);
+
+          if (current.usedNicknames[key]) {
+            nicknameAlreadyUsed = true;
+            return;
+          }
+
+          const available = Object.entries(current.scratchTickets).filter(([, t]) => t && !t.claimed);
+          if (available.length === 0) {
+            // 沒有獎券時仍完成遊戲，但不發刮刮樂
+            current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), noTicket: true };
+            if (current.players && current.players[playerId]) {
+              current.players[playerId].timeUsedMs = timeUsedMs;
+              current.players[playerId].status = 'ended';
+              current.players[playerId].scratchTicketId = null;
+            }
+            return current;
+          }
+
+          const [ticketId, ticket] = available[Math.floor(Math.random() * available.length)];
+          ticket.claimed = true;
+          ticket.claimedBy = playerName;
+          ticket.claimedAt = Date.now();
+          current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), ticketId };
+          if (current.players && current.players[playerId]) {
+            current.players[playerId].timeUsedMs = timeUsedMs;
+            current.players[playerId].status = 'ended';
+            current.players[playerId].scratchTicketId = ticketId;
+            current.players[playerId].prize = ticket.prize || '沒中';
+            current.players[playerId].prizeImage = ticket.prizeIndex !== null && ticket.prizeIndex !== undefined
+              ? (current.scratchPrizes?.[ticket.prizeIndex]?.image || '')
+              : '';
+            current.players[playerId].isWinner = ticket.isWinner !== false && ticket.prize !== '沒中';
+          }
+          return current;
+        });
+
+        if (!result.committed) {
+          alert('遊戲完成資料寫入失敗，請重新整理後確認排行榜。');
+          return;
+        }
+
+        const latest = (await get(roomRoot)).val();
+        const key = nicknameToKey(playerName);
+        const record = latest?.usedNicknames?.[key];
+        if (nicknameAlreadyUsed || !record) {
+          alert(`暱稱【${playerName}】已經使用過，不能重複領取刮刮樂。`);
+          return;
+        }
+
+        if (record.noTicket) {
+          document.getElementById('game-over-mask').classList.remove('hidden');
+          alert('🎉 恭喜完成挑戰！但本房間的刮刮樂已經發完了。');
+          return;
+        }
+
+        const awardedTicket = latest.scratchTickets?.[record.ticketId];
+        if (!awardedTicket) {
+          document.getElementById('game-over-mask').classList.remove('hidden');
+          return;
+        }
+
+        const awardedImage = awardedTicket.prizeIndex !== null && awardedTicket.prizeIndex !== undefined
+          ? (latest.scratchPrizes?.[awardedTicket.prizeIndex]?.image || '')
+          : (awardedTicket.image || '');
+
+        awarded = { ...awardedTicket, image: awardedImage };
+        showScratchModal(awarded);
+      } catch (err) {
+        console.error(err);
+        alert('刮刮樂派發時發生錯誤，請重新整理頁面確認。');
+      }
+    }
+
+    function showScratchModal(ticket) {
+      const prize = ticket || { prize: '沒中', image: '', isWinner: false };
+      document.getElementById('game-over-mask').classList.remove('hidden');
+
+      const nameEl = document.getElementById('scratch-prize-name');
+      const imgEl = document.getElementById('scratch-prize-image');
+      if (prize.image && prize.isWinner !== false && prize.prize !== '沒中') {
+        imgEl.src = prize.image;
+        imgEl.classList.remove('hidden');
+        nameEl.innerText = prize.prize || '獎項';
+      } else {
+        imgEl.removeAttribute('src');
+        imgEl.classList.add('hidden');
+        nameEl.innerText = '🐢 沒中';
+      }
+
+      document.getElementById('scratch-prize-text').innerText = prize.prize || '沒中';
+      document.getElementById('scratch-reveal-text').classList.add('hidden');
+      document.getElementById('scratch-modal').classList.remove('hidden');
+      setupScratchCanvas(prize);
+    }
+
+    function setupScratchCanvas(ticket) {
+      const canvas = document.getElementById('scratch-canvas');
+      const wrap = document.getElementById('scratch-card');
+      if (!canvas || !wrap) return;
+
+      const prize = ticket || { prize: '沒中', image: '', isWinner: false };
+      const rect = wrap.getBoundingClientRect();
+      const w = Math.max(280, Math.floor(rect.width));
+      const h = 190;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#a8a8a8';
+      ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = '#666';
+      ctx.font = 'bold 24px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎫 刮開看看！', w/2, h/2 + 8);
+
+      let scratching = false;
+      let revealed = false;
+
+      const reveal = () => {
+        if (revealed) return;
+        revealed = true;
+        ctx.clearRect(0,0,w,h);
+        const revealEl = document.getElementById('scratch-reveal-text');
+        revealEl.classList.remove('hidden');
+
+        const imgEl = document.getElementById('scratch-prize-image');
+        const nameEl = document.getElementById('scratch-prize-name');
+        if (!prize.isWinner || prize.prize === '沒中') {
+          imgEl.classList.add('hidden');
+          nameEl.innerText = '🐢 沒中';
+          revealEl.innerText = '🐢 沒刮中，下次再接再厲！';
+        } else {
+          if (prize.image) {
+            imgEl.src = prize.image;
+            imgEl.classList.remove('hidden');
+          }
+          nameEl.innerText = prize.prize || '恭喜獲獎';
+          revealEl.innerText = `🎉 恭喜！${prize.prize || '獲得獎項'}`;
+        }
+      };
+
+      const scratch = (e) => {
+        if (revealed) return;
+        const r = canvas.getBoundingClientRect();
+        const point = e.touches ? e.touches[0] : e;
+        const x = point.clientX - r.left;
+        const y = point.clientY - r.top;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x,y,24,0,Math.PI*2);
+        ctx.fill();
+        if (isScratchEnough(ctx,w,h)) reveal();
+      };
+
+      canvas.onmousedown = e => { scratching=true; scratch(e); };
+      canvas.onmousemove = e => { if (scratching) scratch(e); };
+      canvas.onmouseup = () => scratching=false;
+      canvas.onmouseleave = () => scratching=false;
+      canvas.ontouchstart = e => { e.preventDefault(); scratching=true; scratch(e); };
+      canvas.ontouchmove = e => { e.preventDefault(); if (scratching) scratch(e); };
+      canvas.ontouchend = () => scratching=false;
+    }
+
+    function isScratchEnough(ctx,w,h) {
+      const img = ctx.getImageData(0,0,w,h).data;
+      let transparent = 0;
+      for (let i=3;i<img.length;i+=4) if (img[i] < 50) transparent++;
+      return transparent / (w*h) >= 0.35;
+    }
+
+    function revealScratch() {
+      const canvas = document.getElementById('scratch-canvas');
+      const name = document.getElementById('scratch-prize-text').innerText || '沒中';
+      const imgEl = document.getElementById('scratch-prize-image');
+      const ctx = canvas?.getContext('2d');
+      if (ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      const revealEl = document.getElementById('scratch-reveal-text');
+      revealEl.classList.remove('hidden');
+      if (name === '沒中') {
+        imgEl.classList.add('hidden');
+        document.getElementById('scratch-prize-name').innerText = '🐢 沒中';
+        revealEl.innerText = '🐢 沒刮中，下次再接再厲！';
+      } else {
+        document.getElementById('scratch-prize-name').innerText = name;
+        revealEl.innerText = `🎉 恭喜！${name}`;
+      }
+    }
+
+    function closeScratchModal() {
+      document.getElementById('scratch-modal').classList.add('hidden');
+    }
+
     function renderLeaderboard(elementId, players) {
       const lbEl = document.getElementById(elementId);
       if (!lbEl) return;
-      
+
       const sorted = Object.entries(players)
         .map(([id, p]) => ({ id, ...p }))
         .sort((a, b) => {
@@ -664,20 +1286,31 @@
           return (a.timeUsedMs || Infinity) - (b.timeUsedMs || Infinity);
         });
 
-      lbEl.innerHTML = sorted.map((p, idx) => {
+      const header = `
+        <div class="leaderboard-header">
+          <span>玩家</span>
+          <span>完成時間</span>
+          <span style="text-align:right;">獎項</span>
+        </div>`;
+
+      const rows = sorted.map((p, idx) => {
         let timeDisplay = '挑戰中...';
         if (p.timeUsedMs) {
           const secondsFormatted = (p.timeUsedMs / 1000).toFixed(3);
           timeDisplay = `<span style="color:#059669;">⏱️ ${secondsFormatted}秒</span>`;
         }
 
+        const prize = getPlayerPrize(p);
         return `
           <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
-            <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
+            <span>#${idx + 1} ${escapeHtml(p.name)} ${p.id === playerId ? '(你)' : ''}</span>
             <span>${timeDisplay} ${p.status === 'ended' ? '(已完成)' : ''}</span>
+            ${formatPrizeDisplay(prize, true)}
           </div>
         `;
-      }).join('') || '<div style="color:#94a3b8; font-size:13px;">尚無玩家資料...</div>';
+      }).join('');
+
+      lbEl.innerHTML = header + (rows || '<div style="color:#94a3b8; font-size:13px;">尚無玩家資料...</div>');
     }
 
     function initSecurity() {
@@ -752,6 +1385,35 @@
     </div>
 
     <div class="menu-group">
+      <label>🎫 刮刮樂功能：</label>
+      <div class="btn-group" id="scratch-options">
+        <button class="btn-option active" data-val="no">關閉</button>
+        <button class="btn-option" data-val="yes">開啟</button>
+      </div>
+      <div id="scratch-settings-box" style="margin-top:10px;">
+        <label style="font-size:13px;">🎫 刮刮樂總張數：</label>
+        <input type="number" id="scratch-ticket-count" class="input-box" min="1" max="5000" value="30" placeholder="例如：100">
+        <div id="scratch-ticket-summary" class="scratch-total-info"></div>
+
+        <label style="font-size:13px;margin-top:10px;">🖼️ 獎項設定（檔案圖片模式）</label>
+        <div style="font-size:12px;color:#64748b;margin:5px 0 8px;">
+          每個獎項可設定「名稱、數量、圖片」。圖片會在建立房間時一起保存並可供玩家刮開後預覽。
+          若獎項數量未填滿總張數，剩餘張數自動設定為 🐢 沒中。
+        </div>
+
+        <div class="scratch-prize-row" style="background:#f8fafc;border-color:#e2e8f0;font-size:11px;color:#64748b;font-weight:bold;padding:6px 8px;">
+          <span>獎項名稱</span><span>數量</span><span>獎項圖片</span><span></span>
+        </div>
+        <div id="scratch-prize-list"></div>
+
+        <button type="button" class="btn-primary" style="margin-top:4px;background:#f59e0b;" onclick="addScratchPrizeRow()">＋ 新增獎項</button>
+        <div style="font-size:12px;color:#64748b;margin-top:7px;">
+          🐢「沒中」不需要另外設定，系統會自動補足到你設定的刮刮樂總張數。
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-group">
       <label>房間備註說明 (選填)：</label>
       <input type="text" id="admin-note-input" class="input-box" placeholder="例：三年一班唐詩對句大賽" maxlength="30">
     </div>
@@ -796,6 +1458,23 @@
   <div class="leaderboard">
     <div class="leaderboard-title">🏆 排行榜</div>
     <div id="player-leaderboard-list"></div>
+  </div>
+</div>
+
+<div id="scratch-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:430px; text-align:center;">
+    <h3 style="margin-bottom:8px;color:#1e293b;">🎫 恭喜獲得刮刮樂！</h3>
+    <div id="scratch-card" style="position:relative;width:100%;max-width:360px;height:190px;margin:10px auto;border-radius:14px;overflow:hidden;background:#fff7ed;border:3px solid #f59e0b;box-shadow:0 8px 20px rgba(0,0,0,.12);">
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#b45309;padding:10px;">
+        <img id="scratch-prize-image" class="scratch-result-image" alt="獎項圖片">
+        <span id="scratch-prize-name">獎項</span>
+        <span id="scratch-prize-text" class="hidden"></span>
+      </div>
+      <canvas id="scratch-canvas" style="position:absolute;left:0;top:0;touch-action:none;cursor:crosshair;"></canvas>
+    </div>
+    <div id="scratch-reveal-text" class="hidden" style="font-size:22px;font-weight:bold;color:#dc2626;margin:12px 0;"></div>
+    <button class="btn-primary" onclick="revealScratch()">✨ 直接開獎</button>
+    <button class="btn-primary btn-admin" style="margin-top:8px;" onclick="closeScratchModal()">關閉</button>
   </div>
 </div>
 
