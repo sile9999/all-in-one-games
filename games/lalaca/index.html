@@ -17,7 +17,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 #setup{max-width:620px;margin:8vh auto}.room{font-size:30px;font-weight:800;color:#2563eb;letter-spacing:3px}
 .hidden{display:none!important}
 .players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px}.player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800}.player .state{font-size:12px;margin-top:5px}
+.discard-item{display:inline-flex;flex-direction:column;align-items:center;vertical-align:top;margin:4px}.discard-meta{font-size:10px;color:#475569;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px}.player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800}.player .state{font-size:12px;margin-top:5px}
 .table{background:#166534;border-radius:18px;padding:14px;position:relative;min-height:420px}
 .center{background:#14532d;border:2px solid #22c55e;border-radius:14px;min-height:110px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
 .center .big{font-size:34px;font-weight:900}.center .small{font-size:13px}
@@ -565,7 +565,7 @@ window.discard=async function(){
     ["hands/"+nextId]:nextHand,
     wall:wall,
     turn:nextIndex,
-    discards:[...(latest.discards||[]),tile],
+    discards:[...(latest.discards||[]),{tile,playerId,playerName:latestMe.name,seat:Number(latestMe.index)}],
     logs:[...(latest.logs||[]),latestMe.name+" 打出 "+tileName(tile)].slice(-80)
   });
   selected=-1;
@@ -726,7 +726,7 @@ function render(){
 
 function renderHand(){
  const isAdminView=(viewMode==="admin");
- const h=isAdminView ? [] : [...((roomData.hands||{})[playerId]||[])].sort((a,b)=>a-b);
+ const h=isAdminView ? [] : [...((roomData.hands||{})[playerId]||[])];
 
  const isTurn=
    !isAdminView &&
@@ -749,6 +749,8 @@ function renderHand(){
 
  let a="";
  if(isTurn){
+   if(selected>=0 && selected<h.length)
+     a+='<span style="font-weight:800">已選：'+tileName(h[selected])+'</span>';
    if(h.length===14 && canHu(h))
      a+='<button class="success" onclick="hu()">🀄 胡牌</button>';
    if(h.length===14)
@@ -761,7 +763,16 @@ function renderHand(){
  el("actions").innerHTML=a;
 }
 
-function renderDiscards(){el("discards").innerHTML=(roomData.discards||[]).map(t=>'<div class="tile smalltile">'+tileName(t)+'</div>').join("")}
+function renderDiscards(){
+ const ds=roomData.discards||[];
+ el("discards").innerHTML=ds.map((d,i)=>{
+   const tile=(typeof d==="number")?d:Number(d.tile);
+   const name=(typeof d==="number")?"":(d.playerName||"");
+   const seat=(typeof d==="number")?"":(Number.isFinite(Number(d.seat))?"P"+(Number(d.seat)+1):"");
+   return '<div class="discard-item"><div class="tile smalltile">'+tileName(tile)+'</div>'+
+          '<div class="discard-meta">'+esc(seat+(name?" "+name:""))+'</div></div>';
+ }).join("");
+}
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
 function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>胡牌</th><th>刮刮樂</th><th>獎項</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td><td>"+esc(p.prize||"—")+"</td></tr>").join("")+"</table>"}
 function canHu(h){if(h.length!==14)return false;let a=[...h].sort((x,y)=>x-y);for(let i=0;i<a.length-1;i++){if(a[i]===a[i+1]){let r=a.slice(0,i).concat(a.slice(i+2));if(meldable(r))return true}}return false}
