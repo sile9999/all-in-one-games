@@ -1,1503 +1,375 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> 唐詩對對碰 </title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    
-    body { 
-      background-color: #f0f4f8; 
-      background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-      display: flex; 
-      justify-content: center; 
-      align-items: center; 
-      min-height: 100vh; 
-      padding: 16px; 
-    }
-    
-    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 680px; text-align: center; position: relative; }
-    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
-    
-    .btn-lobby {
-      display: inline-block;
-      width: auto;
-      min-width: 180px;
-      padding: 10px 20px;
-      background-color: #0284c7;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      margin: 0 auto 16px auto;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
-    .btn-lobby:hover { background-color: #0369a1; }
-
-    .menu-group { margin-bottom: 16px; text-align: left; }
-    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
-    
-    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
-    .btn-option { flex: 1; min-width: 60px; padding: 8px 4px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 12px; }
-    .btn-option.active { border-color: #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
-    
-    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
-    
-    .btn-primary { width: 100%; padding: 12px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; }
-    .btn-primary:hover { background-color: #2563eb; }
-    .btn-admin { background-color: #64748b; }
-    .btn-admin:hover { background-color: #475569; }
-    .btn-copy { background-color: #8b5cf6; }
-    .btn-copy:hover { background-color: #7c3aed; }
-    .btn-start { background-color: #10b981; }
-    .btn-start:hover { background-color: #059669; }
-
-    .btn-success-state { background-color: #059669 !important; transform: scale(0.98); }
-
-    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
-    .room-number { font-size: 28px; font-weight: bold; color: #2563eb; letter-spacing: 2px; }
-
-    .status-bar { display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; }
-    .grid-container { position: relative; margin-bottom: 16px; }
-    
-    .grid { display: grid; gap: 8px; }
-
-    .tile { aspect-ratio: 1; background-color: #81e6d9; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; color: #1e293b; cursor: pointer; transition: transform 0.1s, background-color 0.2s; position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .tile:hover { transform: scale(1.04); }
-    
-    .tile.selected { background-color: #ffffff; border: 3px solid #fde047; transform: scale(0.95); }
-    .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
-    .tile.covered-done { background-color: #94a3b8; color: #64748b; opacity: 0.7; cursor: not-allowed; }
-    
-    /* 詩句字體適性調整 */
-    .tile-text { 
-      font-size: 15px; 
-      font-weight: bold; 
-      color: #1e293b; 
-      text-align: center; 
-      line-height: 1.25; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      width: 100%; 
-      height: 100%; 
-      padding: 4px;
-      word-break: break-all;
-    }
-
-    /* 手機螢幕適應 */
-    @media (max-width: 600px) {
-      .grid, .grid.grid-24 { 
-        grid-template-columns: repeat(4, 1fr) !important; 
-        gap: 8px !important; 
-      }
-
-      .grid.grid-large { 
-        grid-template-columns: repeat(6, 1fr) !important; 
-        gap: 4px !important; 
-      }
-
-      .tile { 
-        font-size: 24px; 
-        border-radius: 8px; 
-      }
-      
-      .tile-text {
-        font-size: 11px;
-        padding: 2px;
-      }
-    }
-
-    .game-over-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 24px; font-weight: bold; z-index: 10; }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-4px); }
-      40%, 80% { transform: translateX(4px); }
-    }
-
-    .leaderboard { background: #eff6ff; border: 2px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
-    .leaderboard-title { font-size: 14px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
-    .leaderboard-item { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
-    .leaderboard-item.me { font-weight: bold; color: #2563eb; }
-
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
-    
-    /* === 刮刮樂獎項設定 === */
-    .scratch-prize-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) 82px minmax(0, 1.2fr) 58px;
-      gap: 6px;
-      align-items: center;
-      padding: 8px;
-      margin-bottom: 8px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      border-radius: 8px;
-    }
-    .scratch-prize-row .input-box { margin-bottom: 0; }
-    .scratch-file-label {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      min-height: 40px;
-      padding: 7px 6px;
-      border: 2px dashed #cbd5e1;
-      border-radius: 8px;
-      background: white;
-      color: #475569;
-      font-size: 12px;
-      font-weight: bold;
-      cursor: pointer;
-      overflow: hidden;
-    }
-    .scratch-file-label:hover { border-color: #3b82f6; color: #1d4ed8; }
-    .scratch-file-label input { display: none; }
-    .prize-image-preview {
-      width: 40px;
-      height: 40px;
-      object-fit: contain;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      background: white;
-      flex: 0 0 40px;
-    }
-    .prize-image-empty {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      background: #f1f5f9;
-      color: #94a3b8;
-      font-size: 20px;
-      flex: 0 0 40px;
-    }
-    .scratch-remove-btn {
-      min-height: 40px;
-      border: none;
-      border-radius: 8px;
-      background: #ef4444;
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .scratch-remove-btn:hover { background: #dc2626; }
-    .scratch-total-info {
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #f8fafc;
-      color: #475569;
-      font-size: 12px;
-      line-height: 1.5;
-      margin-top: 8px;
-    }
-    .leaderboard-header,
-    .leaderboard-item {
-      display: grid;
-      grid-template-columns: 1.15fr 1fr 1fr;
-      gap: 8px;
-      align-items: center;
-    }
-    .leaderboard-header {
-      padding: 5px 0;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: bold;
-      border-bottom: 1px solid #cbd5e1;
-    }
-    .leaderboard-item { justify-content: initial; }
-    .leaderboard-prize {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 5px;
-      min-width: 0;
-    }
-    .leaderboard-prize img {
-      width: 28px;
-      height: 28px;
-      object-fit: contain;
-      border-radius: 5px;
-      background: white;
-      border: 1px solid #e2e8f0;
-      flex: 0 0 28px;
-    }
-    .leaderboard-prize-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .scratch-result-image {
-      display: block;
-      max-width: 170px;
-      max-height: 120px;
-      object-fit: contain;
-      margin: 0 auto 8px;
-      border-radius: 10px;
-    }
-
-    .hidden { display: none !important; }
-    textarea.input-box { resize: vertical; min-height: 110px; font-family: inherit; line-height: 1.5; }
-    #scratch-settings-box { display: block; }
-    .disabled-area { opacity: 0.5; pointer-events: none; }
-
-    .expired-card { background: white; padding: 40px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
-    .expired-icon { font-size: 64px; margin-bottom: 16px; }
-    .expired-title { color: #ef4444; font-size: 24px; font-weight: bold; margin-bottom: 12px; }
-    .expired-desc { color: #64748b; font-size: 15px; line-height: 1.6; }
-  </style>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, get, runTransaction } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
-      authDomain: "gogogame-ce8ba.firebaseapp.com",
-      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
-      projectId: "gogogame-ce8ba",
-      storageBucket: "gogogame-ce8ba.firebasestorage.app",
-      messagingSenderId: "823932242561",
-      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // 唐詩 100 首 上下句對應題庫
-    const poemPool = [
-      { pairId: 1, text: "床前明月光" }, { pairId: 1, text: "疑是地上霜" },
-      { pairId: 2, text: "舉頭望明月" }, { pairId: 2, text: "低頭思故鄉" },
-      { pairId: 3, text: "紅豆生南國" }, { pairId: 3, text: "春來發幾枝" },
-      { pairId: 4, text: "願君多採擷" }, { pairId: 4, text: "此物最相思" },
-      { pairId: 5, text: "白日依山盡" }, { pairId: 5, text: "黃河入海流" },
-      { pairId: 6, text: "欲窮千里目" }, { pairId: 6, text: "更上一層樓" },
-      { pairId: 7, text: "千山鳥飛絕" }, { pairId: 7, text: "萬徑人蹤滅" },
-      { pairId: 8, text: "孤舟蓑笠翁" }, { pairId: 8, text: "獨釣寒江雪" },
-      { pairId: 9, text: "松下問童子" }, { pairId: 9, text: "言師採藥去" },
-      { pairId: 10, text: "只在此山中" }, { pairId: 10, text: "雲深不知處" },
-      { pairId: 11, text: "春眠不覺曉" }, { pairId: 11, text: "處處聞啼鳥" },
-      { pairId: 12, text: "夜來風雨聲" }, { pairId: 12, text: "花落知多少" },
-      { pairId: 13, text: "慈母手中線" }, { pairId: 13, text: "遊子身上衣" },
-      { pairId: 14, text: "臨行密密縫" }, { pairId: 14, text: "意恐遲遲歸" },
-      { pairId: 15, text: "誰言寸草心" }, { pairId: 15, text: "報得三春暉" },
-      { pairId: 16, text: "獨在異鄉為異客" }, { pairId: 16, text: "每逢佳節倍思親" },
-      { pairId: 17, text: "遙知兄弟登高處" }, { pairId: 17, text: "遍插茱萸少一人" },
-      { pairId: 18, text: "清明時節雨紛紛" }, { pairId: 18, text: "路上行人欲斷魂" },
-      { pairId: 19, text: "借問酒家何處有" }, { pairId: 19, text: "牧童遙指杏花村" },
-      { pairId: 20, text: "朝辭白帝彩雲間" }, { pairId: 20, text: "千里江陵一日還" },
-      { pairId: 21, text: "兩岸猿聲啼不住" }, { pairId: 21, text: "輕舟已過萬重山" },
-      { pairId: 22, text: "葡萄美酒夜光杯" }, { pairId: 22, text: "欲飲琵琶馬上催" },
-      { pairId: 23, text: "醉臥沙場君莫笑" }, { pairId: 23, text: "古來征戰幾人回" },
-      { pairId: 24, text: "黃河遠上白雲間" }, { pairId: 24, text: "一片孤城萬仞山" },
-      { pairId: 25, text: "羌笛何須怨楊柳" }, { pairId: 25, text: "春風不度玉門關" },
-      { pairId: 26, text: "月落烏啼霜滿天" }, { pairId: 26, text: "江楓漁火對愁眠" },
-      { pairId: 27, text: "姑蘇城外寒山寺" }, { pairId: 27, text: "夜半鐘聲到客船" },
-      { pairId: 28, text: "寒雨連江夜入吳" }, { pairId: 28, text: "平明送客楚山孤" },
-      { pairId: 29, text: "洛陽親友如相問" }, { pairId: 29, text: "一片冰心在玉壺" },
-      { pairId: 30, text: "朱雀橋邊野草花" }, { pairId: 30, text: "烏衣巷口夕陽斜" },
-      { pairId: 31, text: "舊時王謝堂前燕" }, { pairId: 31, text: "飛入尋常百姓家" },
-      { pairId: 32, text: "遠上寒山石徑斜" }, { pairId: 32, text: "白雲生處有人家" },
-      { pairId: 33, text: "停車坐愛楓林晚" }, { pairId: 33, text: "霜葉紅於二月花" },
-      { pairId: 34, text: "折戟沉沙鐵未銷" }, { pairId: 34, text: "自將磨洗認前朝" },
-      { pairId: 35, text: "東風不與周郎便" }, { pairId: 35, text: "銅雀春深鎖二喬" },
-      { pairId: 36, text: "勝敗兵家事不期" }, { pairId: 36, text: "包羞忍恥是男兒" },
-      { pairId: 37, text: "江東子弟多才俊" }, { pairId: 37, text: "卷土重來未可知" },
-      { pairId: 38, text: "國破山河在" }, { pairId: 38, text: "城春草木深" },
-      { pairId: 39, text: "感時花踐淚" }, { pairId: 39, text: "恨別鳥驚心" },
-      { pairId: 40, text: "烽火連三月" }, { pairId: 40, text: "家書抵萬金" },
-      { pairId: 41, text: "白頭搔更短" }, { pairId: 41, text: "渾欲不勝簪" },
-      { pairId: 42, text: "風急天高猿嘯哀" }, { pairId: 42, text: "渚清沙白鳥飛迴" },
-      { pairId: 43, text: "無邊落木蕭蕭下" }, { pairId: 43, text: "不盡長江滾滾來" },
-      { pairId: 44, text: "萬里悲秋常作客" }, { pairId: 44, text: "百年多病獨登臺" },
-      { pairId: 45, text: "艱難苦恨繁霜鬢" }, { pairId: 45, text: "潦倒新停濁酒杯" },
-      { pairId: 46, text: "錦瑟無端五十弦" }, { pairId: 46, text: "一弦一柱思華年" },
-      { pairId: 47, text: "莊生曉夢迷蝴蝶" }, { pairId: 47, text: "望帝春心托杜鵑" },
-      { pairId: 48, text: "滄海月明珠有淚" }, { pairId: 48, text: "藍田日暖玉生煙" },
-      { pairId: 49, text: "此情可待成追憶" }, { pairId: 49, text: "只是當時已惘然" },
-      { pairId: 50, text: "青山隱隱水迢迢" }, { pairId: 50, text: "秋盡江南草未凋" },
-      { pairId: 51, text: "二十四橋明月夜" }, { pairId: 51, text: "玉人何處教吹簫" },
-      { pairId: 52, text: "獨憐幽草澗邊生" }, { pairId: 52, text: "上有黃鶯深樹鳴" },
-      { pairId: 53, text: "春潮帶雨晚來急" }, { pairId: 53, text: "野渡無人舟自橫" },
-      { pairId: 54, text: "岐王宅裡尋常見" }, { pairId: 54, text: "崔九堂前幾度聞" },
-      { pairId: 55, text: "正是江南好風景" }, { pairId: 55, text: "落花時節又逢君" },
-      { pairId: 56, text: "故人西辭黃鶴樓" }, { pairId: 56, text: "煙花三月下揚州" },
-      { pairId: 57, text: "孤帆遠影碧空盡" }, { pairId: 57, text: "唯見長江天際流" },
-      { pairId: 58, text: "飛流直下三千尺" }, { pairId: 58, text: "疑是銀河落九天" },
-      { pairId: 59, text: "李白乘舟將欲行" }, { pairId: 59, text: "忽聞岸上踏歌聲" },
-      { pairId: 60, text: "桃花潭水深千尺" }, { pairId: 60, text: "不及汪倫送我情" },
-      { pairId: 61, text: "秦時明月漢時關" }, { pairId: 61, text: "萬里長征人未還" },
-      { pairId: 62, text: "但使龍城飛將在" }, { pairId: 62, text: "不教胡馬度陰山" },
-      { pairId: 63, text: "嶺外音書斷" }, { pairId: 63, text: "經冬復歷春" },
-      { pairId: 64, text: "近鄉情更怯" }, { pairId: 64, text: "不敢問來人" },
-      { pairId: 65, text: "君自故鄉來" }, { pairId: 65, text: "應知故鄉事" },
-      { pairId: 66, text: "來日綺窗前" }, { pairId: 66, text: "寒梅著花未" },
-      { pairId: 67, text: "空山不見人" }, { pairId: 67, text: "但聞人語響" },
-      { pairId: 68, text: "返景入深林" }, { pairId: 68, text: "復照青苔上" },
-      { pairId: 69, text: "竹里館中獨坐" }, { pairId: 69, text: "彈琴復長嘯" },
-      { pairId: 70, text: "深林人不知" }, { pairId: 70, text: "明月來相照" },
-      { pairId: 71, text: "草木知春不久歸" }, { pairId: 71, text: "百般紅紫鬥芳菲" },
-      { pairId: 72, text: "楊花榆莢無才思" }, { pairId: 72, text: "惟解漫天作雪飛" },
-      { pairId: 73, text: "勝日尋芳泗水濱" }, { pairId: 73, text: "無邊光景一時新" },
-      { pairId: 74, text: "等閒識得東風面" }, { pairId: 74, text: "萬紫千紅總是春" },
-      { pairId: 75, text: "銀燭秋光冷畫屏" }, { pairId: 75, text: "輕羅小扇撲流螢" },
-      { pairId: 76, text: "天階夜色涼如水" }, { pairId: 76, text: "臥看牽牛織女星" },
-      { pairId: 77, text: "蓬頭稚子學垂綸" }, { pairId: 77, text: "側坐莓苔草映身" },
-      { pairId: 78, text: "路人借問遙招手" }, { pairId: 78, text: "怕得魚驚不應人" },
-      { pairId: 79, text: "泉眼無聲惜細流" }, { pairId: 79, text: "樹陰照水愛晴柔" },
-      { pairId: 80, text: "小荷才露尖尖角" }, { pairId: 80, text: "早有蜻蜓立上頭" },
-      { pairId: 81, text: "黑雲翻墨未遮山" }, { pairId: 81, text: "白雨跳珠亂入船" },
-      { pairId: 82, text: "卷地風來忽吹散" }, { pairId: 82, text: "望湖樓下水如天" },
-      { pairId: 83, text: "黃師塔前江水東" }, { pairId: 83, text: "春光懶困倚微風" },
-      { pairId: 84, text: "桃花一簇開無主" }, { pairId: 84, text: "可愛深紅愛淺紅" },
-      { pairId: 85, text: "劍外忽傳收冀北" }, { pairId: 85, text: "初聞涕淚滿衣裳" },
-      { pairId: 86, text: "卻看妻子愁何在" }, { pairId: 86, text: "漫卷詩書喜欲狂" },
-      { pairId: 87, text: "白日放歌須縱酒" }, { pairId: 87, text: "青春作伴好還鄉" },
-      { pairId: 88, text: "即從巴峽穿巫峽" }, { pairId: 88, text: "便下襄陽向洛陽" },
-      { pairId: 89, text: "渭城朝雨浥輕塵" }, { pairId: 89, text: "客舍青青柳色新" },
-      { pairId: 90, text: "勸君更盡一杯酒" }, { pairId: 90, text: "西出陽關無故人" },
-      { pairId: 91, text: "莫愁前路無知己" }, { pairId: 91, text: "天下誰人不識君" },
-      { pairId: 92, text: "千里黃雲白日曛" }, { pairId: 92, text: "北風吹雁雪紛紛" },
-      { pairId: 93, text: "輪台東門送君去" }, { pairId: 93, text: "去時雪滿天山路" },
-      { pairId: 94, text: "山迴路轉不見君" }, { pairId: 94, text: "雪上空留馬行處" },
-      { pairId: 95, text: "忽如一夜春風來" }, { pairId: 95, text: "千樹萬樹梨花開" },
-      { pairId: 96, text: "散入珠簾濕羅幕" }, { pairId: 96, text: "狐裘不暖錦衾薄" },
-      { pairId: 97, text: "將軍角弓不得控" }, { pairId: 97, text: "都護鐵衣冷難著" },
-      { pairId: 98, text: "瀚海闌干百丈冰" }, { pairId: 98, text: "愁雲慘淡萬里凝" },
-      { pairId: 99, text: "歲暮陰陽催短景" }, { pairId: 99, text: "天涯霜雪薊宵遲" },
-      { pairId: 100, text: "五更鼓角聲悲壯" }, { pairId: 100, text: "三峽星河影動搖" }
-    ];
-
-    let roomId = null;
-    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
-    let playerName = '';
-    let totalTiles = 24;
-    let poemCategory = 'all'; // 預設類型：不限
-    let coverMode = 'covered'; // 新增預設蓋牌模式：covered (蓋牌), open (不蓋牌/反向蓋牌)
-    let gridTiles = [];
-    let matchedTiles = [];
-    let selectedIndices = [];
-    let timer = null;
-    let roomRef = null;
-    let currentPlayers = {};
-    let currentScratchTickets = {};
-    let currentScratchPrizes = [];
-    let isGameActive = false;
-    let isCheckingPair = false;
-    let startTime = null;
-    let timeUsedMs = null;
-    let scratchTicketCount = 30;
-    let roomSettings = {
-      totalTiles: 24,
-      poemCategory: 'all',
-      coverMode: 'covered',
-      endTime: null,
-      scratchEnabled: false,
-      scratchTicketCount: 30
-    };
-
-    window.openAdminModal = openAdminModal;
-    window.checkPassword = checkPassword;
-    window.createRoom = createRoom;
-    window.copyRoomLink = copyRoomLink;
-    window.copyScores = copyScores;
-    window.openJoinModalNewTab = openJoinModalNewTab;
-    window.joinRoomGame = joinRoomGame;
-    window.closeModal = closeModal;
-    window.goToLobby = goToLobby;
-    window.revealScratch = revealScratch;
-    window.closeScratchModal = closeScratchModal;
-    window.addScratchPrizeRow = addScratchPrizeRow;
-    window.removeScratchPrizeRow = removeScratchPrizeRow;
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
-      setupOptionGroup('category-options', (val) => poemCategory = val);
-      setupOptionGroup('cover-options', (val) => coverMode = val);
-      setupOptionGroup('scratch-options', () => {});
-      initScratchPrizeRows();
-      document.getElementById('scratch-ticket-count')?.addEventListener('input', updateScratchTicketSummary);
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomParam = urlParams.get('room');
-
-      if (roomParam) {
-        document.getElementById('main-setup-view').classList.add('hidden');
-        document.getElementById('input-room-id').value = roomParam;
-
-        const snapshot = await get(ref(db, 'rooms_v4/' + roomParam));
-        const data = snapshot.val();
-        if (data && data.endTime && Date.now() > data.endTime) {
-          showExpiredScreen();
-        } else {
-          document.getElementById('join-modal').classList.remove('hidden');
-        }
-      }
-
-      initSecurity();
-    });
-
-    function goToLobby() {
-      window.location.href = 'https://sile9999.github.io/all-in-one-games/';
-    }
-
-    function showExpiredScreen() {
-      document.getElementById('main-setup-view').classList.add('hidden');
-      document.getElementById('player-game-view').classList.add('hidden');
-      document.getElementById('join-modal').classList.add('hidden');
-      document.getElementById('expired-view').classList.remove('hidden');
-    }
-
-    function setupOptionGroup(groupId, callback) {
-      const group = document.getElementById(groupId);
-      group.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-option')) {
-          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
-          e.target.classList.add('active');
-          callback(e.target.dataset.val || e.target.dataset.mode);
-        }
-      });
-    }
-
-    function openAdminModal() {
-      document.getElementById('pwd-modal').classList.remove('hidden');
-    }
-
-    function checkPassword() {
-      const pwd = document.getElementById('admin-pwd').value;
-      if (pwd === '17696969') {
-        document.getElementById('pwd-modal').classList.add('hidden');
-        document.getElementById('setting-fields').classList.remove('disabled-area');
-        document.getElementById('admin-unlock-btn').classList.add('hidden');
-        
-        document.getElementById('create-room-btn').classList.remove('hidden');
-        document.getElementById('sim-join-btn').classList.remove('hidden');
-      } else {
-        alert('密碼錯誤！');
-      }
-    }
-
-    async function createRoom() {
-      const noteText = document.getElementById('admin-note-input').value.trim();
-      const endTimeVal = document.getElementById('admin-endtime-input').value;
-
-      let endTimeStamp = null;
-      if (endTimeVal) endTimeStamp = new Date(endTimeVal).getTime();
-
-      if (totalTiles % 2 !== 0) totalTiles -= 1;
-
-      const scratchEnabled = document.querySelector('#scratch-options .btn-option.active')?.dataset.val === 'yes';
-      const scratchTicketCount = Math.max(1, parseInt(document.getElementById('scratch-ticket-count')?.value, 10) || 30);
-      const scratchPrizes = parseScratchPrizes();
-      const prizeCount = scratchPrizes.reduce((sum, item) => sum + item.count, 0);
-
-      if (scratchEnabled && prizeCount > scratchTicketCount) {
-        alert(`獎項數量合計為 ${prizeCount} 張，但刮刮樂總張數只有 ${scratchTicketCount} 張，請增加張數或減少獎項數量。`);
-        return;
-      }
-
-      const scratchTickets = buildScratchTickets(scratchPrizes, scratchTicketCount);
-
-      roomId = Math.floor(100000 + Math.random() * 900000).toString();
-      roomRef = ref(db, 'rooms_v4/' + roomId);
-
-      await set(roomRef, {
-        totalTiles: totalTiles,
-        poemCategory: poemCategory,
-        coverMode: coverMode,
-        note: noteText,
-        endTime: endTimeStamp,
-        scratchEnabled: scratchEnabled,
-        scratchTicketCount: scratchTicketCount,
-        scratchPrizes: scratchPrizes,
-        scratchTickets: scratchTickets,
-        usedNicknames: {},
-        players: {}
-      });
-
-      document.getElementById('room-num-display').innerText = roomId;
-      document.getElementById('admin-action-area').classList.remove('hidden');
-
-      onValue(roomRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-        currentPlayers = data.players || {};
-        currentScratchTickets = data.scratchTickets || {};
-        currentScratchPrizes = data.scratchPrizes || [];
-        renderLeaderboard('admin-leaderboard-list', currentPlayers);
-      });
-    }
-
-    function copyRoomLink(btn) {
-      if (!roomId) return;
-      const baseUrl = window.location.origin + window.location.pathname;
-      const fullLink = `${baseUrl}?room=${roomId}`;
-      const noteText = document.getElementById('admin-note-input').value.trim() || '無';
-      const endTimeVal = document.getElementById('admin-endtime-input').value;
-      const endTimeText = endTimeVal ? endTimeVal.replace('T', ' ') : '無限制';
-      const modeText = coverMode === 'covered' ? '蓋牌模式' : '不蓋牌（反向蓋牌模式）';
-
-      let copyMsg = `📜 唐詩對對碰挑戰房\n`;
-      copyMsg += `🔗 遊戲連結：${fullLink}\n`;
-      copyMsg += `🎯 遊戲模式：${modeText}\n`;
-      copyMsg += `⏱️ 競賽模式：完成耗時比拼\n`;
-      copyMsg += `⏳ 結束時間：${endTimeText}\n`;
-      copyMsg += `💡 說明：點擊連結進入後即可開始唐詩對句挑戰！\n`;
-      copyMsg += `📝 備註：${noteText}\n`;
-
-      navigator.clipboard.writeText(copyMsg).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製房間連結！', '📋 複製房號與連結');
-      }).catch(() => {});
-    }
-
-    function copyScores(btn) {
-      if (!currentPlayers || Object.keys(currentPlayers).length === 0) return;
-
-      const sorted = Object.values(currentPlayers).sort((a, b) => {
-        if (a.status === 'ended' && b.status !== 'ended') return -1;
-        if (a.status !== 'ended' && b.status === 'ended') return 1;
-        return (a.timeUsedMs || Infinity) - (b.timeUsedMs || Infinity);
-      });
-
-      let text = `🏆【 唐詩對對碰排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
-      sorted.forEach((p, idx) => {
-        const timeStr = p.timeUsedMs ? `${(p.timeUsedMs / 1000).toFixed(3)} 秒` : '進行中/未完成';
-        const prize = getPlayerPrize(p);
-        text += `第 ${idx + 1} 名: ${p.name} - 耗時: ${timeStr} - 獎項: ${prize ? prize.name : '尚未開獎'}\n`;
-      });
-
-      navigator.clipboard.writeText(text).then(() => {
-        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製戰報成績');
-      }).catch(() => {});
-    }
-
-    function triggerButtonFeedback(btnElement, activeText, originalText) {
-      if (!btnElement) return;
-      btnElement.innerText = activeText;
-      btnElement.classList.add('btn-success-state');
-      setTimeout(() => {
-        btnElement.innerText = originalText;
-        btnElement.classList.remove('btn-success-state');
-      }, 1200);
-    }
-
-    function openJoinModalNewTab() {
-      const baseUrl = window.location.origin + window.location.pathname;
-      const targetUrl = roomId ? `${baseUrl}?room=${roomId}` : baseUrl;
-      window.open(targetUrl, '_blank');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-    }
-
-    function joinRoomGame() {
-      const inputRoom = document.getElementById('input-room-id').value.trim();
-      const inputName = document.getElementById('input-player-name').value.trim();
-
-      if (!inputRoom) return alert('請輸入房號！');
-      if (!inputName) return alert('請輸入暱稱！');
-
-      roomId = inputRoom;
-      playerName = inputName;
-      roomRef = ref(db, 'rooms_v4/' + roomId);
-
-      onValue(roomRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return alert('找不到該房間，請確認房號是否正確！');
-
-        if (data.endTime && Date.now() > data.endTime) {
-          showExpiredScreen();
-          return;
-        }
-
-        const nicknameKey = nicknameToKey(inputName);
-        if (data.usedNicknames && data.usedNicknames[nicknameKey]) {
-          alert(`暱稱【${inputName}】已完成過本房間挑戰，不能重複遊玩！`);
-          return;
-        }
-        const players = data.players || {};
-        const duplicatePlaying = Object.values(players).some(p => nicknameToKey(p.name || '') === nicknameKey && p.status !== 'ended');
-        if (duplicatePlaying) {
-          alert(`暱稱【${inputName}】目前正在遊戲中，請使用其他暱稱！`);
-          return;
-        }
-
-        roomSettings.totalTiles = data.totalTiles || 24;
-        roomSettings.poemCategory = data.poemCategory || 'all';
-        roomSettings.coverMode = data.coverMode || 'covered';
-        roomSettings.scratchEnabled = data.scratchEnabled === true;
-        roomSettings.scratchTicketCount = data.scratchTicketCount || 0;
-        totalTiles = roomSettings.totalTiles;
-        currentScratchTickets = data.scratchTickets || {};
-        currentScratchPrizes = data.scratchPrizes || [];
-
-        // 根據類型篩選「完整配對」
-        // 不能先逐句篩選，否則某些上下句字數不同的詩句會只剩 1 張，
-        // 造成例如設定 24 格卻實際只產生 23 格的問題。
-        const pairMap = new Map();
-        poemPool.forEach(item => {
-          if (!pairMap.has(item.pairId)) pairMap.set(item.pairId, []);
-          pairMap.get(item.pairId).push(item);
-        });
-
-        let validPairs = [...pairMap.values()].filter(pair => pair.length === 2);
-
-        if (roomSettings.poemCategory === '5') {
-          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 5));
-        } else if (roomSettings.poemCategory === '7') {
-          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 7));
-        }
-
-        const pairCount = totalTiles / 2;
-
-        if (validPairs.length < pairCount) {
-          return alert(`目前選取的分類題庫量不足（完整配對僅有 ${validPairs.length} 組），請減少卡牌數量或選擇不限分類！`);
-        }
-
-        // 隨機選出指定數量的「完整上下句配對」
-        validPairs.sort(() => Math.random() - 0.5);
-        const selectedPairs = validPairs.slice(0, pairCount);
-
-        // 展開成卡牌並洗牌；因此一定會是 pairCount × 2 張
-        let selectedPoemCards = selectedPairs.flat();
-        selectedPoemCards.sort(() => Math.random() - 0.5);
-
-        gridTiles = selectedPoemCards;
-
-        // 防呆：若題庫資料異常導致卡牌數量不符，禁止開始不完整盤面
-        if (gridTiles.length !== totalTiles) {
-          return alert(`題庫產生卡牌數量異常（設定 ${totalTiles} 格，實際 ${gridTiles.length} 格），請重新建立房間或聯絡管理員。`);
-        }
-        matchedTiles = [];
-        timeUsedMs = null;
-        selectedIndices = [];
-        isGameActive = true;
-
-        update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), { 
-          name: playerName, 
-          timeUsedMs: null,
-          status: 'playing'
-        });
-
-        document.getElementById('join-modal').classList.add('hidden');
-        document.getElementById('main-setup-view').classList.add('hidden');
-        document.getElementById('player-game-view').classList.remove('hidden');
-
-        startTime = Date.now();
-        renderGrid();
-        startPersonalTimer();
-        listenLeaderboard();
-
-      }, { onlyOnce: true });
-    }
-
-    function startPersonalTimer() {
-      if (timer) clearInterval(timer);
-      
-      timer = setInterval(() => {
-        if (!isGameActive) return;
-        const now = Date.now();
-        const elapsed = ((now - startTime) / 1000).toFixed(1);
-        document.getElementById('time-display').innerText = elapsed + 's';
-      }, 100);
-    }
-
-    function listenLeaderboard() {
-      onValue(ref(db, `rooms_v4/${roomId}/players`), (snapshot) => {
-        const playersData = snapshot.val() || {};
-        currentPlayers = playersData;
-        renderLeaderboard('player-leaderboard-list', playersData);
-      });
-    }
-
-    function renderGrid() {
-      const gridEl = document.getElementById('grid');
-      gridEl.innerHTML = '';
-
-      if (totalTiles <= 24) {
-        gridEl.className = 'grid grid-24';
-      } else {
-        gridEl.className = 'grid grid-large';
-      }
-
-      let cols = 6;
-      if (totalTiles <= 48) cols = 6;
-      else cols = 8;
-
-      gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-      const isUncoveredMode = roomSettings.coverMode === 'open';
-
-      gridTiles.forEach((tileObj, idx) => {
-        const tile = document.createElement('div');
-        const isMatched = matchedTiles.includes(idx);
-        const isSelected = selectedIndices.includes(idx);
-
-        let tileClass = 'tile';
-
-        if (isUncoveredMode) {
-          /* === 反向玩法：不蓋牌模式 === */
-          if (isMatched) {
-            // 成功配對後 -> 變成蓋牌 (並且鎖定無法點擊)
-            tile.className = tileClass + ' covered-done';
-            tile.innerText = '📜';
-          } else if (isSelected) {
-            // 選取中的牌 -> 黃色框強調
-            tile.className = tileClass + ' selected';
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
-          } else {
-            // 未配對牌 -> 預設直接顯示文字
-            tile.className = tileClass;
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
-          }
-        } else {
-          /* === 正向玩法：傳統蓋牌模式 === */
-          const isRevealed = isMatched || isSelected;
-
-          if (isRevealed) {
-            tileClass += ' selected';
-            tile.className = tileClass;
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
-          } else {
-            tile.className = tileClass;
-            tile.innerText = '📜';
-          }
-        }
-
-        if (!isMatched && !isCheckingPair && isGameActive) {
-          tile.onclick = () => handleTileClick(idx);
-        }
-
-        gridEl.appendChild(tile);
-      });
-    }
-
-    function handleTileClick(index) {
-      if (!isGameActive || isCheckingPair) return;
-      if (selectedIndices.includes(index) || matchedTiles.includes(index)) return;
-
-      selectedIndices.push(index);
-      renderGrid();
-
-      if (selectedIndices.length === 2) {
-        const [firstIdx, secondIdx] = selectedIndices;
-        
-        // 比對兩張牌的 pairId 是否相同（即上下句相匹配）
-        if (gridTiles[firstIdx].pairId === gridTiles[secondIdx].pairId) {
-          matchedTiles.push(firstIdx, secondIdx);
-          selectedIndices = [];
-          renderGrid();
-
-          if (matchedTiles.length === gridTiles.length) {
-            const finishTime = Date.now();
-            timeUsedMs = finishTime - startTime;
-
-            if (timer) clearInterval(timer);
-            isGameActive = false;
-            
-            const secondsFormatted = (timeUsedMs / 1000).toFixed(3);
-            document.getElementById('final-time-text').innerText = `完成總耗時：${secondsFormatted} 秒`;
-
-            if (roomSettings.scratchEnabled) {
-              finishGameAndIssueScratch();
-            } else {
-              document.getElementById('game-over-mask').classList.remove('hidden');
-              update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), {
-                timeUsedMs: timeUsedMs,
-                status: 'ended'
-              });
-            }
-          }
-        } else {
-          isCheckingPair = true;
-          const tiles = document.querySelectorAll('.tile');
-          tiles[firstIdx]?.classList.add('error');
-          tiles[secondIdx]?.classList.add('error');
-
-          setTimeout(() => {
-            selectedIndices = [];
-            isCheckingPair = false;
-            renderGrid();
-          }, 800);
-        }
-      }
-    }
-
-    function nicknameToKey(name) {
-      return String(name || '').trim().toLowerCase().replace(/[.#$\[\]\/]/g, '_').replace(/\s+/g, '_');
-    }
-
-    function initScratchPrizeRows() {
-      const list = document.getElementById('scratch-prize-list');
-      if (!list) return;
-      list.innerHTML = '';
-      addScratchPrizeRow({ name: '小禮物', count: 10 });
-      addScratchPrizeRow({ name: '咖啡券', count: 3 });
-      addScratchPrizeRow({ name: '飲料券', count: 5 });
-      updateScratchTicketSummary();
-    }
-
-    function addScratchPrizeRow(data = {}) {
-      const list = document.getElementById('scratch-prize-list');
-      if (!list) return;
-
-      const row = document.createElement('div');
-      row.className = 'scratch-prize-row';
-      row.dataset.image = data.image || '';
-
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.className = 'input-box prize-name-input';
-      nameInput.placeholder = '獎項名稱';
-      nameInput.value = data.name || '';
-
-      const countInput = document.createElement('input');
-      countInput.type = 'number';
-      countInput.className = 'input-box prize-count-input';
-      countInput.min = '1';
-      countInput.max = '9999';
-      countInput.value = data.count || 1;
-      countInput.title = '獎項張數';
-
-      const fileLabel = document.createElement('label');
-      fileLabel.className = 'scratch-file-label';
-      fileLabel.title = '上傳獎項圖片';
-
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-
-      const previewWrap = document.createElement('span');
-      const fileText = document.createElement('span');
-      fileText.textContent = data.image ? '已上傳' : '上傳圖片';
-
-      const renderPreview = (src) => {
-        previewWrap.innerHTML = '';
-        if (src) {
-          const img = document.createElement('img');
-          img.className = 'prize-image-preview';
-          img.src = src;
-          previewWrap.appendChild(img);
-        } else {
-          const empty = document.createElement('span');
-          empty.className = 'prize-image-empty';
-          empty.textContent = '🖼️';
-          previewWrap.appendChild(empty);
-        }
-      };
-      renderPreview(data.image || '');
-
-      fileLabel.appendChild(previewWrap);
-      fileLabel.appendChild(fileText);
-      fileLabel.appendChild(fileInput);
-
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'scratch-remove-btn';
-      removeBtn.textContent = '×';
-      removeBtn.title = '刪除這個獎項';
-      removeBtn.onclick = () => removeScratchPrizeRow(row);
-
-      fileInput.onchange = async () => {
-        const file = fileInput.files?.[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-          alert('請選擇圖片檔案。');
-          return;
-        }
-        try {
-          const dataUrl = await compressPrizeImage(file);
-          row.dataset.image = dataUrl;
-          renderPreview(dataUrl);
-          fileText.textContent = file.name.length > 12 ? file.name.slice(0, 10) + '…' : file.name;
-        } catch (err) {
-          console.error(err);
-          alert('圖片處理失敗，請換一張圖片再試。');
-        }
-      };
-
-      countInput.addEventListener('input', updateScratchTicketSummary);
-      nameInput.addEventListener('input', updateScratchTicketSummary);
-
-      row.appendChild(nameInput);
-      row.appendChild(countInput);
-      row.appendChild(fileLabel);
-      row.appendChild(removeBtn);
-      list.appendChild(row);
-      updateScratchTicketSummary();
-    }
-
-    function removeScratchPrizeRow(row) {
-      const list = document.getElementById('scratch-prize-list');
-      if (!list || !row) return;
-      row.remove();
-      if (!list.children.length) addScratchPrizeRow();
-      updateScratchTicketSummary();
-    }
-
-    function compressPrizeImage(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = reject;
-        reader.onload = () => {
-          const img = new Image();
-          img.onerror = reject;
-          img.onload = () => {
-            const maxSide = 600;
-            const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
-            const w = Math.max(1, Math.round(img.naturalWidth * scale));
-            const h = Math.max(1, Math.round(img.naturalHeight * scale));
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            resolve(canvas.toDataURL('image/webp', 0.78));
-          };
-          img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function parseScratchPrizes() {
-      const rows = [...document.querySelectorAll('#scratch-prize-list .scratch-prize-row')];
-      return rows.map(row => {
-        const name = row.querySelector('.prize-name-input')?.value.trim() || '';
-        const count = parseInt(row.querySelector('.prize-count-input')?.value, 10) || 0;
-        const image = row.dataset.image || '';
-        return { name, count, image };
-      }).filter(item => item.name && item.count > 0);
-    }
-
-    function buildScratchTickets(prizes, ticketCount) {
-      const tickets = {};
-      let n = 0;
-
-      prizes.forEach(({ name, count }, prizeIndex) => {
-        for (let i = 0; i < count; i++) {
-          const id = `t${Date.now().toString(36)}_${n}_${Math.random().toString(36).slice(2,7)}`;
-          tickets[id] = {
-            prize: name,
-            prizeIndex,
-            isWinner: true,
-            claimed: false,
-            claimedBy: '',
-            claimedAt: null
-          };
-          n++;
-        }
-      });
-
-      while (n < ticketCount) {
-        const id = `t${Date.now().toString(36)}_${n}_${Math.random().toString(36).slice(2,7)}`;
-        tickets[id] = {
-          prize: '沒中',
-          prizeIndex: null,
-          isWinner: false,
-          claimed: false,
-          claimedBy: '',
-          claimedAt: null
-        };
-        n++;
-      }
-
-      return Object.fromEntries(Object.entries(tickets).sort(() => Math.random() - 0.5));
-    }
-
-    function updateScratchTicketSummary() {
-      const countEl = document.getElementById('scratch-ticket-count');
-      const summaryEl = document.getElementById('scratch-ticket-summary');
-      if (!countEl || !summaryEl) return;
-
-      const total = Math.max(1, parseInt(countEl.value, 10) || 1);
-      const prizes = parseScratchPrizes();
-      const winning = prizes.reduce((sum, item) => sum + item.count, 0);
-      const noWin = Math.max(0, total - winning);
-
-      summaryEl.innerHTML =
-        `目前設定：<b>${total}</b> 張刮刮樂　｜　` +
-        `獎項 <b>${winning}</b> 張　｜　` +
-        `沒中 🐢 <b>${noWin}</b> 張` +
-        (winning > total ? `<br><span style="color:#dc2626;font-weight:bold;">⚠️ 獎項數量超過總張數，無法建立房間。</span>` : '');
-    }
-
-    function getPlayerPrize(player) {
-      if (!player) return null;
-      if (player.prize) {
-        return {
-          name: player.prize,
-          image: player.prizeImage || '',
-          isWinner: player.prize !== '沒中'
-        };
-      }
-      if (player.scratchTicketId && currentScratchTickets[player.scratchTicketId]) {
-        const ticket = currentScratchTickets[player.scratchTicketId];
-        const image = ticket.prizeIndex !== null && ticket.prizeIndex !== undefined
-          ? (currentScratchPrizes?.[ticket.prizeIndex]?.image || '')
-          : (ticket.image || '');
-        return {
-          name: ticket.prize || '沒中',
-          image,
-          isWinner: ticket.isWinner !== false && ticket.prize !== '沒中'
-        };
-      }
-      return null;
-    }
-
-    function formatPrizeDisplay(prize, compact = false) {
-      if (!prize) return '—';
-      if (!prize.isWinner || prize.name === '沒中') {
-        return `<span class="leaderboard-prize"><span style="font-size:${compact ? '18px' : '20px'};">🐢</span><span class="leaderboard-prize-name">沒中</span></span>`;
-      }
-      const img = prize.image
-        ? `<img src="${prize.image}" alt="">`
-        : `<span style="font-size:${compact ? '18px' : '20px'};">🎁</span>`;
-      return `<span class="leaderboard-prize">${img}<span class="leaderboard-prize-name">${escapeHtml(prize.name)}</span></span>`;
-    }
-
-    function escapeHtml(value) {
-      return String(value || '').replace(/[&<>"']/g, ch => ({
-        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
-      }[ch]));
-    }
-
-    async function finishGameAndIssueScratch() {
-      const roomRoot = ref(db, `rooms_v4/${roomId}`);
-      let awarded = null;
-      let nicknameAlreadyUsed = false;
-
-      try {
-        const result = await runTransaction(roomRoot, current => {
-          if (!current) return current;
-          current.usedNicknames = current.usedNicknames || {};
-          current.scratchTickets = current.scratchTickets || {};
-          const key = nicknameToKey(playerName);
-
-          if (current.usedNicknames[key]) {
-            nicknameAlreadyUsed = true;
-            return;
-          }
-
-          const available = Object.entries(current.scratchTickets).filter(([, t]) => t && !t.claimed);
-          if (available.length === 0) {
-            // 沒有獎券時仍完成遊戲，但不發刮刮樂
-            current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), noTicket: true };
-            if (current.players && current.players[playerId]) {
-              current.players[playerId].timeUsedMs = timeUsedMs;
-              current.players[playerId].status = 'ended';
-              current.players[playerId].scratchTicketId = null;
-            }
-            return current;
-          }
-
-          const [ticketId, ticket] = available[Math.floor(Math.random() * available.length)];
-          ticket.claimed = true;
-          ticket.claimedBy = playerName;
-          ticket.claimedAt = Date.now();
-          current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), ticketId };
-          if (current.players && current.players[playerId]) {
-            current.players[playerId].timeUsedMs = timeUsedMs;
-            current.players[playerId].status = 'ended';
-            current.players[playerId].scratchTicketId = ticketId;
-            current.players[playerId].prize = ticket.prize || '沒中';
-            current.players[playerId].prizeImage = ticket.prizeIndex !== null && ticket.prizeIndex !== undefined
-              ? (current.scratchPrizes?.[ticket.prizeIndex]?.image || '')
-              : '';
-            current.players[playerId].isWinner = ticket.isWinner !== false && ticket.prize !== '沒中';
-          }
-          return current;
-        });
-
-        if (!result.committed) {
-          alert('遊戲完成資料寫入失敗，請重新整理後確認排行榜。');
-          return;
-        }
-
-        const latest = (await get(roomRoot)).val();
-        const key = nicknameToKey(playerName);
-        const record = latest?.usedNicknames?.[key];
-        if (nicknameAlreadyUsed || !record) {
-          alert(`暱稱【${playerName}】已經使用過，不能重複領取刮刮樂。`);
-          return;
-        }
-
-        if (record.noTicket) {
-          document.getElementById('game-over-mask').classList.remove('hidden');
-          alert('🎉 恭喜完成挑戰！但本房間的刮刮樂已經發完了。');
-          return;
-        }
-
-        const awardedTicket = latest.scratchTickets?.[record.ticketId];
-        if (!awardedTicket) {
-          document.getElementById('game-over-mask').classList.remove('hidden');
-          return;
-        }
-
-        const awardedImage = awardedTicket.prizeIndex !== null && awardedTicket.prizeIndex !== undefined
-          ? (latest.scratchPrizes?.[awardedTicket.prizeIndex]?.image || '')
-          : (awardedTicket.image || '');
-
-        awarded = { ...awardedTicket, image: awardedImage };
-        showScratchModal(awarded);
-      } catch (err) {
-        console.error(err);
-        alert('刮刮樂派發時發生錯誤，請重新整理頁面確認。');
-      }
-    }
-
-    function showScratchModal(ticket) {
-      const prize = ticket || { prize: '沒中', image: '', isWinner: false };
-      document.getElementById('game-over-mask').classList.remove('hidden');
-
-      const nameEl = document.getElementById('scratch-prize-name');
-      const imgEl = document.getElementById('scratch-prize-image');
-      if (prize.image && prize.isWinner !== false && prize.prize !== '沒中') {
-        imgEl.src = prize.image;
-        imgEl.style.display = 'block';
-        imgEl.classList.remove('hidden');
-        nameEl.innerText = prize.prize || '獎項';
-      } else {
-        imgEl.removeAttribute('src');
-        imgEl.style.display = 'none';
-        imgEl.classList.add('hidden');
-        nameEl.innerText = '🐢 沒中';
-      }
-
-      document.getElementById('scratch-prize-text').innerText = prize.prize || '沒中';
-      document.getElementById('scratch-reveal-text').classList.add('hidden');
-      document.getElementById('scratch-modal').classList.remove('hidden');
-      setupScratchCanvas(prize);
-    }
-
-    function setupScratchCanvas(ticket) {
-      const canvas = document.getElementById('scratch-canvas');
-      const wrap = document.getElementById('scratch-card');
-      if (!canvas || !wrap) return;
-
-      const prize = ticket || { prize: '沒中', image: '', isWinner: false };
-      const rect = wrap.getBoundingClientRect();
-      const w = Math.max(280, Math.floor(rect.width));
-      const h = 190;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-
-      const ctx = canvas.getContext('2d');
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = '#a8a8a8';
-      ctx.fillRect(0,0,w,h);
-      ctx.fillStyle = '#666';
-      ctx.font = 'bold 24px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🎫 刮開看看！', w/2, h/2 + 8);
-
-      let scratching = false;
-      let revealed = false;
-
-      const reveal = () => {
-        if (revealed) return;
-        revealed = true;
-        ctx.clearRect(0,0,w,h);
-        const revealEl = document.getElementById('scratch-reveal-text');
-        revealEl.classList.remove('hidden');
-
-        const imgEl = document.getElementById('scratch-prize-image');
-        const nameEl = document.getElementById('scratch-prize-name');
-        if (!prize.isWinner || prize.prize === '沒中') {
-          imgEl.classList.add('hidden');
-          nameEl.innerText = '🐢 沒中';
-          revealEl.innerText = '🐢 沒刮中，下次再接再厲！';
-        } else {
-          if (prize.image) {
-            imgEl.src = prize.image;
-            imgEl.style.display = 'block';
-            imgEl.classList.remove('hidden');
-          }
-          nameEl.innerText = prize.prize || '恭喜獲獎';
-          revealEl.innerText = `🎉 恭喜！${prize.prize || '獲得獎項'}`;
-        }
-      };
-
-      const scratch = (e) => {
-        if (revealed) return;
-        const r = canvas.getBoundingClientRect();
-        const point = e.touches ? e.touches[0] : e;
-        const x = point.clientX - r.left;
-        const y = point.clientY - r.top;
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.beginPath();
-        ctx.arc(x,y,24,0,Math.PI*2);
-        ctx.fill();
-        if (isScratchEnough(ctx,w,h)) reveal();
-      };
-
-      canvas.onmousedown = e => { scratching=true; scratch(e); };
-      canvas.onmousemove = e => { if (scratching) scratch(e); };
-      canvas.onmouseup = () => scratching=false;
-      canvas.onmouseleave = () => scratching=false;
-      canvas.ontouchstart = e => { e.preventDefault(); scratching=true; scratch(e); };
-      canvas.ontouchmove = e => { e.preventDefault(); if (scratching) scratch(e); };
-      canvas.ontouchend = () => scratching=false;
-    }
-
-    function isScratchEnough(ctx,w,h) {
-      const img = ctx.getImageData(0,0,w,h).data;
-      let transparent = 0;
-      for (let i=3;i<img.length;i+=4) if (img[i] < 50) transparent++;
-      return transparent / (w*h) >= 0.35;
-    }
-
-    function revealScratch() {
-      const canvas = document.getElementById('scratch-canvas');
-      const name = document.getElementById('scratch-prize-text').innerText || '沒中';
-      const imgEl = document.getElementById('scratch-prize-image');
-      const ctx = canvas?.getContext('2d');
-      if (ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      const revealEl = document.getElementById('scratch-reveal-text');
-      revealEl.classList.remove('hidden');
-      if (name === '沒中') {
-        imgEl.style.display = 'none';
-        imgEl.classList.add('hidden');
-        document.getElementById('scratch-prize-name').innerText = '🐢 沒中';
-        revealEl.innerText = '🐢 沒刮中，下次再接再厲！';
-      } else {
-        document.getElementById('scratch-prize-name').innerText = name;
-        revealEl.innerText = `🎉 恭喜！${name}`;
-      }
-    }
-
-    function closeScratchModal() {
-      document.getElementById('scratch-modal').classList.add('hidden');
-    }
-
-    function renderLeaderboard(elementId, players) {
-      const lbEl = document.getElementById(elementId);
-      if (!lbEl) return;
-
-      const sorted = Object.entries(players)
-        .map(([id, p]) => ({ id, ...p }))
-        .sort((a, b) => {
-          if (a.status === 'ended' && b.status !== 'ended') return -1;
-          if (a.status !== 'ended' && b.status === 'ended') return 1;
-          return (a.timeUsedMs || Infinity) - (b.timeUsedMs || Infinity);
-        });
-
-      const header = `
-        <div class="leaderboard-header">
-          <span>玩家</span>
-          <span>完成時間</span>
-          <span style="text-align:right;">獎項</span>
-        </div>`;
-
-      const rows = sorted.map((p, idx) => {
-        let timeDisplay = '挑戰中...';
-        if (p.timeUsedMs) {
-          const secondsFormatted = (p.timeUsedMs / 1000).toFixed(3);
-          timeDisplay = `<span style="color:#059669;">⏱️ ${secondsFormatted}秒</span>`;
-        }
-
-        const prize = getPlayerPrize(p);
-        return `
-          <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
-            <span>#${idx + 1} ${escapeHtml(p.name)} ${p.id === playerId ? '(你)' : ''}</span>
-            <span>${timeDisplay} ${p.status === 'ended' ? '(已完成)' : ''}</span>
-            ${formatPrizeDisplay(prize, true)}
-          </div>
-        `;
-      }).join('');
-
-      lbEl.innerHTML = header + (rows || '<div style="color:#94a3b8; font-size:13px;">尚無玩家資料...</div>');
-    }
-
-    function initSecurity() {
-      document.addEventListener('contextmenu', (e) => e.preventDefault());
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) || (e.ctrlKey && e.key === 'u')) {
-          e.preventDefault();
-        }
-      });
-    }
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>四人麻將刮刮樂</title>
+<style>
+*{box-sizing:border-box;font-family:"Segoe UI","Microsoft JhengHei",sans-serif;user-select:none}
+body{margin:0;min-height:100vh;background:#0f5132;color:#fff;padding:14px}
+.container{max-width:1100px;margin:auto}
+.card{background:rgba(255,255,255,.96);color:#172033;border-radius:16px;padding:18px;box-shadow:0 10px 30px #0004;margin-bottom:14px}
+h1,h2{margin:0 0 12px}
+button,input{font:inherit}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}
+.primary{background:#2563eb;color:#fff}.success{background:#059669;color:#fff}.danger{background:#dc2626;color:#fff}.gray{background:#64748b;color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.field{margin:8px 0}.field label{display:block;font-weight:700;margin-bottom:5px}.input{width:100%;padding:10px;border:2px solid #cbd5e1;border-radius:8px}
+#setup{max-width:620px;margin:8vh auto}.room{font-size:30px;font-weight:800;color:#2563eb;letter-spacing:3px}
+.hidden{display:none!important}
+.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px}.player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800}.player .state{font-size:12px;margin-top:5px}
+.table{background:#166534;border-radius:18px;padding:14px;position:relative;min-height:420px}
+.center{background:#14532d;border:2px solid #22c55e;border-radius:14px;min-height:110px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.center .big{font-size:34px;font-weight:900}.center .small{font-size:13px}
+.hand-title{margin:12px 0 5px;font-weight:800}.hand{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.tile{width:42px;height:54px;border-radius:6px;background:#fff;color:#111827;border:1px solid #cbd5e1;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;box-shadow:0 2px 3px #0004;cursor:pointer}
+.tile:hover{transform:translateY(-3px)}.tile.selected{background:#fde68a;border:3px solid #f59e0b}
+.back{background:#0f766e;color:#d1fae5}.smalltile{width:28px;height:36px;font-size:17px;cursor:default}
+.actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.discard{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-height:100px;overflow:auto;margin-top:8px}
+.log{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;max-height:150px;overflow:auto;font-size:13px}
+.scratch{max-width:420px;text-align:center;margin:7vh auto}.ticket{width:210px;height:125px;margin:14px auto;border-radius:14px;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:46px;cursor:pointer;border:5px dashed #fff}.ticket.revealed{background:#fff;color:#111;border:3px solid #f59e0b}.ticket img{max-width:180px;max-height:105px;object-fit:contain}.prize-row{display:grid;grid-template-columns:1fr 80px 100px 45px;gap:6px;align-items:center;margin:6px 0}.preview{width:42px;height:42px;object-fit:contain;border:1px solid #ddd;border-radius:5px}.lb table{width:100%;border-collapse:collapse}.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
+@media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:49px;font-size:22px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
+</style>
 </head>
 <body>
-
-<div id="pwd-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom:12px; color:#1e293b;">管理者身分驗證</h3>
-    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
-    <button class="btn-primary" onclick="checkPassword()">確認驗證</button>
-    <button class="btn-primary btn-admin" style="margin-top:8px;" onclick="closeModal('pwd-modal')">取消</button>
+<div id="setup" class="card">
+<h1>🀄 四人麻將刮刮樂</h1>
+<p>四人同桌競賽，胡牌者取得一次刮刮樂。</p>
+<div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
+<div class="field"><label>房號（加入既有房間時）</label><input id="joinRoom" class="input" placeholder="六位數房號"></div>
+<div class="row">
+<button class="primary" onclick="join()">加入房間</button>
+<button class="success" onclick="admin()">管理員建立房間</button>
+</div>
+<div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
+<div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
+<div class="field"><label>刮刮樂總張數</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
+<div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
+<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">建立四人麻將房</button>
+</div>
+<div id="roomInfo" class="hidden" style="margin-top:12px">
+  房號：<span id="roomNo" class="room"></span><br>
+  <small>管理員只負責建立房間，不佔 4 名玩家名額。</small>
+  <div class="field">
+    <label>📎 玩家加入連結</label>
+    <input id="joinLink" class="input" readonly>
+  </div>
+  <div class="row">
+    <button class="primary" onclick="copyLink()">複製加入連結</button>
+    <button class="gray" onclick="copyRoom()">複製房號</button>
   </div>
 </div>
-
-<div id="join-modal" class="modal-overlay hidden">
-  <div class="modal">
-    <h3 style="margin-bottom:16px; color:#1e293b;">進入挑戰房間</h3>
-    <input type="text" id="input-room-id" class="input-box" placeholder="輸入 6 位數房號" maxlength="6">
-    <input type="text" id="input-player-name" class="input-box" placeholder="輸入你的暱稱" maxlength="10">
-    <button class="btn-primary" onclick="joinRoomGame()">開始個人挑戰</button>
-  </div>
 </div>
 
-<div id="main-setup-view" class="container">
-  <button class="btn-lobby" onclick="goToLobby()">🏠 回到遊戲大廳</button>
-
-  <h1>📜 唐詩對對碰 </h1>
-
-  <div id="setting-fields" class="disabled-area">
-    <div class="menu-group">
-      <label>詩詞類型：</label>
-      <div class="btn-group" id="category-options">
-        <button class="btn-option active" data-val="all">不限</button>
-        <button class="btn-option" data-val="5">五言絕句</button>
-        <button class="btn-option" data-val="7">七言絕句</button>
-      </div>
-    </div>
-
-    <div class="menu-group">
-      <label>卡牌顯示模式：</label>
-      <div class="btn-group" id="cover-options">
-        <button class="btn-option active" data-val="covered">蓋牌</button>
-        <button class="btn-option" data-val="open">不蓋牌（反向蓋牌）</button>
-      </div>
-    </div>
-
-    <div class="menu-group">
-      <label>盤面卡牌總數：</label>
-      <div class="btn-group" id="grid-options">
-        <button class="btn-option active" data-val="24">24格</button>
-        <button class="btn-option" data-val="30">30格</button>
-        <button class="btn-option" data-val="36">36格</button>
-        <button class="btn-option" data-val="40">40格</button>
-        <button class="btn-option" data-val="48">48格</button>
-        <button class="btn-option" data-val="60">60格</button>
-      </div>
-    </div>
-
-    <div class="menu-group">
-      <label>設定結束時間 (選填)：</label>
-      <input type="datetime-local" id="admin-endtime-input" class="input-box">
-    </div>
-
-    <div class="menu-group">
-      <label>🎫 刮刮樂功能：</label>
-      <div class="btn-group" id="scratch-options">
-        <button class="btn-option active" data-val="no">關閉</button>
-        <button class="btn-option" data-val="yes">開啟</button>
-      </div>
-      <div id="scratch-settings-box" style="margin-top:10px;">
-        <label style="font-size:13px;">🎫 刮刮樂總張數：</label>
-        <input type="number" id="scratch-ticket-count" class="input-box" min="1" max="5000" value="30" placeholder="例如：100">
-        <div id="scratch-ticket-summary" class="scratch-total-info"></div>
-
-        <label style="font-size:13px;margin-top:10px;">🖼️ 獎項設定（檔案圖片模式）</label>
-        <div style="font-size:12px;color:#64748b;margin:5px 0 8px;">
-          每個獎項可設定「名稱、數量、圖片」。圖片會在建立房間時一起保存並可供玩家刮開後預覽。
-          若獎項數量未填滿總張數，剩餘張數自動設定為 🐢 沒中。
-        </div>
-
-        <div class="scratch-prize-row" style="background:#f8fafc;border-color:#e2e8f0;font-size:11px;color:#64748b;font-weight:bold;padding:6px 8px;">
-          <span>獎項名稱</span><span>數量</span><span>獎項圖片</span><span></span>
-        </div>
-        <div id="scratch-prize-list"></div>
-
-        <button type="button" class="btn-primary" style="margin-top:4px;background:#f59e0b;" onclick="addScratchPrizeRow()">＋ 新增獎項</button>
-        <div style="font-size:12px;color:#64748b;margin-top:7px;">
-          🐢「沒中」不需要另外設定，系統會自動補足到你設定的刮刮樂總張數。
-        </div>
-      </div>
-    </div>
-
-    <div class="menu-group">
-      <label>房間備註說明 (選填)：</label>
-      <input type="text" id="admin-note-input" class="input-box" placeholder="例：三年一班唐詩對句大賽" maxlength="30">
-    </div>
-  </div>
-
-  <button id="admin-unlock-btn" class="btn-primary btn-admin" onclick="openAdminModal()">🔑 解鎖管理者設定</button>
-  <button id="create-room-btn" class="btn-primary hidden" onclick="createRoom()">建立房間</button>
-  <button id="sim-join-btn" class="btn-primary btn-start hidden" style="margin-top:10px;" onclick="openJoinModalNewTab()">🎮 房號加入 </button>
-
-  <div id="admin-action-area" class="hidden">
-    <div class="room-display-box">
-      <div style="font-size:13px; color:#64748b; font-weight:bold;">當前房間號碼</div>
-      <div class="room-number" id="room-num-display">------</div>
-    </div>
-
-    <button class="btn-primary btn-copy" onclick="copyRoomLink(this)">📋 複製房號與連結</button>
-    <button class="btn-primary btn-copy" onclick="copyScores(this)">🏆 複製總排行榜成績</button>
-
-    <div class="leaderboard">
-      <div class="leaderboard-title">📊 排行榜 (即時更新)</div>
-      <div id="admin-leaderboard-list"></div>
-    </div>
-  </div>
+<div id="game" class="container hidden">
+<div class="card">
+<div class="row" style="justify-content:space-between"><h2>🀄 四人麻將</h2><div>房號：<b id="gameRoom"></b></div></div>
+<div id="players" class="players"></div><div id="seatStatus" style="text-align:center;font-weight:800;margin:8px 0;color:#334155"></div>
+<div class="table">
+<div class="center"><div class="big" id="turnText">等待四人...</div><div class="small" id="roundText">等待玩家加入</div></div>
+<div class="hand-title">你的手牌</div><div id="myHand" class="hand"></div>
+<div class="actions" id="actions"></div>
+<div class="hand-title">牌池 / 出牌</div><div id="discards" class="discard"></div>
+</div>
+</div>
+<div class="card"><h3>遊戲紀錄</h3><div id="log" class="log"></div></div>
+<div class="card lb"><h3>🏆 刮刮樂排行榜</h3><div id="leaderboard"></div></div>
 </div>
 
-<div id="player-game-view" class="container hidden">
-
-  <div class="status-bar">
-    <div id="room-tag-display" style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">個人挑戰中</div>
-    <div>已用時間: <span id="time-display">0.0s</span></div>
-  </div>
-
-  <div class="grid-container">
-    <div class="grid" id="grid"></div>
-    <div id="game-over-mask" class="game-over-overlay hidden">
-      <div>🎉 恭喜完成挑戰！</div>
-      <div id="final-time-text" style="font-size:16px; margin-top:8px; color:#fde047;">完成總耗時：-- 秒</div>
-      <div style="font-size:14px; margin-top:8px; font-weight:normal;">請查看下方總排行榜了解名次</div>
-    </div>
-  </div>
-
-  <div class="leaderboard">
-    <div class="leaderboard-title">🏆 排行榜</div>
-    <div id="player-leaderboard-list"></div>
-  </div>
+<div id="scratch" class="card scratch hidden">
+<h2>🎉 恭喜胡牌！</h2><p>你獲得一次刮刮樂。</p>
+<div id="ticket" class="ticket" onclick="revealScratch()">刮開</div>
+<div id="scratchResult"></div>
+<button class="primary" onclick="closeScratch()">回到麻將</button>
 </div>
 
-<div id="scratch-modal" class="modal-overlay hidden">
-  <div class="modal" style="max-width:430px; text-align:center;">
-    <h3 style="margin-bottom:8px;color:#1e293b;">🎫 恭喜獲得刮刮樂！</h3>
-    <div id="scratch-card" style="position:relative;width:100%;max-width:360px;height:190px;margin:10px auto;border-radius:14px;overflow:hidden;background:#fff7ed;border:3px solid #f59e0b;box-shadow:0 8px 20px rgba(0,0,0,.12);">
-      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#b45309;padding:10px;">
-        <img id="scratch-prize-image" class="scratch-result-image" alt="獎項圖片">
-        <span id="scratch-prize-name">獎項</span>
-        <span id="scratch-prize-text" class="hidden"></span>
-      </div>
-      <canvas id="scratch-canvas" style="position:absolute;left:0;top:0;touch-action:none;cursor:crosshair;"></canvas>
-    </div>
-    <div id="scratch-reveal-text" class="hidden" style="font-size:22px;font-weight:bold;color:#dc2626;margin:12px 0;"></div>
-    <button class="btn-primary btn-admin" style="margin-top:8px;" onclick="closeScratchModal()">關閉</button>
-  </div>
-</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {getDatabase,ref,set,onValue,get,update,runTransaction} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
+const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
+async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
+let roomId=null,playerId=localStorage.getItem("mahjong4PlayerId")||("p_"+Math.random().toString(36).slice(2,9)),playerName="",roomData=null,myIndex=-1,selected=-1,myTicketId=null; localStorage.setItem("mahjong4PlayerId",playerId);
+const suits=["萬","筒","條"], emojis=["🀇","🀈","🀉","🀊","🀋","🀌","🀍","🀎","🀏"];
+const winds=["東","南","西","北"], dragons=["中","發","白"];
+function tileName(id){if(id<27){let s=Math.floor(id/9),n=id%9+1;return n+suits[s]}if(id<31)return winds[id-27];return dragons[id-31]}
+function makeDeck(){let d=[];for(let i=0;i<34;i++)for(let j=0;j<4;j++)d.push(i);return d.sort(()=>Math.random()-.5)}
+function el(id){return document.getElementById(id)}
+window.admin=()=>{el("adminBox").classList.toggle("hidden");if(!el("prizes").children.length)addPrize()};
+window.addPrize=(d={name:"獎項",count:1,image:""})=>{
+ const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
+ row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
+ row.querySelector("input[type=file]").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{row.dataset.image=r.result;row.querySelector("img").src=r.result};r.readAsDataURL(f)};
+ row.querySelector("button").onclick=()=>row.remove();el("prizes").appendChild(row)
+};
+function parsePrizes(){return [...document.querySelectorAll(".prize-row")].map(r=>({name:r.querySelector(".pn").value.trim(),count:+r.querySelector(".pc").value||0,image:r.dataset.image||""})).filter(x=>x.name&&x.count>0)}
+function buildTickets(prizes,n){let a=[];prizes.forEach((p,i)=>{for(let j=0;j<p.count;j++)a.push({prize:p.name,prizeIndex:i,isWinner:true})});while(a.length<n)a.push({prize:"沒中",prizeIndex:null,isWinner:false});return a.slice(0,n).sort(()=>Math.random()-.5).map((x,i)=>({id:"t"+i+"_"+Math.random().toString(36).slice(2,7),...x,claimed:false}))}
+window.createRoom=async()=>{
+ try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message)+"\n請到 Firebase Console → Authentication → Sign-in method 開啟「匿名 Anonymous」。");}
+ if(el("pwd").value!=="17696969")return alert("管理員密碼錯誤");
+ let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
+ roomId=String(Math.floor(100000+Math.random()*900000));let tickets=buildTickets(pr,n);
+ await set(ref(db,"rooms_v4/"+roomId),{type:"mahjong4",status:"waiting",players:{},turn:0,wall:[],hands:{},melds:{},discards:[],round:0,scratchPrizes:pr,scratchTickets:tickets,logs:["房間建立，等待四名玩家加入。"]});
+ el("roomInfo").classList.remove("hidden");el("roomNo").textContent=roomId;el("joinLink").value=makeJoinLink(roomId);await subscribe();alert("房間建立完成！\n房號："+roomId+"\n請把「玩家加入連結」傳給其他 4 位玩家。")
+};
+function makeJoinLink(room){
+ const u=new URL(location.href);
+ u.search="";
+ u.hash="";
+ u.searchParams.set("room",room);
+ return u.toString();
+}
+async function copyText(text){
+ try{
+   if(navigator.clipboard && window.isSecureContext){
+     await navigator.clipboard.writeText(text);
+   }else{
+     const ta=document.createElement("textarea");
+     ta.value=text;document.body.appendChild(ta);ta.select();
+     document.execCommand("copy");ta.remove();
+   }
+   return true;
+ }catch(e){return false}
+}
+window.copyLink=async()=>{
+ const ok=await copyText(makeJoinLink(roomId));
+ alert(ok?"玩家加入連結已複製！\n直接貼給其他玩家即可。":"無法自動複製，請手動複製畫面上的加入連結。");
+};
+window.copyRoom=async()=>{
+ const ok=await copyText(roomId);
+ alert(ok?"房號已複製！":"請手動複製房號："+roomId);
+};
+window.join=async()=>{
+ try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message)+"\n請到 Firebase Console → Authentication → Sign-in method 開啟「匿名 Anonymous」。");}
+ playerName=el("name").value.trim();
+ roomId=el("joinRoom").value.trim()||new URLSearchParams(location.search).get("room");
+ if(!playerName||!roomId)return alert("請輸入暱稱與房號");
 
-<div id="expired-view" class="expired-card hidden">
-  <div class="expired-icon">⌛</div>
-  <div class="expired-title">本次活動已結束</div>
-  <div class="expired-desc">感謝您的關注！本房間的挑戰時間已過，目前已不再開放進入。</div>
-  <br>
-  <button class="btn-lobby" style="margin-bottom:0;" onclick="goToLobby()">🏠 回到遊戲大廳</button>
-</div>
+ const roomRef=ref(db,"rooms_v4/"+roomId);
+ const s=await get(roomRef);
+ if(!s.exists())return alert("找不到房間");
+ const d=s.val();
+ if(d.status==="ended")return alert("這個房間的遊戲已結束，請建立新房間。");
 
+ const players=d.players||{};
+ if(players[playerId]){
+   await subscribe();
+   return;
+ }
+ if(d.status!=="waiting")return alert("遊戲已開始，現在無法加入。");
+
+ const used=Object.values(players).map(p=>Number(p.index));
+ const freeIndex=[0,1,2,3].find(i=>!used.includes(i));
+ if(freeIndex===undefined)return alert("房間已滿四人，請使用其他房間。");
+
+ const tx=await runTransaction(roomRef,current=>{
+   if(!current || current.status!=="waiting")return;
+   const now=current.players||{};
+   if(Object.keys(now).length>=4)return;
+   const usedNow=Object.values(now).map(p=>Number(p.index));
+   const idx=[0,1,2,3].find(i=>!usedNow.includes(i));
+   if(idx===undefined)return;
+   return {...current,players:{
+     ...now,
+     [playerId]:{name:playerName,index:idx,status:"waiting",wins:0,ticketCount:0}
+   }};
+ });
+ if(!tx.committed)return alert("加入失敗：房間可能已滿、遊戲已開始，或 Firebase 資料庫規則拒絕寫入。\n請重新整理後再試。");
+ await subscribe();
+};
+
+async function subscribe(){
+ onValue(ref(db,"rooms_v4/"+roomId),async s=>{
+  roomData=s.val();
+  if(!roomData)return;
+  render();
+
+  const count=Object.keys(roomData.players||{}).length;
+  // 管理員建立房間不算玩家；一定要 4 位玩家才會開始。
+  if(roomData.status==="waiting" && count===4) await tryStartGame();
+ });
+}
+
+async function tryStartGame(){
+ const roomRef=ref(db,"rooms_v4/"+roomId);
+
+ // 只允許一台裝置取得「發牌權」，避免四台同時發不同的牌。
+ const tx=await runTransaction(roomRef,current=>{
+   if(!current)return;
+   const count=Object.keys(current.players||{}).length;
+   if(current.status!=="waiting" || count!==4)return;
+   return {...current,status:"starting"};
+ });
+ if(!tx.committed)return;
+
+ const current=tx.snapshot.val();
+ const deck=makeDeck();
+ const hands={};
+ const players=Object.entries(current.players||{})
+   .sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+
+ // 1 號玩家為莊家，14 張；其他玩家各 13 張。
+ players.forEach(([id],i)=>{
+   hands[id]=deck.splice(0,i===0?14:13);
+ });
+
+ await update(roomRef,{
+   status:"playing",
+   wall:deck,
+   turn:0,
+   hands:hands,
+   round:1,
+   melds:{},
+   discards:[],
+   logs:[...(current.logs||[]),"四位玩家已到齊，發牌完成，遊戲開始！"]
+ });
+}
+
+function render(){
+ el("setup").classList.add("hidden");
+ el("game").classList.remove("hidden");
+ el("gameRoom").textContent=roomId;
+
+ const ps=Object.entries(roomData.players||{})
+   .sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+ myIndex=ps.findIndex(x=>x[0]===playerId);
+
+ const seat={};
+ ps.forEach(([id,p])=>seat[p.index]={id,p});
+
+ // 固定顯示 4 個座位，不會再出現「只有 3 格」的情況。
+ el("players").innerHTML=[0,1,2,3].map(i=>{
+   const item=seat[i];
+   if(!item){
+     return '<div class="player"><div class="name">'+(i+1)+'. 等待玩家</div><div class="state">尚未加入</div></div>';
+   }
+   const [id,p]=item;
+   const state=
+     p.status==="win" ? "🏆 胡牌" :
+     roomData.status==="playing" && p.index===roomData.turn ? "🀄 出牌中" :
+     "已加入";
+   return '<div class="player '+(id===playerId?"me ":"")+
+     (p.index===roomData.turn&&roomData.status==="playing"?"turn":"")+
+     '"><div class="name">'+(p.index+1)+". "+esc(p.name)+
+     '</div><div class="state">'+state+"　刮刮樂："+(p.ticketCount||0)+
+     '</div></div>';
+ }).join("");
+
+ const count=ps.length;
+ el("seatStatus").textContent=
+   roomData.status==="playing" ? "🀄 四人已滿，遊戲進行中" :
+   roomData.status==="starting" ? "🎴 正在發牌…" :
+   "目前 "+count+" / 4 人，"+(count===4?"準備開始":"等待其他玩家加入");
+
+ const turn=ps.find(x=>x[1].index===roomData.turn);
+ el("turnText").textContent=
+   roomData.status==="starting" ? "正在發牌…" :
+   roomData.status==="playing"&&turn ? "輪到："+turn[1].name :
+   "等待四人...";
+
+ el("roundText").textContent=
+   roomData.status==="playing"
+   ? "第 "+(roomData.round||1)+" 局　牌牆剩餘 "+(roomData.wall||[]).length+" 張"
+   : "四人到齊後才會開始發牌";
+
+ renderHand();
+ renderDiscards();
+ renderLog();
+ renderLB();
+}
+
+function renderHand(){
+ const h=[...((roomData.hands||{})[playerId]||[])].sort((a,b)=>a-b);
+ const isTurn=
+   roomData.status==="playing" &&
+   roomData.players?.[playerId]?.index===roomData.turn;
+
+ el("myHand").innerHTML=h.length
+   ? h.map((t,i)=>'<div class="tile '+(selected===i?"selected":"")+
+       '" onclick="pick('+i+')">'+tileName(t)+'</div>').join("")
+   : '<span style="color:#fff;font-weight:800">等待四人到齊並發牌…</span>';
+
+ let a="";
+ if(isTurn){
+   if(h.length===14 && canHu(h))
+     a+='<button class="success" onclick="hu()">🀄 胡牌</button>';
+   if(h.length===14)
+     a+='<button class="danger" onclick="discard()">出牌</button>';
+ }else if(roomData.status==="playing"){
+   a='<span>等待你的回合…</span>';
+ }else{
+   a='<span>等待四人到齊…</span>';
+ }
+ el("actions").innerHTML=a;
+}
+
+window.pick=i=>{
+ if(roomData.status!=="playing")return;
+ if(roomData.players?.[playerId]?.index!==roomData.turn)return;
+ selected=selected===i?-1:i;
+ renderHand();
+};
+
+window.discard=async()=>{
+ if(selected<0)return alert("請先選一張牌");
+
+ const raw=[...(roomData.hands[playerId]||[])];
+ if(raw.length!==14)return;
+
+ const sorted=[...raw].sort((a,b)=>a-b);
+ const tile=sorted[selected];
+ const removeIndex=raw.indexOf(tile);
+ if(removeIndex<0)return;
+
+ raw.splice(removeIndex,1);
+ selected=-1;
+
+ const ps=Object.entries(roomData.players)
+   .sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+ const next=(Number(roomData.turn)+1)%4;
+ let wall=[...(roomData.wall||[])];
+
+ const nextHands={...roomData.hands,[playerId]:raw};
+ const logs=[...(roomData.logs||[]),
+   roomData.players[playerId].name+" 打出 "+tileName(tile)];
+
+ if(wall.length){
+   const nextId=ps.find(x=>Number(x[1].index)===next)?.[0];
+   if(nextId)nextHands[nextId]=[...(nextHands[nextId]||[]),wall.shift()];
+ }
+
+ await update(ref(db,"rooms_v4/"+roomId),{
+   hands:nextHands,
+   wall:wall,
+   discards:[...(roomData.discards||[]),tile],
+   turn:next,
+   logs:logs.slice(-80)
+ });
+};
+
+window.hu=async()=>{let p=roomData.players[playerId],tickets=roomData.scratchTickets||[];let idx=tickets.findIndex(t=>!t.claimed);if(idx<0)return alert("刮刮樂已發完");tickets[idx].claimed=true;tickets[idx].claimedBy=playerId;
+ await update(ref(db,"rooms_v4/"+roomId),{status:"ended",["scratchTickets/"+idx]:tickets[idx],["players/"+playerId+"/status"]:"win",["players/"+playerId+"/wins"]:(p.wins||0)+1,["players/"+playerId+"/ticketCount"]:(p.ticketCount||0)+1,["players/"+playerId+"/ticketId"]:tickets[idx].id,["players/"+playerId+"/prize"]:tickets[idx].prize,["players/"+playerId+"/prizeIndex"]:tickets[idx].prizeIndex,logs:[...(roomData.logs||[]),p.name+" 🏆 胡牌，取得一次刮刮樂！"]});
+ myTicketId=tickets[idx].id;openScratch(tickets[idx])
+}
+function openScratch(t){el("game").classList.add("hidden");el("scratch").classList.remove("hidden");el("ticket").className="ticket";el("ticket").textContent="刮開";el("scratchResult").innerHTML="";myTicketId=t.id}
+window.revealScratch=()=>{
+ let t=(roomData.scratchTickets||[]).find(x=>x.id===myTicketId);if(!t)return;
+ let pr=t.prizeIndex!=null?roomData.scratchPrizes?.[t.prizeIndex]:null;
+ el("ticket").classList.add("revealed");el("ticket").innerHTML=t.isWinner?(pr?.image?'<img src="'+pr.image+'">':"🎁"):"🐢";
+ el("scratchResult").innerHTML="<h2>"+(t.isWinner?"🎉 恭喜中獎！":"🐢 沒中，再接再厲！")+"</h2><b>"+esc(t.prize)+"</b>"
+}
+window.closeScratch=()=>{el("scratch").classList.add("hidden");el("game").classList.remove("hidden")}
+function renderDiscards(){el("discards").innerHTML=(roomData.discards||[]).map(t=>'<div class="tile smalltile">'+tileName(t)+'</div>').join("")}
+function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
+function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>胡牌</th><th>刮刮樂</th><th>獎項</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td><td>"+esc(p.prize||"—")+"</td></tr>").join("")+"</table>"}
+function canHu(h){if(h.length!==14)return false;let a=[...h].sort((x,y)=>x-y);for(let i=0;i<a.length-1;i++){if(a[i]===a[i+1]){let r=a.slice(0,i).concat(a.slice(i+2));if(meldable(r))return true}}return false}
+function meldable(a){if(!a.length)return true;let x=a[0];let same=a.filter(v=>v===x).length;if(same>=3&&meldable(removeN(a,x,3)))return true;if(x<27&&x%9<=6&&a.includes(x+1)&&a.includes(x+2)){let r=removeOne(removeOne(removeOne(a,x),x+1),x+2);if(meldable(r))return true}return false}
+function removeOne(a,x){let i=a.indexOf(x);return i<0?a:a.slice(0,i).concat(a.slice(i+1))}
+function removeN(a,x,n){let r=[...a];for(let i=0;i<n;i++)r.splice(r.indexOf(x),1);return r}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+window.addEventListener("load",()=>{let r=new URLSearchParams(location.search).get("room");if(r){el("joinRoom").value=r}});
+</script>
 </body>
 </html>
