@@ -156,11 +156,11 @@ window.createRoom=async()=>{
  alert("房間建立完成！\n請按「複製連結」傳給其他玩家。\n管理員留在此頁，不會自動跳到賽局。");
 };
 function makeJoinLink(room){
- const u=new URL(window.location.href);
- u.search="";
- u.hash="";
- u.searchParams.set("room",String(room));
- return u.href;
+ const base=new URL(window.location.href);
+ base.search="";
+ base.hash="";
+ base.searchParams.set("room",String(room));
+ return base.href;
 }
 async function copyText(text){
  try{
@@ -442,14 +442,18 @@ function updateAdminToolbar(){
 }
 
 async function copyJoinLink(){
-  const text=makeJoinLink(roomId);
+ const u=new URL(window.location.href);
+ u.search="";
+ u.hash="";
+ u.searchParams.set("room",String(roomId));
+ const text=u.href;
 
-  try{
-    await navigator.clipboard.writeText(text);
-    alert("已複製玩家加入連結！\n\n請把這個連結傳給其他 3 位玩家。");
-  }catch(e){
-    prompt("請複製以下玩家加入連結：",text);
-  }
+ try{
+   await navigator.clipboard.writeText(text);
+   alert("已複製玩家加入連結！\n\n"+text);
+ }catch(e){
+   prompt("請複製以下玩家加入連結：",text);
+ }
 }
 
 async function copyRoomNumber(){
