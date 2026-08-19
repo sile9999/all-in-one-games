@@ -305,6 +305,7 @@ window.join=async()=>{
 
 async function watchRoomData(){
  if(!roomId)return;
+ if(el("gameRoom")) el("gameRoom").textContent=roomId;
  setDebugStatus("正在連線房間…","");
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
@@ -356,7 +357,17 @@ async function watchRoomData(){
 
 async function subscribe(){
  viewMode="player";
+
+ // 玩家加入成功後，立即從邀請頁切換到麻將桌。
+ // v14 的問題是 Firebase 已經加入成功，但畫面仍停留在 setup。
+ el("setup")?.classList.add("hidden");
+ el("game")?.classList.remove("hidden");
+ el("adminGameBar")?.classList.add("hidden");
+ el("adminGameToolbar")?.classList.add("hidden");
+ if(el("gameRoom")) el("gameRoom").textContent=roomId;
+
  await watchRoomData();
+ if(roomData) render();
 }
 
 window.watchGame=async()=>{
@@ -638,7 +649,7 @@ window.addEventListener("load",()=>{
    if(el("joinStatus"))el("joinStatus").textContent="已載入邀請房號："+r+"，請輸入暱稱後按「加入房間」。";
    el("adminBtn")?.classList.add("hidden");
    el("adminBox")?.classList.add("hidden");
-   if(el("setupDesc"))el("setupDesc").textContent="你收到了一個麻將房間邀請，輸入暱稱即可加入。";
+   if(el("setupDesc"))el("setupDesc").textContent="你收到了一個麻將房間邀請，輸入暱稱後按「加入房間」即可進入牌桌。";
  }
 });
 </script>
