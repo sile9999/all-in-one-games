@@ -645,32 +645,43 @@
         currentScratchTickets = data.scratchTickets || {};
         currentScratchPrizes = data.scratchPrizes || [];
 
-        // 根據類型進行題庫過濾
-        let filteredPool = poemPool;
+        // 根據類型篩選「完整配對」
+        // 不能先逐句篩選，否則某些上下句字數不同的詩句會只剩 1 張，
+        // 造成例如設定 24 格卻實際只產生 23 格的問題。
+        const pairMap = new Map();
+        poemPool.forEach(item => {
+          if (!pairMap.has(item.pairId)) pairMap.set(item.pairId, []);
+          pairMap.get(item.pairId).push(item);
+        });
+
+        let validPairs = [...pairMap.values()].filter(pair => pair.length === 2);
+
         if (roomSettings.poemCategory === '5') {
-          filteredPool = poemPool.filter(item => item.text.length === 5);
+          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 5));
         } else if (roomSettings.poemCategory === '7') {
-          filteredPool = poemPool.filter(item => item.text.length === 7);
+          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 7));
         }
 
         const pairCount = totalTiles / 2;
-        
-        // 1. 取得所有不重複的詩句配對 ID
-        const uniquePairIds = [...new Set(filteredPool.map(item => item.pairId))];
-        
-        if (uniquePairIds.length < pairCount) {
-          return alert(`目前選取的分類題庫量不足（僅有 ${uniquePairIds.length} 組），請減少卡牌數量或選擇不限分類！`);
+
+        if (validPairs.length < pairCount) {
+          return alert(`目前選取的分類題庫量不足（完整配對僅有 ${validPairs.length} 組），請減少卡牌數量或選擇不限分類！`);
         }
 
-        // 2. 隨機打亂並選出 pairCount 個 ID
-        const selectedPairIds = uniquePairIds.sort(() => Math.random() - 0.5).slice(0, pairCount);
+        // 隨機選出指定數量的「完整上下句配對」
+        validPairs.sort(() => Math.random() - 0.5);
+        const selectedPairs = validPairs.slice(0, pairCount);
 
-        // 3. 取出選定 ID 的完整上下句
-        let selectedPoemCards = filteredPool.filter(item => selectedPairIds.includes(item.pairId));
-        // 4. 洗牌
+        // 展開成卡牌並洗牌；因此一定會是 pairCount × 2 張
+        let selectedPoemCards = selectedPairs.flat();
         selectedPoemCards.sort(() => Math.random() - 0.5);
 
         gridTiles = selectedPoemCards;
+
+        // 防呆：若題庫資料異常導致卡牌數量不符，禁止開始不完整盤面
+        if (gridTiles.length !== totalTiles) {
+          return alert(`題庫產生卡牌數量異常（設定 ${totalTiles} 格，實際 ${gridTiles.length} 格），請重新建立房間或聯絡管理員。`);
+        }
         matchedTiles = [];
         timeUsedMs = null;
         selectedIndices = [];
