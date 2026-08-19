@@ -39,9 +39,10 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 <div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
 <div class="field"><label>房號（加入既有房間時）</label><input id="joinRoom" class="input" placeholder="六位數房號"></div>
 <div class="row">
-<button class="primary" onclick="join()">加入房間</button>
+<button id="joinBtn" type="button" class="primary">加入房間</button>
 <button id="adminBtn" class="success" onclick="admin()">管理員建立房間</button>
 </div>
+<div id="joinStatus" style="margin-top:8px;font-size:13px;color:#475569"></div>
 <div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
 <div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
 <div class="field"><label>刮刮樂總張數</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
@@ -117,7 +118,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {getDatabase,ref,set,onValue,get,update,runTransaction} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
-const PUBLIC_BASE_URL="https://sile9999.github.io/";
+const PUBLIC_BASE_URL=null;
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 let roomId=null,playerId=sessionStorage.getItem("mahjong4PlayerId")||("p_"+crypto.randomUUID()),playerName="",roomData=null,myIndex=-1,selected=-1,myTicketId=null,viewMode="player",startCallBusy=false,isAdmin=false; sessionStorage.setItem("mahjong4PlayerId",playerId); localStorage.setItem("mahjong4PlayerId",playerId);
@@ -155,8 +156,11 @@ window.createRoom=async()=>{
  alert("房間建立完成！\n請按「複製連結」傳給其他玩家。\n管理員留在此頁，不會自動跳到賽局。");
 };
 function makeJoinLink(room){
- const base=PUBLIC_BASE_URL.replace(/\/$/,'');
- return base+'/?room='+encodeURIComponent(room);
+ const u=new URL(window.location.href);
+ u.search="";
+ u.hash="";
+ u.searchParams.set("room",String(room));
+ return u.href;
 }
 async function copyText(text){
  try{
@@ -170,6 +174,7 @@ async function copyText(text){
    return true;
  }catch(e){return false}
 }
+el("joinBtn")?.addEventListener("click",()=>window.join());
 window.copyLink=async()=>{
  const ok=await copyText(makeJoinLink(roomId));
  alert(ok?"玩家加入連結已複製！\n直接貼給其他玩家即可。":"無法自動複製，請手動複製畫面上的加入連結。");
@@ -179,44 +184,85 @@ window.copyRoom=async()=>{
  alert(ok?"房號已複製！":"請手動複製房號："+roomId);
 };
 window.join=async()=>{
+ const status=el("joinStatus");
+ const setStatus=(t,err=false)=>{
+   if(status){
+     status.textContent=t;
+     status.style.color=err?"#b91c1c":"#475569";
+   }
+ };
+
  try{
+   setStatus("正在連線 Firebase…");
    await ensureAuth();
  }catch(e){
+   console.error("auth error",e);
+   setStatus("❌ Firebase 登入失敗："+(e.code||e.message),true);
    return alert("Firebase 登入失敗："+(e.code||e.message)+
-     "\n請到 Firebase Console → Authentication → Sign-in method 開啟「匿名 Anonymous」。");
+     "\n\n請到 Firebase Console → Authentication → Sign-in method → 開啟 Anonymous（匿名登入）。");
  }
 
  playerName=el("name").value.trim();
  roomId=el("joinRoom").value.trim()||new URLSearchParams(location.search).get("room");
- if(!playerName||!roomId)return alert("請輸入暱稱與房號");
 
- const roomRef=ref(db,"rooms_v4/"+roomId);
+ if(!playerName){
+   setStatus("❌ 請先輸入暱稱。",true);
+   return alert("請輸入暱稱");
+ }
+ if(!roomId){
+   setStatus("❌ 沒有房號。",true);
+   return alert("請輸入房號");
+ }
+
+ roomId=String(roomId).trim();
+ setStatus("正在檢查房間 "+roomId+"…");
+
  try{
+   const roomRef=ref(db,"rooms_v4/"+roomId);
    const s=await get(roomRef);
-   if(!s.exists())return alert("找不到房間："+roomId);
 
-   const d=s.val();
-   if(d.status==="ended")return alert("這個房間的遊戲已結束，請建立新房間。");
+   if(!s.exists()){
+     setStatus("❌ 找不到房間："+roomId,true);
+     return alert("找不到房間："+roomId);
+   }
+
+   const d=s.val()||{};
+   if(d.status==="ended"){
+     setStatus("❌ 這個房間已結束。",true);
+     return alert("這個房間的遊戲已結束，請使用管理員剛建立的新房間連結。");
+   }
 
    const players=d.players||{};
+
    if(players[playerId]){
+     setStatus("已經在房間內，正在載入牌局…");
+     isAdmin=false;
      viewMode="player";
      await subscribe();
      return;
    }
 
    if(d.status!=="waiting"){
-     return alert("這個房間目前狀態是「"+d.status+"」，不是等待玩家狀態。\n請使用管理員剛建立的新房間連結。");
+     setStatus("❌ 房間目前狀態："+d.status,true);
+     return alert("這個房間目前狀態是「"+d.status+"」，無法加入。");
    }
+
+   const count=Object.keys(players).length;
+   if(count>=4){
+     setStatus("❌ 房間已滿 4 人。",true);
+     return alert("加入失敗：房間已滿 4 人。");
+   }
+
+   setStatus("正在加入房間…（"+count+" / 4）");
 
    const playersRef=ref(db,"rooms_v4/"+roomId+"/players");
    const tx=await runTransaction(playersRef,current=>{
      const now=current||{};
+     if(now[playerId])return now;
      if(Object.keys(now).length>=4)return;
-     const used=Object.values(now).map(p=>Number(p.index));
+     const used=Object.values(now).map(p=>Number(p?.index));
      const idx=[0,1,2,3].find(i=>!used.includes(i));
      if(idx===undefined)return;
-     if(now[playerId])return now;
      return {
        ...now,
        [playerId]:{
@@ -226,21 +272,33 @@ window.join=async()=>{
    });
 
    if(!tx.committed){
-     // 重新讀取一次，將真正原因轉成使用者看得懂的訊息。
      const check=await get(roomRef);
      const cd=check.exists()?check.val():null;
-     if(!cd)return alert("加入失敗：房間不存在。");
-     const count=Object.keys(cd.players||{}).length;
-     if(count>=4)return alert("加入失敗：房間已滿 4 人。");
-     if(cd.status!=="waiting")return alert("加入失敗：遊戲已經開始，無法中途加入。");
-     return alert("加入失敗：Firebase 拒絕寫入玩家資料。\n請確認 Realtime Database Rules 的 rooms_v4 允許玩家寫入。");
+     if(!cd){
+       setStatus("❌ 房間不存在。",true);
+       return alert("加入失敗：房間不存在。");
+     }
+     const finalCount=Object.keys(cd.players||{}).length;
+     if(finalCount>=4){
+       setStatus("❌ 房間已滿 4 人。",true);
+       return alert("加入失敗：房間已滿 4 人。");
+     }
+     if(cd.status!=="waiting"){
+       setStatus("❌ 遊戲已開始，無法加入。",true);
+       return alert("加入失敗：遊戲已經開始，無法中途加入。");
+     }
+     setStatus("❌ Firebase 拒絕寫入玩家資料。",true);
+     return alert("加入失敗：Firebase 拒絕寫入玩家資料。\n\n請確認 Realtime Database 的 rooms_v4 規則允許玩家寫入。");
    }
 
+   setStatus("✅ 加入成功！正在進入房間…");
+   isAdmin=false;
    viewMode="player";
    await subscribe();
 
  }catch(e){
    console.error("join error",e);
+   setStatus("❌ 加入失敗："+(e.code||"")+" "+(e.message||e),true);
    alert("加入房間發生錯誤：\n"+(e.code||"")+" "+(e.message||e));
  }
 };
@@ -573,6 +631,7 @@ window.addEventListener("load",()=>{
  const r=new URLSearchParams(location.search).get("room");
  if(r){
    el("joinRoom").value=r;
+   if(el("joinStatus"))el("joinStatus").textContent="已載入邀請房號："+r+"，請輸入暱稱後按「加入房間」。";
    el("adminBtn")?.classList.add("hidden");
    el("adminBox")?.classList.add("hidden");
    if(el("setupDesc"))el("setupDesc").textContent="你收到了一個麻將房間邀請，輸入暱稱即可加入。";
