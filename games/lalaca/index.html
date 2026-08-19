@@ -537,7 +537,7 @@ function render(){
    if(!item){
      return '<div class="player"><div class="name">'+(i+1)+'. 等待玩家</div><div class="state">尚未加入</div></div>';
    }
-   const [id,p]=item;
+   const {id,p}=item;
    const state=
      p.status==="win" ? "🏆 胡牌" :
      roomData.status==="playing" && p.index===roomData.turn ? "🀄 出牌中" :
