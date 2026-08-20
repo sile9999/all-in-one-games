@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>四人大老二刮刮樂</title>
+<style>
+*{box-sizing:border-box;font-family:"Segoe UI","Microsoft JhengHei",sans-serif;user-select:none}
+body{margin:0;min-height:100vh;background:#0f5132;color:#fff;padding:14px}
+.container{max-width:1100px;margin:auto}
+.card{background:rgba(255,255,255,.96);color:#172033;border-radius:16px;padding:18px;box-shadow:0 10px 30px #0004;margin-bottom:14px}
+h1,h2,h3{margin:0 0 12px}
+button,input{font:inherit}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}
+.primary{background:#2563eb;color:#fff}.success{background:#059669;color:#fff}.danger{background:#dc2626;color:#fff}.gray{background:#64748b;color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.field{margin:8px 0}.field label{display:block;font-weight:700;margin-bottom:5px}.input{width:100%;padding:10px;border:2px solid #cbd5e1;border-radius:8px}
+#setup{max-width:620px;margin:8vh auto}.room{font-size:30px;font-weight:800;color:#2563eb;letter-spacing:3px}
+.hidden{display:none!important}
+.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.discard-item{display:inline-flex;flex-direction:column;align-items:center;vertical-align:top;margin:4px}.discard-meta{font-size:10px;color:#475569;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px;position:relative}
+.player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800;display:flex;align-items:center;gap:4px}.player .state{font-size:12px;margin-top:5px}
+.kick-btn{position:absolute;top:5px;right:5px;padding:2px 6px;font-size:11px;border-radius:4px}
+.table{background:#166534;border-radius:18px;padding:14px;position:relative;min-height:420px}
+.center{background:#14532d;border:2px solid #22c55e;border-radius:14px;min-height:110px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+
+.center .big{font-size:34px;font-weight:900;color:#ffffff !important;text-shadow:0 2px 4px rgba(0,0,0,0.6)}
+.center .small{font-size:13px;color:#e2e8f0}
+
+.timer-box{font-size:18px;font-weight:900;color:#f59e0b;margin-top:4px}
+.hand-title{margin:12px 0 5px;font-weight:800}.hand{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tile{width:46px;height:65px;border-radius:6px;background:#fff;color:#111827;border:1px solid #cbd5e1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;font-weight:900;box-shadow:0 2px 3px #0004;cursor:pointer}
+.tile.red{color:#dc2626}
+.tile:hover{transform:translateY(-5px)}.tile.selected{background:#fde68a;border:3px solid #f59e0b;transform:translateY(-10px)}
+.smalltile{width:36px;height:50px;font-size:15px;cursor:default}
+.actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.discard{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:70px;align-items:center;margin-top:8px;background:rgba(0,0,0,0.15);padding:10px;border-radius:8px}
+.log{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;max-height:150px;overflow:auto;font-size:13px}
+.scratch{max-width:420px;text-align:center;margin:7vh auto}.ticket{width:210px;height:125px;margin:14px auto;border-radius:14px;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:46px;cursor:pointer;border:5px dashed #fff}.ticket.revealed{background:#fff;color:#111;border:3px solid #f59e0b}.ticket img{max-width:180px;max-height:105px;object-fit:contain}.prize-row{display:grid;grid-template-columns:1fr 80px 100px 45px;gap:6px;align-items:center;margin:6px 0}.preview{width:42px;height:42px;object-fit:contain;border:1px solid #ddd;border-radius:5px}.lb table{width:100%;border-collapse:collapse}.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
+
+/* 觀賽/等候區樣式 */
+.waiting-section{background:#f1f5f9;color:#334155;border-radius:12px;padding:12px;margin-top:14px;border:1px solid #cbd5e1}
+.waiting-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.waiting-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0;font-size:14px}
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.online{background-color:#22c55e;box-shadow:0 0 6px #22c55e}
+.offline{background-color:#ef4444}
+
+@media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
+</style>
+<!-- 需求 4: 防 F12 與除錯腳本 -->
+<script>
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'F12' || 
+     (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+     (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
+    e.preventDefault();
+    return false;
+  }
+});
+setInterval(function() {
+  const startTime = performance.now();
+  debugger;
+  const endTime = performance.now();
+  if (endTime - startTime > 100) {
+    document.body.innerHTML = "防除錯保護觸發";
+  }
+}, 1000);
+</script>
+</head>
+<body>
+<div id="setup" class="card">
+<h1>♠️ 四人大老二刮刮樂</h1>
+<p id="setupDesc">四人同桌競賽，最快將牌出完者獲勝並取得刮刮樂。</p>
+<div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
+<div class="field"><label>房號（加入既有房間時）</label><input id="joinRoom" class="input" placeholder="六位數房號"></div>
+<div class="row">
+<button id="joinBtn" type="button" class="primary">加入房間</button>
+<!-- 需求 3: 點擊網址進來時此按鈕會自動隱藏 -->
+<button id="adminBtn" class="success" onclick="admin()">管理員建立房間</button>
+</div>
+<div id="joinStatus" style="margin-top:8px;font-size:13px;color:#475569"></div>
+<div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
+<div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
+<div class="field"><label>刮刮樂總張數</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
+<div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
+<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">建立四人大老二房</button>
+</div>
+<div id="roomInfo" class="hidden" style="margin-top:12px;border-top:1px solid #ddd;padding-top:12px">
+  <div><b>房間已建立</b></div>
+  <div>房號：<span id="roomNo" class="room"></span></div>
+  <small>管理員只負責建立房間，不佔 4 名玩家名額。</small>
+  <div class="field">
+    <label>📎 玩家加入連結</label>
+    <input id="joinLink" class="input" readonly>
+  </div>
+  <div id="adminRoomStatus" style="margin:8px 0;font-weight:800">目前 0 / 4 人，等待玩家加入</div>
+  <div class="row">
+    <button class="primary" onclick="copyLink()">複製連結</button>
+    <button class="gray" onclick="copyRoom()">複製房號</button>
+    <button class="success" onclick="watchGame()">觀看賽局</button>
+  </div>
+</div>
+</div>
+
+<div id="game" class="container hidden">
+<div class="card">
+<div class="row" style="justify-content:space-between"><h2>♠️ 四人大老二</h2><div>房號：<b id="gameRoom"></b></div></div><div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理</button><span>管理員觀看模式（不佔玩家名額）</span></div>
+<div id="players" class="players"></div>
+<div id="adminGameToolbar" class="hidden" style="margin:12px 0;padding:14px;border:2px solid #d9a441;border-radius:12px;background:#fff8e6">
+  <div style="font-weight:900;font-size:17px;margin-bottom:10px">👑 管理員控制</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button type="button" id="copyJoinLinkBtn">🔗 複製玩家加入連結</button>
+    <button type="button" id="copyRoomBtn">📋 複製房號</button>
+    <button type="button" id="restartGameBtn" class="success">🔄 結束本局／重新開局</button>
+  </div>
+  <div id="adminLinkText" style="margin-top:10px;font-size:13px;word-break:break-all"></div>
+</div>
+<div id="roomDebugPanel" style="margin:12px 0;padding:12px;border:2px solid #8bb8e8;border-radius:12px;background:#f3f8ff;font-size:14px;line-height:1.7">
+  <div style="font-size:16px;font-weight:900">♠️ 房間狀態</div>
+  <div>玩家人數：<b id="debugPlayerCount">- / 4</b></div>
+  <div>房間狀態：<b id="debugRoomStatus">讀取中</b></div>
+</div>
+
+<div class="table" style="margin-top:12px;">
+<div class="center">
+  <div class="big" id="turnText">等待四人...</div>
+  <div class="small" id="roundText">等待玩家加入</div>
+  <div class="timer-box" id="timerBox"></div>
+</div>
+<div class="hand-title">桌面最新出牌</div><div id="discards" class="discard"></div>
+<div class="hand-title">你的手牌（可複選）</div><div id="myHand" class="hand"></div>
+<div class="actions" id="actions"></div>
+</div>
+
+<!-- 需求 1: 「觀賽等候區」移至「玩牌區(table)」下方 -->
+<div id="waitingSection" class="waiting-section">
+  <div style="font-weight:800;font-size:15px;display:flex;justify-content:space-between;align-items:center">
+    <span>👀 觀賽／等候區 (<span id="waitingCount">0</span> 人)</span>
+  </div>
+  <div id="waitingList" class="waiting-list"></div>
+</div>
+
+</div>
+<div class="card"><h3>遊戲紀錄</h3><div id="log" class="log"></div></div>
+<div class="card lb"><h3>🏆 刮刮樂排行榜</h3><div id="leaderboard"></div></div>
+</div>
+
+<div id="scratch" class="card scratch hidden">
+<h2>🎉 恭喜獲勝！</h2><p>你第一個出完牌，獲得一次刮刮樂！</p>
+<div id="ticket" class="ticket" onclick="revealScratch()">刮開</div>
+<div id="scratchResult"></div>
+<button class="primary" onclick="closeScratch()">回到遊戲</button>
+</div>
+
+<script>
+window.admin = window.admin || function(){
+  const box=document.getElementById("adminBox");
+  if(!box){ alert("找不到管理員設定區，請重新整理頁面。"); return; }
+  box.classList.toggle("hidden");
+  const prizes=document.getElementById("prizes");
+  if(prizes && !prizes.children.length && typeof window.addPrize==="function") window.addPrize();
+};
+</script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {getDatabase,ref,set,onValue,get,update,runTransaction,onDisconnect,serverTimestamp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
+const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
+async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
+
+let roomId=null,playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()),playerName="",roomData=null,myIndex=-1,selectedSet=new Set(),myTicketId=null,viewMode="player",startCallBusy=false,isAdmin=false; 
+sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
+
+let turnTimer = null;
+let countdown = 10;
+let lastTurnStartTime = 0;
+let heartbeatInterval = null;
+
+function setupPresence() {
+  if (!roomId || !playerId) return;
+  const userPresenceRef = ref(db, `rooms_v4/${roomId}/presence/${playerId}`);
+  const connectedRef = ref(db, ".info/connected");
+
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      onDisconnect(userPresenceRef).set({ online: false, lastSeen: serverTimestamp() });
+      set(userPresenceRef, { online: true, lastSeen: serverTimestamp() });
+    }
+  });
+
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (roomId && playerId) {
+      set(userPresenceRef, { online: true, lastSeen: Date.now() });
+    }
+  }, 5000);
+}
+
+function isUserOnline(pId) {
+  if (!roomData || !roomData.presence || !roomData.presence[pId]) return false;
+  const p = roomData.presence[pId];
+  if (!p.online) return false;
+  const now = Date.now();
+  const lastSeen = typeof p.lastSeen === 'number' ? p.lastSeen : now;
+  return (now - lastSeen) < 15000;
+}
+
+const SUITS = ["♣", "♦", "♥", "♠"]; 
+const RANKS = ["3","4","5","6","7","8","9","10","J","Q","K","A","2"]; 
+
+function getCardInfo(cardId) {
+  const suitIndex = cardId % 4;
+  const rankIndex = Math.floor(cardId / 4);
+  return { suit: SUITS[suitIndex], rank: RANKS[rankIndex], suitIndex, rankIndex, isRed: suitIndex === 1 || suitIndex === 2 };
+}
+function cardName(cardId) { const c = getCardInfo(cardId); return c.suit + c.rank; }
+function sortCards(cards) { return [...cards].sort((a,b) => a - b); }
+function makeDeck(){ let d=[]; for(let i=0; i<52; i++) d.push(i); return d.sort(()=>Math.random()-.5); }
+
+function getHandType(cards) {
+  const sorted = sortCards(cards);
+  const len = sorted.length;
+  if (len === 1) return { type: "single", val: sorted[0] };
+  if (len === 2) {
+    if (Math.floor(sorted[0]/4) === Math.floor(sorted[1]/4)) return { type: "pair", val: sorted[1] };
+    return null;
+  }
+  if (len === 3) {
+    if (Math.floor(sorted[0]/4) === Math.floor(sorted[1]/4) && Math.floor(sorted[1]/4) === Math.floor(sorted[2]/4)) {
+      return { type: "triple", val: sorted[2] };
+    }
+    return null;
+  }
+  if (len === 5) {
+    const ranks = sorted.map(c => Math.floor(c/4));
+    const counts = {};
+    ranks.forEach(r => counts[r] = (counts[r]||0)+1);
+    const cVals = Object.values(counts).sort((a,b)=>b-a);
+    let isStraight = false;
+    if (Object.keys(counts).length === 5 && ranks[4] - ranks[0] === 4) isStraight = true;
+
+    if (cVals[0] === 3 && cVals[1] === 2) {
+      const tripleRank = Number(Object.keys(counts).find(r => counts[r] === 3));
+      const maxCardInTriple = sorted.filter(c => Math.floor(c/4) === tripleRank).pop();
+      return { type: "fullhouse", val: maxCardInTriple };
+    }
+    if (cVals[0] === 4) {
+      const quadRank = Number(Object.keys(counts).find(r => counts[r] === 4));
+      const maxCardInQuad = sorted.filter(c => Math.floor(c/4) === quadRank).pop();
+      return { type: "four", val: maxCardInQuad };
+    }
+    if (isStraight) return { type: "straight", val: sorted[4] };
+  }
+  return null;
+}
+
+const TYPE_RANK = { straight: 1, fullhouse: 2, four: 3 };
+
+function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
+  const played = getHandType(selectedCards);
+  if (!played) return false;
+  if (isFirstPlayOfGame && !selectedCards.includes(0)) return false;
+  if (!lastPlay || lastPlay.isNewRound) return true;
+  const last = lastPlay.handType;
+  if (!last) return true;
+  if (selectedCards.length !== lastPlay.cards.length && played.type !== "four") return false;
+  if (played.type === last.type) return played.val > last.val;
+  if (TYPE_RANK[played.type] && TYPE_RANK[last.type]) return TYPE_RANK[played.type] > TYPE_RANK[last.type];
+  return false;
+}
+
+function el(id){return document.getElementById(id)}
+window.admin=()=>{el("adminBox").classList.toggle("hidden");if(!el("prizes").children.length)addPrize()};
+window.addPrize=(d={name:"獎項",count:1,image:""})=>{
+ const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
+ row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
+ row.querySelector("input[type=file]").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{row.dataset.image=r.result;row.querySelector("img").src=r.result};r.readAsDataURL(f)};
+ row.querySelector("button").onclick=()=>row.remove();el("prizes").appendChild(row)
+};
+function parsePrizes(){return [...document.querySelectorAll(".prize-row")].map(r=>({name:r.querySelector(".pn").value.trim(),count:+r.querySelector(".pc").value||0,image:r.dataset.image||""})).filter(x=>x.name&&x.count>0)}
+function buildTickets(prizes,n){let a=[];prizes.forEach((p,i)=>{for(let j=0;j<p.count;j++)a.push({prize:p.name,prizeIndex:i,isWinner:true})});while(a.length<n)a.push({prize:"沒中",prizeIndex:null,isWinner:false});return a.slice(0,n).sort(()=>Math.random()-.5).map((x,i)=>({id:"t"+i+"_"+Math.random().toString(36).slice(2,7),...x,claimed:false}))}
+
+window.createRoom=async()=>{
+ try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message));}
+ if(el("pwd").value!=="17696969")return alert("管理員密碼錯誤");
+ let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
+ roomId=String(Math.floor(100000+Math.random()*900000));let tickets=buildTickets(pr,n);
+ await set(ref(db,"rooms_v4/"+roomId),{type:"bigtwo4",status:"waiting",players:{},waitingList:{},presence:{},turn:0,hands:{},lastPlay:null,passCount:0,round:0,scratchPrizes:pr,scratchTickets:tickets,logs:["房間建立，等待玩家加入。"]});
+ el("roomInfo").classList.remove("hidden");
+ el("roomNo").textContent=roomId;
+ el("joinLink").value=makeJoinLink(roomId);
+ isAdmin=true; viewMode="admin";
+ setupPresence();
+ el("game").classList.add("hidden"); el("setup").classList.remove("hidden");
+ el("adminGameBar").classList.add("hidden"); el("adminBox").classList.add("hidden");
+ await watchRoomData();
+ el("adminRoomStatus").textContent="目前 0 / 4 人，等待玩家加入";
+ alert("房間建立完成！\n請按「複製連結」傳給其他玩家。");
+};
+
+function makeJoinLink(room){
+ const base=new URL(window.location.href); base.search=""; base.hash=""; base.searchParams.set("room",String(room)); return base.href;
+}
+async function copyText(text){
+ try{
+   if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
+   else{ const ta=document.createElement("textarea"); ta.value=text;document.body.appendChild(ta);ta.select(); document.execCommand("copy");ta.remove(); }
+   return true;
+ }catch(e){return false}
+}
+el("joinBtn")?.addEventListener("click",()=>window.join());
+window.copyLink=async()=>{ alert(await copyText(makeJoinLink(roomId))?"玩家加入連結已複製！":"請手動複製連結"); };
+window.copyRoom=async()=>{ alert(await copyText(roomId)?"房號已複製！":"請手動複製房號："+roomId); };
+
+window.join=async()=>{
+ const status=el("joinStatus");
+ const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
+ try{ setStatus("正在連線 Firebase…"); await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
+
+ playerName=el("name").value.trim(); roomId=el("joinRoom").value.trim()||new URLSearchParams(location.search).get("room");
+ if(!playerName) return alert("請輸入暱稱");
+ if(!roomId) return alert("請輸入房號");
+
+ roomId=String(roomId).trim(); setStatus("正在檢查房間 "+roomId+"…");
+ try{
+   const roomRef=ref(db,"rooms_v4/"+roomId);
+   const s=await get(roomRef);
+   if(!s.exists()) return alert("找不到房間："+roomId);
+
+   const d=s.val()||{};
+   if(d.status==="ended") return alert("這個房間的遊戲已結束。");
+
+   const players=d.players||{};
+   const waitingList=d.waitingList||{};
+
+   if(players[playerId] || waitingList[playerId]){
+     isAdmin=false; viewMode="player"; setupPresence(); await subscribe(); return;
+   }
+
+   if(Object.keys(players).length>=4 || d.status==="playing"){
+     await update(ref(db, `rooms_v4/${roomId}/waitingList/${playerId}`), {
+       name: playerName, joinedAt: Date.now()
+     });
+     await update(ref(db, `rooms_v4/${roomId}`), {
+       logs: [...(d.logs||[]), `👀 ${playerName} 加入了觀賽/等候區。`].slice(-80)
+     });
+     alert("目前桌上已有4人或遊戲進行中，您已加入「觀賽等候區」！");
+   } else {
+     const playersRef=ref(db,"rooms_v4/"+roomId+"/players");
+     const tx=await runTransaction(playersRef,current=>{
+       const now=current||{};
+       if(now[playerId])return now;
+       if(Object.keys(now).length>=4)return;
+       const used=Object.values(now).map(p=>Number(p?.index));
+       const idx=[0,1,2,3].find(i=>!used.includes(i));
+       if(idx===undefined)return;
+       return { ...now, [playerId]:{ name:playerName,index:idx,status:"waiting",wins:0,ticketCount:0 } };
+     });
+     if(!tx.committed) return alert("加入失敗：請重試。");
+   }
+
+   isAdmin=false; viewMode="player"; setupPresence(); await subscribe();
+ }catch(e){ alert("加入房間發生錯誤：\n"+(e.code||"")+" "+(e.message||e)); }
+};
+
+async function watchRoomData(){
+ if(!roomId)return;
+ if(el("gameRoom")) el("gameRoom").textContent=roomId;
+ onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
+   roomData=snap.val();
+   if(!roomData) return;
+
+   const count=Object.keys(roomData.players||{}).length;
+   updateDebugPanel(roomData);
+   if(el("adminRoomStatus")) el("adminRoomStatus").textContent= roomData.status==="playing" ? "目前 4 / 4 人，遊戲進行中" : "目前 "+count+" / 4 人，"+(count===4?"四人已滿，準備開局":"等待玩家加入");
+
+   if(el("game") && !el("game").classList.contains("hidden")) render();
+   updateAdminToolbar();
+
+   // 需求 2: 輪到離場玩家時，免倒數直接自動過牌以防遊戲卡住
+   checkAndHandleOfflinePlayerTurn();
+
+   if(count!==4) return;
+   if(roomData.status==="playing") return;
+
+   if(viewMode!=="admin") return;
+
+   if(roomData.status==="waiting" && !startCallBusy){
+     startCallBusy=true;
+     try{ await tryStartGame(); } finally{ startCallBusy=false; }
+   }
+ });
+}
+
+// 需求 2: 離場/斷線玩家自動過牌核心邏輯
+async function checkAndHandleOfflinePlayerTurn() {
+  if (!roomData || roomData.status !== "playing") return;
+
+  const currentTurn = roomData.turn;
+  const ps = Object.entries(roomData.players || {});
+  const activePlayerEntry = ps.find(([id, p]) => Number(p.index) === Number(currentTurn));
+
+  if (!activePlayerEntry) return;
+  const [activePlayerId, activePlayer] = activePlayerEntry;
+
+  // 若當前回合玩家不在線（離場或斷線）
+  if (!isUserOnline(activePlayerId)) {
+    // 取得在線的第一位活躍玩家來協助推動房間資料，防卡住
+    const myPlayerObj = roomData.players?.[playerId];
+    const isLowestOnlinePlayer = ps.some(([id]) => isUserOnline(id) && id === playerId);
+
+    if (isLowestOnlinePlayer || viewMode === "admin") {
+      const isFirstPlay = !roomData.lastPlay && (roomData.logs || []).some(l => l.includes("擁有梅花 3"));
+      const isNewRound = !roomData.lastPlay || roomData.lastPlay.isNewRound;
+      const hand = sortCards(roomData.hands?.[activePlayerId] || []);
+
+      const nextTurn = (Number(activePlayer.index) + 1) % 4;
+
+      if ((isFirstPlay || isNewRound) && hand.length > 0) {
+        // 先手離場，強制出第一張單牌
+        const cardToPlay = [hand[0]];
+        const newHand = hand.slice(1);
+        const playedType = getHandType(cardToPlay);
+
+        await update(ref(db, "rooms_v4/" + roomId), {
+          [`hands/${activePlayerId}`]: newHand,
+          turn: nextTurn,
+          turnStartTime: Date.now(),
+          passCount: 0,
+          lastPlay: {
+            playerId: activePlayerId,
+            playerName: activePlayer.name,
+            cards: cardToPlay,
+            handType: playedType,
+            isNewRound: false
+          },
+          logs: [...(roomData.logs || []), `🤖 ${activePlayer.name} 已離線，系統自動出牌：${cardToPlay.map(cardName).join(" ")}`].slice(-80)
+        });
+      } else {
+        // 一般離場直接 Pass
+        const passCount = (roomData.passCount || 0) + 1;
+        let lastPlay = roomData.lastPlay;
+        if (passCount >= 3) {
+          lastPlay = { ...lastPlay, isNewRound: true };
+        }
+
+        await update(ref(db, "rooms_v4/" + roomId), {
+          turn: nextTurn,
+          turnStartTime: Date.now(),
+          passCount: passCount >= 3 ? 0 : passCount,
+          lastPlay,
+          logs: [...(roomData.logs || []), `🤖 ${activePlayer.name} 已離線，系統自動過牌 (Pass)`].slice(-80)
+        });
+      }
+    }
+  }
+}
+
+async function subscribe(){
+ el("setup")?.classList.add("hidden");
+ el("game")?.classList.remove("hidden");
+ if(el("gameRoom")) el("gameRoom").textContent=roomId;
+ setupPresence();
+ await watchRoomData();
+ if(roomData) render();
+}
+
+window.watchGame=async()=>{
+ if(!roomId)return; viewMode="admin";
+ setupPresence();
+ el("setup").classList.add("hidden"); el("game").classList.remove("hidden");
+ el("adminGameBar").classList.remove("hidden"); updateAdminToolbar();
+ if(roomData)render();
+};
+
+window.backToRoomManager=()=>{
+ el("game").classList.add("hidden"); el("setup").classList.remove("hidden");
+ el("adminGameBar").classList.add("hidden"); viewMode="admin"; updateAdminToolbar();
+};
+
+function updateDebugPanel(room){
+  const count=Object.keys(room?.players||{}).length;
+  if(el("debugPlayerCount"))el("debugPlayerCount").textContent=count+" / 4";
+  if(el("debugRoomStatus"))el("debugRoomStatus").textContent=room?.status||"unknown";
+}
+
+async function tryStartGame(){
+ if(viewMode!=="admin")return;
+ const roomRef=ref(db,"rooms_v4/"+roomId);
+ try{
+   const snap=await get(roomRef); const room=snap.val();
+   if(!room || room.status==="playing")return;
+   const entries=Object.entries(room.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+   if(entries.length!==4)return;
+
+   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>v==="waiting"?"starting":v);
+   if(!lock.committed)return;
+
+   const deck=makeDeck(), hands={};
+   let startingTurn = 0;
+
+   entries.forEach(([id],i)=>{
+     const pCards = sortCards(deck.slice(i*13, (i+1)*13));
+     hands[id] = pCards;
+     if (pCards.includes(0)) startingTurn = Number(room.players[id].index);
+   });
+
+   await update(roomRef,{
+     status:"playing", round:1, turn:startingTurn, turnStartTime: Date.now(), hands, lastPlay:null, passCount:0,
+     logs:[...(room.logs||[]),"四位玩家到齊，洗牌完畢！擁有梅花 3 的玩家先出牌。"].slice(-80)
+   });
+ }catch(e){
+   await set(ref(db,"rooms_v4/"+roomId+"/status"),"waiting");
+   alert("開局失敗："+e.message);
+ }
+}
+
+function updateAdminToolbar(){
+  const bar=el("adminGameToolbar"); if(!bar)return;
+  const isAdmin=(viewMode==="admin"); bar.classList.toggle("hidden",!isAdmin);
+  if(isAdmin && el("adminLinkText")) el("adminLinkText").textContent="玩家加入連結："+makeJoinLink(roomId);
+}
+
+window.kickPlayer = async function(targetPlayerId, targetName) {
+  if (viewMode !== "admin") return;
+  if (!confirm(`確定要將玩家「${targetName}」踢出房間嗎？`)) return;
+
+  try {
+    const roomRef = ref(db, "rooms_v4/" + roomId);
+    const snap = await get(roomRef);
+    if (!snap.exists()) return;
+    const data = snap.val();
+    
+    const newPlayers = { ...(data.players || {}) };
+    delete newPlayers[targetPlayerId];
+
+    await update(roomRef, {
+      players: newPlayers,
+      status: "waiting",
+      hands: {},
+      lastPlay: null,
+      passCount: 0,
+      logs: [...(data.logs || []), `管理員將 ${targetName} 踢出了房間。`].slice(-80)
+    });
+    alert(`已將 ${targetName} 踢出房間。`);
+  } catch(e) {
+    alert("踢人失敗：" + e.message);
+  }
+};
+
+window.moveWaitingToGame = async function(wId, wName) {
+  if (viewMode !== "admin") return;
+  if (roomData.status === "playing") {
+    return alert("牌局進行中，請等待牌局結束後再移入玩家！");
+  }
+
+  const players = roomData.players || {};
+  if (Object.keys(players).length >= 4) {
+    return alert("桌上玩家已有4人，無法再加入！請先踢出一位玩家。");
+  }
+
+  const used = Object.values(players).map(p => Number(p.index));
+  const freeIndex = [0,1,2,3].find(i => !used.includes(i));
+
+  const updates = {};
+  updates[`players/${wId}`] = { name: wName, index: freeIndex, status: "waiting", wins: 0, ticketCount: 0 };
+  updates[`waitingList/${wId}`] = null;
+  updates[`logs`] = [...(roomData.logs || []), `👑 管理員將 ${wName} 從等候區移入了遊戲區域。`].slice(-80);
+
+  await update(ref(db, "rooms_v4/" + roomId), updates);
+};
+
+window.removeWaitingUser = async function(wId, wName) {
+  if (viewMode !== "admin") return;
+  if (!confirm(`確定要將 ${wName} 從等候區移除嗎？`)) return;
+
+  const updates = {};
+  updates[`waitingList/${wId}`] = null;
+  updates[`logs`] = [...(roomData.logs || []), `👑 管理員將 ${wName} 從等候區移除。`].slice(-80);
+
+  await update(ref(db, "rooms_v4/" + roomId), updates);
+};
+
+function startTurnTimer() {
+  if (turnTimer) clearInterval(turnTimer);
+  if (!roomData || roomData.status !== "playing") {
+    if(el("timerBox")) el("timerBox").textContent = "";
+    return;
+  }
+
+  const startTime = roomData.turnStartTime || Date.now();
+  
+  turnTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    countdown = Math.max(0, 10 - elapsed);
+    
+    if (el("timerBox")) {
+      el("timerBox").textContent = `⏳ 出牌倒數：${countdown} 秒`;
+    }
+
+    if (countdown === 0) {
+      clearInterval(turnTimer);
+      const me = roomData.players?.[playerId];
+      if (viewMode === "player" && me && Number(me.index) === Number(roomData.turn)) {
+        autoTimeoutPlay();
+      }
+    }
+  }, 500);
+}
+
+async function autoTimeoutPlay() {
+  const isFirstPlay = !roomData.lastPlay && (roomData.logs||[]).some(l=>l.includes("擁有梅花 3"));
+  const isNewRound = !roomData.lastPlay || roomData.lastPlay.isNewRound;
+
+  if (isFirstPlay || isNewRound) {
+    const hand = sortCards(roomData.hands?.[playerId] || []);
+    if (hand.length > 0) {
+      const cardToPlay = [hand[0]];
+      selectedSet.clear();
+      cardToPlay.forEach(c => selectedSet.add(c));
+      await playCards();
+    }
+  } else {
+    await passTurn();
+  }
+}
+
+window.toggleCard = function(cardId) {
+  if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
+  const me = roomData.players?.[playerId];
+  if (!me || Number(me.index) !== Number(roomData.turn)) return;
+
+  if (selectedSet.has(cardId)) selectedSet.delete(cardId);
+  else selectedSet.add(cardId);
+  renderHand();
+};
+
+window.playCards = async function() {
+  if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
+  const me = roomData.players?.[playerId];
+  if (!me || Number(me.index) !== Number(roomData.turn)) return alert("還沒輪到你出牌！");
+
+  const selectedCards = sortCards(Array.from(selectedSet));
+  if (selectedCards.length === 0) return alert("請先點選你要打出的牌！");
+
+  const isFirstPlay = !roomData.lastPlay && (roomData.logs||[]).some(l=>l.includes("擁有梅花 3"));
+  if (!canPlayCards(selectedCards, roomData.lastPlay, isFirstPlay)) {
+    return alert("出牌不符合規則或大不過上家！");
+  }
+
+  const hand = sortCards(roomData.hands?.[playerId] || []);
+  const newHand = hand.filter(c => !selectedCards.includes(c));
+
+  const nextTurn = (Number(me.index) + 1) % 4;
+  const playedType = getHandType(selectedCards);
+
+  const updates = {
+    [`hands/${playerId}`]: newHand,
+    turn: nextTurn,
+    turnStartTime: Date.now(),
+    passCount: 0,
+    lastPlay: {
+      playerId,
+      playerName: me.name,
+      cards: selectedCards,
+      handType: playedType,
+      isNewRound: false
+    },
+    logs: [...(roomData.logs || []), `${me.name} 打出了：${selectedCards.map(cardName).join(" ")}`].slice(-80)
+  };
+
+  selectedSet.clear();
+
+  if (newHand.length === 0) {
+    const players = { ...(roomData.players || {}) };
+    players[playerId] = { ...players[playerId], status: "win", wins: (players[playerId].wins || 0) + 1 };
+
+    let tickets = [...(roomData.scratchTickets || [])];
+    let ticketIndex = tickets.findIndex(t => !t.claimed);
+    let ticket = null;
+    if (ticketIndex >= 0) {
+      ticket = { ...tickets[ticketIndex], claimed: true, claimedBy: playerId, claimedByName: playerName };
+      tickets[ticketIndex] = ticket;
+      players[playerId].ticketCount = (players[playerId].ticketCount || 0) + 1;
+    }
+
+    updates.status = "finished";
+    updates.players = players;
+    updates.scratchTickets = tickets;
+    updates.winnerId = playerId;
+    updates.logs.push(`🎉 ${me.name} 手牌已清空，獲得勝利！`);
+
+    await update(ref(db, "rooms_v4/" + roomId), updates);
+
+    if (ticket) {
+      myTicketId = ticket.id;
+      showScratch(ticket);
+    }
+    return;
+  }
+
+  await update(ref(db, "rooms_v4/" + roomId), updates);
+};
+
+window.passTurn = async function() {
+  if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
+  const me = roomData.players?.[playerId];
+  if (!me || Number(me.index) !== Number(roomData.turn)) return alert("還沒輪到你！");
+
+  if (!roomData.lastPlay || roomData.lastPlay.isNewRound) {
+    return alert("你是本輪怪物/先手，不能 Pass！必須出牌。");
+  }
+
+  const passCount = (roomData.passCount || 0) + 1;
+  const nextTurn = (Number(me.index) + 1) % 4;
+
+  let lastPlay = roomData.lastPlay;
+  if (passCount >= 3) {
+    lastPlay = { ...lastPlay, isNewRound: true };
+  }
+
+  selectedSet.clear();
+  await update(ref(db, "rooms_v4/" + roomId), {
+    turn: nextTurn,
+    turnStartTime: Date.now(),
+    passCount: passCount >= 3 ? 0 : passCount,
+    lastPlay,
+    logs: [...(roomData.logs || []), `${me.name} 選擇 Pass`].slice(-80)
+  });
+};
+
+function showScratch(ticket){
+  el("scratch")?.classList.remove("hidden");
+  el("game")?.classList.add("hidden");
+  const t=el("ticket"); if(t){t.classList.remove("revealed");t.innerHTML="刮開";}
+  if(el("scratchResult")) el("scratchResult").textContent="";
+}
+
+window.revealScratch=function(){
+  if(!myTicketId || !roomData) return;
+  const ticket=(roomData.scratchTickets||[]).find(t=>t.id===myTicketId); if(!ticket) return;
+  const prize=(roomData.scratchPrizes||[])[ticket.prizeIndex]||{};
+  const t=el("ticket");
+  if(t){
+    t.classList.add("revealed");
+    t.innerHTML = ticket.isWinner ? (prize.image ? `<img src="${prize.image}">` : ticket.prize) : "🐢 沒中獎";
+  }
+  if(el("scratchResult")) el("scratchResult").textContent = ticket.isWinner ? "🎉 恭喜中獎："+ticket.prize : "🐢 沒中獎，再接再勵！";
+};
+
+window.closeScratch=function(){
+  el("scratch")?.classList.add("hidden"); el("game")?.classList.remove("hidden"); render();
+};
+
+function render(){
+ updateAdminToolbar();
+ el("setup").classList.add("hidden"); el("game").classList.remove("hidden");
+ el("gameRoom").textContent=roomId;
+
+ const ps=Object.entries(roomData.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
+ myIndex=ps.findIndex(x=>x[0]===playerId);
+ const seat={}; ps.forEach(([id,p])=>seat[p.index]={id,p});
+
+ el("players").innerHTML=[0,1,2,3].map(i=>{
+   const item=seat[i];
+   if(!item) return '<div class="player"><div class="name">'+(i+1)+'. 等待玩家</div><div class="state">尚未加入</div></div>';
+   const {id,p}=item;
+   const pCards = (roomData.hands?.[id] || []);
+   const state= p.status==="win" ? "🏆 獲勝" : roomData.status==="playing" && p.index===roomData.turn ? "♠️ 出牌中" : "等待中";
+   const kickBtn = (viewMode === "admin") ? `<button class="danger kick-btn" onclick="kickPlayer('${id}', '${esc(p.name)}')">踢出</button>` : '';
+   
+   const online = isUserOnline(id);
+   const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
+
+   return `<div class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn":"")}">
+     ${kickBtn}
+     <div class="name">${dotHtml} ${(p.index+1)}. ${esc(p.name)}</div>
+     <div class="state">${state} ｜ 剩餘 ${pCards.length} 張牌</div>
+   </div>`;
+ }).join("");
+
+ renderWaitingList();
+
+ const turn=ps.find(x=>Number(x[1].index)===Number(roomData.turn));
+ el("turnText").textContent= roomData.status==="playing" && turn ? "輪到："+turn[1].name : "等待四人...";
+ el("roundText").textContent= roomData.status==="playing" ? "遊戲進行中" : "四人到齊後自動開局";
+
+ if (roomData.status === "playing" && roomData.turnStartTime !== lastTurnStartTime) {
+   lastTurnStartTime = roomData.turnStartTime;
+   startTurnTimer();
+ } else if (roomData.status !== "playing") {
+   if (turnTimer) clearInterval(turnTimer);
+   if (el("timerBox")) el("timerBox").textContent = "";
+ }
+
+ renderHand();
+ renderDiscards();
+ renderLog();
+ renderLB();
+}
+
+function renderWaitingList(){
+  const waitingMap = roomData.waitingList || {};
+  const entries = Object.entries(waitingMap);
+  el("waitingCount").textContent = entries.length;
+
+  if (entries.length === 0) {
+    el("waitingList").innerHTML = '<div style="font-size:13px;color:#94a3b8;text-align:center;padding:6px">目前沒有人在等候區</div>';
+    return;
+  }
+
+  el("waitingList").innerHTML = entries.map(([wId, w]) => {
+    const online = isUserOnline(wId);
+    const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
+    
+    let adminBtns = "";
+    if (viewMode === "admin") {
+      const isGamePlaying = roomData.status === "playing";
+      adminBtns = `
+        <div style="display:flex;gap:4px">
+          <button class="success" style="padding:4px 8px;font-size:12px;" ${isGamePlaying?'disabled title="牌局結束後才可移入"':''} onclick="moveWaitingToGame('${wId}', '${esc(w.name)}')">移入遊戲</button>
+          <button class="danger" style="padding:4px 8px;font-size:12px;" onclick="removeWaitingUser('${wId}', '${esc(w.name)}')">移除</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="waiting-item">
+        <div style="display:flex;align-items:center;">
+          ${dotHtml} <b>${esc(w.name)}</b> ${wId === playerId ? ' (你)' : ''}
+        </div>
+        ${adminBtns}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderHand(){
+ const isAdminView=(viewMode==="admin");
+ const isWaiting = !isAdminView && roomData.waitingList && roomData.waitingList[playerId];
+ const h= (isAdminView || isWaiting) ? [] : sortCards((roomData.hands||{})[playerId]||[]);
+ const isTurn= !isAdminView && !isWaiting && roomData.status==="playing" && roomData.players?.[playerId]?.index===roomData.turn;
+
+ if(isAdminView){
+   el("myHand").innerHTML='<span style="color:#fff;font-weight:800">管理員觀看模式</span>';
+   el("actions").innerHTML="";
+   return;
+ }
+
+ if(isWaiting){
+   el("myHand").innerHTML='<span style="color:#fde68a;font-weight:800">👀 您目前在觀賽/等候區，等待牌局結束或管理員調度中...</span>';
+   el("actions").innerHTML="";
+   return;
+ }
+
+ el("myHand").innerHTML=h.length
+   ? h.map(c=>{
+       const info = getCardInfo(c);
+       const isSel = selectedSet.has(c);
+       return `<div class="tile ${info.isRed?'red':''} ${isSel?'selected':''}" onclick="toggleCard(${c})"><div>${info.rank}</div><div>${info.suit}</div></div>`;
+     }).join("")
+   : '<span style="color:#fff;font-weight:800">等待發牌中…</span>';
+
+ let a="";
+ if(isTurn){
+   a += `<button class="success" onclick="playCards()">出牌 (${selectedSet.size})</button>`;
+   a += `<button class="danger" onclick="passTurn()">Pass / 過牌</button>`;
+ }else if(roomData.status==="playing"){
+   a='<span>等待其他玩家出牌…</span>';
+ }
+ el("actions").innerHTML=a;
+}
+
+function renderDiscards(){
+ const lp = roomData.lastPlay;
+ if (!lp || !lp.cards || lp.cards.length === 0 || lp.isNewRound) {
+   el("discards").innerHTML = '<span style="color:#ddd;font-size:14px;">新一輪（可任意出牌）</span>';
+   return;
+ }
+ el("discards").innerHTML = lp.cards.map(c => {
+   const info = getCardInfo(c);
+   return `<div class="tile smalltile ${info.isRed?'red':''}"><div>${info.rank}</div><div>${info.suit}</div></div>`;
+ }).join("") + `<div style="width:100%;text-align:center;font-size:12px;color:#fde68a;margin-top:4px;">出牌者：${esc(lp.playerName)}</div>`;
+}
+
+function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
+function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場</th><th>刮刮樂</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td></tr>").join("")+"</table>"}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+
+window.addEventListener("DOMContentLoaded",()=>{
+  el("copyJoinLinkBtn")?.addEventListener("click",copyLink);
+  el("copyRoomBtn")?.addEventListener("click",copyRoom);
+  el("restartGameBtn")?.addEventListener("click",async ()=>{
+     if(confirm("確定要重新開局嗎？")){
+       await update(ref(db,"rooms_v4/"+roomId),{ status:"waiting", hands:{}, lastPlay:null, logs:["管理員重置房間。"] });
+     }
+  });
+});
+
+window.addEventListener("load",()=>{
+ const r=new URLSearchParams(location.search).get("room");
+ if(r){
+   el("joinRoom").value=r;
+   if(el("joinStatus"))el("joinStatus").textContent="已載入邀請房號："+r+"，請輸入暱稱後按「加入房間」。";
+   // 需求 3: 玩家經由點擊網址連結進入時，自動隱藏「管理員建立房間」按鈕
+   if(el("adminBtn")) el("adminBtn").classList.add("hidden");
+ }
+});
+</script>
+</body>
+</html>
