@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>焦焦大老二X刮刮樂</title>
+<title>蕉焦大老二x刮刮樂</title>
 <style>
 *{box-sizing:border-box;font-family:"Segoe UI","Microsoft JhengHei",sans-serif;user-select:none}
 body{margin:0;min-height:100vh;background:#0f5132;color:#fff;padding:14px}
@@ -25,7 +25,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 @keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
 
 /* 表情選擇列樣式 */
-.emoji-bar{display:flex;gap:6px;justify-content:center;margin-top:8px;align-items:center}
+.emoji-bar{display:flex;gap:6px;justify-content:center;margin:8px 0;align-items:center}
 .emoji-btn{background:#e2e8f0;border:none;border-radius:6px;padding:6px 10px;font-size:18px;cursor:pointer;transition:transform 0.1s}
 .emoji-btn:hover{transform:scale(1.1);background:#cbd5e1}
 
@@ -143,9 +143,16 @@ setInterval(function() {
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
 <div id="players" class="players"></div>
 
-<!-- 表情發送選項列 -->
+<div class="table" style="margin-top:12px;">
+<div class="center">
+  <div class="big" id="turnText">等待四人...</div>
+  <div class="small" id="roundText">等待管理員安排玩家加入，滿4人自動開局</div>
+  <div class="timer-box" id="timerBox"></div>
+</div><div id="discards" class="discard"></div>
+
+<!-- 表情發送選項列 (移至你的手牌旁邊/上方) -->
 <div class="emoji-bar" id="emojiBar">
-  <span style="font-size:13px;font-weight:bold;color:#172033;margin-right:4px;">發送表情：</span>
+  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;">發送表情：</span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
   <button class="emoji-btn" onclick="sendEmoji('👏')">👏</button>
   <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
@@ -153,14 +160,7 @@ setInterval(function() {
   <button class="emoji-btn" onclick="sendEmoji('😱')">😱</button>
 </div>
 
-<div class="table" style="margin-top:12px;">
-<div class="center">
-  <div class="big" id="turnText">等待四人...</div>
-  <div class="small" id="roundText">等待管理員安排玩家加入，滿4人自動開局</div>
-  <div class="timer-box" id="timerBox"></div>
-</div>
-<div class="hand-title">桌面最新出牌</div><div id="discards" class="discard"></div>
-<div class="hand-title">你的手牌（可複選）</div><div id="myHand" class="hand"></div>
+<div id="myHand" class="hand"></div>
 <div class="actions" id="actions"></div>
 </div>
 
@@ -905,7 +905,6 @@ window.kickPlayer = async function(targetPlayerId, targetName) {
 window.sendEmoji = async function(emojiChar) {
   if (viewMode !== "player" || !roomId) return;
   const roomRef = ref(db, `rooms_v4/${roomId}/players/${playerId}`);
-  // 更新當前玩家的表情與時間戳
   await update(roomRef, {
     currentEmoji: emojiChar,
     emojiTime: Date.now()
@@ -1168,7 +1167,6 @@ function render(){
    const online = isUserOnline(id);
    const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
 
-   // 檢查表情是否在 2 秒內發送，若是則顯示遮罩
    let emojiOverlayHtml = "";
    if (p.currentEmoji && p.emojiTime && (now - p.emojiTime < 2000)) {
      emojiOverlayHtml = `<div class="player-emoji-overlay">${p.currentEmoji}</div>`;
