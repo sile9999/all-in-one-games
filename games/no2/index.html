@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>蕉焦大老二X刮刮樂</title>
+<title>四人大老二刮刮樂</title>
 <style>
 *{box-sizing:border-box;font-family:"Segoe UI","Microsoft JhengHei",sans-serif;user-select:none}
 body{margin:0;min-height:100vh;background:#0f5132;color:#fff;padding:14px}
@@ -196,6 +196,70 @@ import {getDatabase,ref,set,onValue,get,update,runTransaction,onDisconnect,serve
 const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomain:"gogogame-ce8ba.firebaseapp.com",databaseURL:"https://gogogame-ce8ba-default-rtdb.firebaseio.com",projectId:"gogogame-ce8ba",storageBucket:"gogogame-ce8ba.firebasestorage.app",messagingSenderId:"823932242561",appId:"1:823932242561:web:7aaea77c9d8cf300b15b80"};
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
+
+// --- Web Audio API 音效系統 ---
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playSound(type) {
+  try {
+    initAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'play') {
+      // 清脆的出牌聲
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (type === 'pass') {
+      // 過牌聲
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(250, now);
+      osc.frequency.linearRampToValueAtTime(150, now + 0.15);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (type === 'win') {
+      // 勝利華麗音效
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+      osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+      osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } else if (type === 'tick') {
+      // 倒數警告嗶聲
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+  } catch(e) {
+    console.error("Audio error:", e);
+  }
+}
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
 let roomId=null, createdRoomIds=[], selectedRoomForAssign="", playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null, viewMode="player", startCallBusy=false, isAdmin=false; 
@@ -527,6 +591,7 @@ async function checkDisconnectedTurn() {
         const newHand = hand.filter(c => !playCandidate.includes(c));
         const nextTurn = (currentTurn + 1) % 4;
 
+        playSound('play');
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
@@ -540,6 +605,7 @@ async function checkDisconnectedTurn() {
         const newHand = hand.filter(c => !minCard.includes(c));
         const nextTurn = (currentTurn + 1) % 4;
 
+        playSound('play');
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
@@ -554,6 +620,7 @@ async function checkDisconnectedTurn() {
         let lastPlay = roomData.lastPlay;
         if (passCount >= 3) lastPlay = { ...lastPlay, isNewRound: true };
 
+        playSound('pass');
         await update(ref(db, `rooms_v4/${roomId}`), {
           turn: nextTurn,
           turnStartTime: Date.now(),
@@ -609,7 +676,6 @@ function renderAdminRoomsList() {
   el("createdRoomsList").innerHTML = html;
 }
 
-// 【新增】重置牌局的完整邏輯
 window.resetRoomGame = async (rId) => {
   if (!confirm(`確定要重置「${adminRoomsData[rId]?.name || rId}」的牌局嗎？這將會清除當前手牌、局數與對局狀態。`)) return;
   try {
@@ -618,7 +684,6 @@ window.resetRoomGame = async (rId) => {
     if (!snap.exists()) return alert("找不到此房間！");
     const room = snap.val();
 
-    // 保留玩家名單與基本設定，但清空對局進度、手牌與勝場等
     const players = room.players || {};
     const resetPlayers = {};
     Object.entries(players).forEach(([pid, p]) => {
@@ -837,6 +902,10 @@ function startTurnTimer() {
       el("timerBox").textContent = `⏳ 出牌倒數：${countdown} 秒`;
     }
 
+    if (countdown <= 3 && countdown > 0) {
+      playSound('tick');
+    }
+
     if (countdown === 0) {
       clearInterval(turnTimer);
       const me = roomData.players?.[playerId];
@@ -893,6 +962,16 @@ window.toggleCard = function(cardId) {
   renderHand();
 };
 
+// 新增：重新選牌按鈕對應的邏輯
+window.clearSelection = function() {
+  if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
+  const me = roomData.players?.[playerId];
+  if (!me || Number(me.index) !== Number(roomData.turn)) return;
+
+  selectedSet.clear();
+  renderHand();
+};
+
 window.playCards = async function() {
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
@@ -910,6 +989,8 @@ window.playCards = async function() {
   const newHand = hand.filter(c => !selectedCards.includes(c));
   const nextTurn = (Number(me.index) + 1) % 4;
   const playedType = getHandType(selectedCards);
+
+  playSound('play');
 
   const updates = {
     [`hands/${playerId}`]: newHand,
@@ -929,6 +1010,7 @@ window.playCards = async function() {
   selectedSet.clear();
 
   if (newHand.length === 0) {
+    playSound('win');
     const players = { ...(roomData.players || {}) };
     players[playerId] = { ...players[playerId], status: "win", wins: (players[playerId].wins || 0) + 1 };
 
@@ -948,14 +1030,26 @@ window.playCards = async function() {
     if (currentGRound < 4) {
       updates.currentGameRound = currentGRound + 1;
       updates.status = "waiting";
-      updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！準備開始第 ${currentGRound + 1} / 4 局...`);
+      updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！5秒後自動開始第 ${currentGRound + 1} / 4 局...`);
       
+      await update(ref(db, "rooms_v4/" + roomId), updates);
+
+      // 每局結束間隔洗牌 5 秒後自動重設或進入下一局
+      setTimeout(async () => {
+        if (viewMode === "player" || isAdmin) {
+          const freshSnap = await get(ref(db, "rooms_v4/" + roomId));
+          if (freshSnap.exists()) {
+            const fRoom = freshSnap.val();
+            if (fRoom.status === "waiting" && fRoom.currentGameRound === currentGRound + 1) {
+              await tryStartGame();
+            }
+          }
+        }
+      }, 5000);
+
       if (ticket) {
         myTicketId = ticket.id;
-        await update(ref(db, "rooms_v4/" + roomId), updates);
         showScratch(ticket);
-      } else {
-        await update(ref(db, "rooms_v4/" + roomId), updates);
       }
       return;
     } else {
@@ -992,6 +1086,7 @@ window.passTurn = async function() {
     lastPlay = { ...lastPlay, isNewRound: true };
   }
 
+  playSound('pass');
   selectedSet.clear();
   await update(ref(db, "rooms_v4/" + roomId), {
     turn: nextTurn,
@@ -1097,6 +1192,8 @@ function renderHand(){
 
  let a="";
  if(isTurn){
+   // 已在出牌按鈕前面新增「重新選牌」按鈕 (.gray 灰色風格)
+   a += `<button class="gray" onclick="clearSelection()">重新選牌</button>`;
    a += `<button class="success" onclick="playCards()">出牌 (${selectedSet.size})</button>`;
    a += `<button class="danger" onclick="passTurn()">Pass / 過牌</button>`;
  }else if(roomData.status==="playing"){
