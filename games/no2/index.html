@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>四人大老二刮刮樂</title>
+<title>蕉焦大老二X刮刮樂</title>
 <style>
 *{box-sizing:border-box;font-family:"Segoe UI","Microsoft JhengHei",sans-serif;user-select:none}
 body{margin:0;min-height:100vh;background:#0f5132;color:#fff;padding:14px}
@@ -277,6 +277,9 @@ function getHandType(cards) {
     const cVals = Object.values(counts).sort((a,b)=>b-a);
     let isStraight = false;
     if (Object.keys(counts).length === 5 && ranks[4] - ranks[0] === 4) isStraight = true;
+    
+    const suits = sorted.map(c => c % 4);
+    const isFlush = (suits[0] === suits[1] && suits[1] === suits[2] && suits[2] === suits[3] && suits[3] === suits[4]);
 
     if (cVals[0] === 3 && cVals[1] === 2) {
       const tripleRank = Number(Object.keys(counts).find(r => counts[r] === 3));
@@ -288,23 +291,38 @@ function getHandType(cards) {
       const maxCardInQuad = sorted.filter(c => Math.floor(c/4) === quadRank).pop();
       return { type: "four", val: maxCardInQuad };
     }
+    if (isStraight && isFlush) return { type: "straightFlush", val: sorted[4] };
     if (isStraight) return { type: "straight", val: sorted[4] };
   }
   return null;
 }
 
-const TYPE_RANK = { straight: 1, fullhouse: 2, four: 3 };
+const TYPE_RANK = { straight: 1, fullhouse: 2, four: 3, straightFlush: 4 };
 
 function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
   const played = getHandType(selectedCards);
   if (!played) return false;
   if (isFirstPlayOfGame && !selectedCards.includes(0)) return false;
   if (!lastPlay || lastPlay.isNewRound) return true;
+  
   const last = lastPlay.handType;
   if (!last) return true;
-  if (selectedCards.length !== lastPlay.cards.length && played.type !== "four") return false;
+
+  const isMonsterCard = (type) => type === "four" || type === "straightFlush";
+  const isNormalCard = (type) => ["single", "pair", "triple", "straight", "fullhouse"].includes(type);
+
+  if (isNormalCard(last.type) && isMonsterCard(played.type)) {
+    return true;
+  }
+
+  if (selectedCards.length !== lastPlay.cards.length && !isMonsterCard(played.type)) return false;
+
   if (played.type === last.type) return played.val > last.val;
-  if (TYPE_RANK[played.type] && TYPE_RANK[last.type]) return TYPE_RANK[played.type] > TYPE_RANK[last.type];
+
+  if (TYPE_RANK[played.type] && TYPE_RANK[last.type]) {
+    return TYPE_RANK[played.type] > TYPE_RANK[last.type];
+  }
+  
   return false;
 }
 
@@ -420,7 +438,7 @@ el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
 window.joinLobby=async()=>{
  const status=el("joinStatus");
  const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
- try{ setStatus("正在連線 Firebase…"); await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
+ try{ status.textContent="正在連線 Firebase…"; await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
 
  playerName=el("name").value.trim();
  if(!playerName) return alert("請輸入暱稱");
@@ -583,12 +601,53 @@ function renderAdminRoomsList() {
         </div>
         <div class="row" style="margin-top:6px">
           <button class="success" onclick="event.stopPropagation(); openAdminRoomWindow('${rId}')">觀看／管理此房 (另開視窗)</button>
+          <button class="danger" onclick="event.stopPropagation(); resetRoomGame('${rId}')">重置牌局</button>
         </div>
       </div>
     `;
   });
   el("createdRoomsList").innerHTML = html;
 }
+
+// 【新增】重置牌局的完整邏輯
+window.resetRoomGame = async (rId) => {
+  if (!confirm(`確定要重置「${adminRoomsData[rId]?.name || rId}」的牌局嗎？這將會清除當前手牌、局數與對局狀態。`)) return;
+  try {
+    const roomRef = ref(db, "rooms_v4/" + rId);
+    const snap = await get(roomRef);
+    if (!snap.exists()) return alert("找不到此房間！");
+    const room = snap.val();
+
+    // 保留玩家名單與基本設定，但清空對局進度、手牌與勝場等
+    const players = room.players || {};
+    const resetPlayers = {};
+    Object.entries(players).forEach(([pid, p]) => {
+      resetPlayers[pid] = {
+        name: p.name,
+        index: p.index,
+        status: "waiting",
+        wins: 0,
+        ticketCount: 0
+      };
+    });
+
+    await update(roomRef, {
+      status: "waiting",
+      currentGameRound: 1,
+      players: resetPlayers,
+      turn: 0,
+      hands: {},
+      lastPlay: null,
+      passCount: 0,
+      round: 0,
+      logs: [...(room.logs || []), `👑 管理員手動重置了牌局。`].slice(-80)
+    });
+
+    alert("房間已成功重置！");
+  } catch (e) {
+    alert("重置牌局失敗：" + e.message);
+  }
+};
 
 let currentWinners = [];
 function renderAdminWinners() {
