@@ -45,6 +45,25 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 
 @media(max-width:700px){.admin-grid{grid-template-columns:1fr}.players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
 </style>
+<script>
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'F12' || 
+     (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+     (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
+    e.preventDefault();
+    return false;
+  }
+});
+setInterval(function() {
+  const startTime = performance.now();
+  debugger;
+  const endTime = performance.now();
+  if (endTime - startTime > 100) {
+    document.body.innerHTML = "防除錯保護觸發";
+  }
+}, 1000);
+</script>
 </head>
 <body>
 
@@ -74,7 +93,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 </div>
 <div class="field"><label>刮刮樂總張數 (每個房間)</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
 <div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
-<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">批次建立房間並生成單一連結</button>
+<button id="createRoomBtn" class="success" style="width:100%;margin-top:10px" onclick="createRoom()">批次建立房間並生成單一連結</button>
 </div>
 
 <!-- 房間批次建立資訊與連結 -->
@@ -152,14 +171,22 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 </div>
 
 <script>
-window.admin = window.admin || function(){
-  const box=document.getElementById("adminBox");
+function el(id){return document.getElementById(id)}
+window.admin = function(){
+  const box=el("adminBox");
   if(!box){ alert("找不到管理員設定區，請重新整理頁面。"); return; }
   box.classList.toggle("hidden");
-  const prizes=document.getElementById("prizes");
+  const prizes=el("prizes");
   if(prizes && !prizes.children.length && typeof window.addPrize==="function") window.addPrize();
 };
+window.addPrize=function(d={name:"獎項",count:1,image:""}){
+ const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
+ row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
+ row.querySelector("input[type=file]").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{row.dataset.image=r.result;row.querySelector("img").src=r.result};r.readAsDataURL(f)};
+ row.querySelector("button").onclick=()=>row.remove();el("prizes").appendChild(row)
+};
 </script>
+
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -169,7 +196,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-let roomId=null, createdRoomIds=[], playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null, isAdmin=false; 
+let roomId=null, createdRoomIds=[], playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null; 
 sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null, globalWaitingData = {}, allRoomsData = {};
@@ -267,20 +294,27 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
   return false;
 }
 
-function el(id){return document.getElementById(id)}
-window.addPrize=(d={name:"獎項",count:1,image:""})=>{
- const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
- row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
- row.querySelector("input[type=file]").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{row.dataset.image=r.result;row.querySelector("img").src=r.result};r.readAsDataURL(f)};
- row.querySelector("button").onclick=()=>row.remove();el("prizes").appendChild(row)
-};
 function parsePrizes(){return [...document.querySelectorAll(".prize-row")].map(r=>({name:r.querySelector(".pn").value.trim(),count:+r.querySelector(".pc").value||0,image:r.dataset.image||""})).filter(x=>x.name&&x.count>0)}
 function buildTickets(prizes,n){let a=[];prizes.forEach((p,i)=>{for(let j=0;j<p.count;j++)a.push({prize:p.name,prizeIndex:i,isWinner:true})});while(a.length<n)a.push({prize:"沒中",prizeIndex:null,isWinner:false});return a.slice(0,n).sort(()=>Math.random()-.5).map((x,i)=>({id:"t"+i+"_"+Math.random().toString(36).slice(2,7),...x,claimed:false}))}
+
+function makeSharedLink(){
+ const base=new URL(window.location.href); base.search=""; base.hash=""; base.searchParams.set("lobby","1"); return base.href;
+}
+
+async function copyText(text){
+ try{
+   if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
+   else{ const ta=document.createElement("textarea"); ta.value=text;document.body.appendChild(ta);ta.select(); document.execCommand("copy");ta.remove(); }
+   return true;
+ }catch(e){return false}
+}
 
 // 管理員建立多房間與統一連結
 window.createRoom=async()=>{
  try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message));}
- if(el("pwd").value!=="17696969")return alert("管理員密碼錯誤");
+ const pwdInput = el("pwd");
+ if(!pwdInput || pwdInput.value!=="17696969")return alert("管理員密碼錯誤");
+ 
  let count = Math.min(4, Math.max(1, +el("roomCreateCount").value || 1));
  let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
  
@@ -305,7 +339,6 @@ window.createRoom=async()=>{
    });
  }
 
- // 建立全域等候區指標
  await set(ref(db, "rooms_v4_lobby/createdRooms"), createdRoomIds);
  const sharedLink = makeSharedLink();
  el("sharedJoinLink").value = sharedLink;
@@ -314,21 +347,9 @@ window.createRoom=async()=>{
  alert(`成功建立 ${count} 個房間！已產生玩家統一入口連結。`);
 };
 
-function makeSharedLink(){
- const base=new URL(window.location.href); base.search=""; base.hash=""; base.searchParams.set("lobby","1"); return base.href;
-}
-
 window.copySharedLink = async () => {
  alert(await copyText(el("sharedJoinLink").value) ? "複製統一連結成功！" : "複製失敗，請手動複製");
 };
-
-async function copyText(text){
- try{
-   if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
-   else{ const ta=document.createElement("textarea"); ta.value=text;document.body.appendChild(ta);ta.select(); document.execCommand("copy");ta.remove(); }
-   return true;
- }catch(e){return false}
-}
 
 // 玩家點擊連結進入全域等候區
 el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
@@ -340,7 +361,6 @@ window.joinLobby=async()=>{
 
  setupPresence();
  
- // 註冊至全域等候清單
  await update(ref(db, `rooms_v4_lobby/waitingList/${playerId}`), {
    name: playerName, joinedAt: Date.now()
  });
@@ -348,7 +368,6 @@ window.joinLobby=async()=>{
  el("setup").classList.add("hidden");
  el("playerWaitingArea").classList.remove("hidden");
 
- // 監聽全域等候區，若玩家被分配至某個房間，則切換至遊戲
  onValue(ref(db, `rooms_v4_lobby/waitingList/${playerId}`), async (snap) => {
    const val = snap.val();
    if (val && val.assignedRoomId) {
@@ -361,17 +380,14 @@ window.joinLobby=async()=>{
 
 // 管理員進入控制後台
 window.enterAdminDashboard = async () => {
- isAdmin = true;
  el("setup").classList.add("hidden");
  el("adminDashboard").classList.remove("hidden");
 
- // 監聽全域等候區與離線狀態
  onValue(ref(db, "rooms_v4_lobby"), (snap) => {
    globalWaitingData = snap.val() || {};
    renderAdminDashboard();
  });
 
- // 監聽所有建立的房間狀態
  createdRoomIds.forEach(rId => {
    onValue(ref(db, "rooms_v4/" + rId), (snap) => {
      allRoomsData[rId] = snap.val();
@@ -381,7 +397,6 @@ window.enterAdminDashboard = async () => {
 };
 
 function renderAdminDashboard() {
-  // 渲染等候區清單
   const waitingMap = globalWaitingData.waitingList || {};
   const entries = Object.entries(waitingMap).filter(([_, w]) => !w.assignedRoomId);
   el("adminWaitingCount").textContent = entries.length;
@@ -392,7 +407,6 @@ function renderAdminDashboard() {
     el("adminWaitingList").innerHTML = entries.map(([wId, w]) => {
       const online = isUserOnline(wId);
       const dotHtml = `<span class="status-dot ${online?'online':'offline'}"></span>`;
-      
       let roomOptions = createdRoomIds.map((rId, idx) => `<option value="${rId}">房間 ${idx+1}</option>`).join("");
       
       return `
@@ -407,7 +421,6 @@ function renderAdminDashboard() {
     }).join("");
   }
 
-  // 渲染各房間資訊
   let roomsHtml = "";
   createdRoomIds.forEach((rId, idx) => {
     const rData = allRoomsData[rId] || {};
@@ -448,14 +461,12 @@ window.assignUserToRoom = async (wId, wName) => {
   const used = Object.values(currentPlayers).map(p => Number(p.index));
   const freeIndex = [0,1,2,3].find(i => !used.includes(i));
 
-  // 加入房間與更新全域指標
   const updates = {};
   updates[`rooms_v4/${targetRoomId}/players/${wId}`] = { name: wName, index: freeIndex, status: "waiting", wins: 0, ticketCount: 0 };
   updates[`rooms_v4_lobby/waitingList/${wId}/assignedRoomId`] = targetRoomId;
 
   await update(ref(db), updates);
 
-  // 滿4人自動觸發開局
   if (Object.keys(currentPlayers).length + 1 === 4) {
     autoStartRoomGame(targetRoomId);
   }
@@ -469,7 +480,6 @@ window.kickPlayerFromAdmin = async (rId, targetPlayerId, targetName) => {
   await update(ref(db), updates);
 };
 
-// 滿4人自動開始遊戲
 async function autoStartRoomGame(rId) {
   const roomRef = ref(db, "rooms_v4/" + rId);
   const snap = await get(roomRef);
@@ -507,7 +517,6 @@ async function autoStartRoomGame(rId) {
   });
 }
 
-// 玩家訂閱遊戲畫面
 async function subscribePlayerGame() {
   el("game").classList.remove("hidden");
   el("gameRoom").textContent = roomId;
@@ -692,7 +701,6 @@ window.closeScratch=function(){
   el("scratch")?.classList.add("hidden"); el("game")?.classList.remove("hidden"); renderPlayerGame();
 };
 
-// 渲染純玩家視角
 function renderPlayerGame(){
  el("gameRoom").textContent=roomId;
  if(el("gameRoundBadge")) el("gameRoundBadge").textContent = `第 ${roomData.currentGameRound || 1} / 4 局`;
