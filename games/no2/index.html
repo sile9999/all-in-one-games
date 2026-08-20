@@ -67,9 +67,14 @@ setInterval(function() {
 </head>
 <body>
 <div id="setup" class="card">
-<h1>♠️ 四人大老二刮刮樂</h1>
+<h1 id="mainTitle">♠️ 四人大老二刮刮樂</h1>
 <p id="setupDesc">連玩4局累計勝場獲勝！所有玩家將先進入「等候區」，由管理員分配至房間。</p>
-<div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
+
+<div class="field">
+  <label id="nameLabel">你的暱稱</label>
+  <input id="name" class="input" placeholder="請輸入暱稱" autocomplete="off">
+</div>
+
 <div class="row">
 <button id="joinBtn" type="button" class="primary">進入等候區</button>
 <button id="adminBtn" class="success" onclick="admin()">管理員控制台</button>
@@ -88,7 +93,7 @@ setInterval(function() {
   <div style="font-weight:bold;margin-bottom:6px">🔗 玩家專用連結 (一律進入等候區)：</div>
   <div class="row">
     <input id="lobbyLinkInput" class="input" style="flex:1" readonly>
-    <button class="primary" onclick="copyCustomText(el('lobbyLinkInput').value)">複製等候區連結</button>
+    <button class="primary" onclick="copyCustomText(document.getElementById('lobbyLinkInput').value)">複製等候區連結</button>
   </div>
 
   <div style="margin-top:14px;font-weight:bold">🏢 房間清單 (點擊房間卡片可指定選取)：</div>
@@ -140,6 +145,25 @@ setInterval(function() {
 </div>
 
 <script>
+// 偵測是否為玩家專用連結模式 (?mode=player)
+window.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("mode") === "player") {
+    // 隱藏非必要元素，轉為玩家純淨極簡模式
+    const mainTitle = document.getElementById("mainTitle");
+    const setupDesc = document.getElementById("setupDesc");
+    const adminBtn = document.getElementById("adminBtn");
+    const lobbyBtn = document.getElementById("lobbyBtn");
+    const nameLabel = document.getElementById("nameLabel");
+
+    if (mainTitle) mainTitle.innerText = "🎮 玩家加入等候區";
+    if (setupDesc) setupDesc.style.display = "none";
+    if (adminBtn) adminBtn.style.display = "none";
+    if (lobbyBtn) lobbyBtn.style.display = "none";
+    if (nameLabel) nameLabel.innerText = "請輸入暱稱：";
+  }
+});
+
 window.admin = window.admin || function(){
   const box=document.getElementById("adminBox");
   if(!box){ alert("找不到管理員設定區，請重新整理頁面。"); return; }
@@ -148,6 +172,7 @@ window.admin = window.admin || function(){
   if(prizes && !prizes.children.length && typeof window.addPrize==="function") window.addPrize();
 };
 </script>
+
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -257,7 +282,7 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
 }
 
 function el(id){return document.getElementById(id)}
-window.admin=()=>{el("adminBox").classList.toggle("hidden");if(!el("prizes").children.length)addPrize()};
+window.admin=()=>{el("adminBox").classList.toggle("hidden");if(!el("prizes").children.length)window.addPrize()};
 window.addPrize=(d={name:"獎項",count:1,image:""})=>{
  const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
  row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
@@ -311,9 +336,29 @@ window.createRoom=async()=>{
  alert(`成功生成等候區與 4 個四人大老二房間！`);
 };
 
-// 點擊複製按鈕將等候區連結真實寫入剪貼簿
+// 複製文本適配函式
+async function copyText(text){
+ try{
+   if(navigator.clipboard && window.isSecureContext){ 
+     await navigator.clipboard.writeText(text); 
+   }else{ 
+     const ta=document.createElement("textarea"); 
+     ta.value=text;
+     ta.style.position="fixed";
+     ta.style.opacity="0";
+     document.body.appendChild(ta);
+     ta.select(); 
+     document.execCommand("copy");
+     ta.remove(); 
+   }
+   return true;
+ }catch(e){ return false; }
+}
+
+// 掛載至 window 確保全域可用
 window.copyCustomText = async (text) => {
- alert(await copyText(text) ? "複製成功！已將等候區連結複製到剪貼簿。" : "複製失敗，請手動複製：" + text);
+ const success = await copyText(text);
+ alert(success ? "複製成功！" : "複製失敗，請手動複製：" + text);
 };
 
 window.selectAdminRoom = async (rId) => {
@@ -326,16 +371,12 @@ window.setSelectedTargetRoom = (rId) => {
   renderAdminRoomsList();
 };
 
+// 產生玩家專用的等候區連結（帶入 ?mode=player 讓頁面顯示純淨視窗）
 function makeLobbyJoinLink(){
- const base=new URL(window.location.href); base.search=""; base.hash=""; return base.href;
-}
-
-async function copyText(text){
- try{
-   if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
-   else{ const ta=document.createElement("textarea"); ta.value=text;document.body.appendChild(ta);ta.select(); document.execCommand("copy");ta.remove(); }
-   return true;
- }catch(e){return false}
+ const base=new URL(window.location.href); 
+ base.search = "?mode=player"; 
+ base.hash = ""; 
+ return base.href;
 }
 
 el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
