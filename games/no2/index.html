@@ -73,9 +73,9 @@ setInterval(function() {
 <h1>♠️ 四人大老二刮刮樂</h1>
 <p id="setupDesc">四人同桌競賽，滿4人即開始，連玩4局！最後累計勝場獲勝並獲得刮刮樂。</p>
 <div class="field"><label>你的暱稱</label><input id="name" class="input" placeholder="請輸入暱稱"></div>
-<div class="field"><label>房號（加入既有房間時）</label><input id="joinRoom" class="input" placeholder="六位數房號"></div>
+<div class="field" id="joinRoomField"><label>批次組別代碼（選填，留空自動進入大廳配對）</label><input id="joinRoom" class="input" placeholder="若有指定組別請輸入"></div>
 <div class="row">
-<button id="joinBtn" type="button" class="primary">加入房間</button>
+<button id="joinBtn" type="button" class="primary">快速配對加入</button>
 <button id="adminBtn" class="success" onclick="admin()">管理員建立房間</button>
 <button id="lobbyBtn" class="gray" onclick="window.location.href='https://sile9999.github.io/all-in-one-games/'">回到遊戲大廳</button>
 </div>
@@ -83,23 +83,26 @@ setInterval(function() {
 <div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
 <div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
 <div class="field">
-  <label>一次建立房間數量 (1-4 個)</label>
+  <label>一次建立房間數量 (預設 4 個房間)</label>
   <select id="roomCreateCount" class="input">
+    <option value="4" selected>4 個房間（單一配對網址）</option>
     <option value="1">1 個房間</option>
     <option value="2">2 個房間</option>
     <option value="3">3 個房間</option>
-    <option value="4" selected>4 個房間</option>
   </select>
 </div>
 <div class="field"><label>刮刮樂總張數 (每個房間)</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
 <div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
-<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">批次建立四人大老二房間</button>
+<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">建立批次房間與共享連結</button>
 </div>
 
 <div id="roomInfo" class="hidden" style="margin-top:12px;border-top:1px solid #ddd;padding-top:12px">
-  <div><b>房間批次建立完成</b></div>
+  <div><b>房間批次建立完成！玩家共享連結：</b></div>
+  <div style="margin:8px 0"><input id="sharedGroupLink" class="input" readonly></div>
+  <button class="primary" onclick="copyCustomText(document.getElementById('sharedGroupLink').value)">複製統一加入連結</button>
+  <hr style="margin:12px 0;border:0;border-top:1px solid #eee;">
   <div id="createdRoomsList"></div>
-  <small style="color:#64748b;display:block;margin-top:8px">管理員只負責建立房間，不佔 4 名玩家名額。</small>
+  <small style="color:#64748b;display:block;margin-top:8px">玩家點擊上方同一連結，系統會自動按順序1~4號房進入配對。</small>
 </div>
 </div>
 
@@ -174,7 +177,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-let roomId=null,createdRoomIds=[],playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()),playerName="",roomData=null,myIndex=-1,selectedSet=new Set(),myTicketId=null,viewMode="player",startCallBusy=false,isAdmin=false; 
+let roomId=null,batchGroupId=null,createdRoomIds=[],playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()),playerName="",roomData=null,myIndex=-1,selectedSet=new Set(),myTicketId=null,viewMode="player",startCallBusy=false,isAdmin=false; 
 sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
 
 let turnTimer = null;
@@ -286,15 +289,16 @@ window.addPrize=(d={name:"獎項",count:1,image:""})=>{
 function parsePrizes(){return [...document.querySelectorAll(".prize-row")].map(r=>({name:r.querySelector(".pn").value.trim(),count:+r.querySelector(".pc").value||0,image:r.dataset.image||""})).filter(x=>x.name&&x.count>0)}
 function buildTickets(prizes,n){let a=[];prizes.forEach((p,i)=>{for(let j=0;j<p.count;j++)a.push({prize:p.name,prizeIndex:i,isWinner:true})});while(a.length<n)a.push({prize:"沒中",prizeIndex:null,isWinner:false});return a.slice(0,n).sort(()=>Math.random()-.5).map((x,i)=>({id:"t"+i+"_"+Math.random().toString(36).slice(2,7),...x,claimed:false}))}
 
-// 需求1：批次建立最多4個房間
+// 需求1修正：一次建立4個房間，產出單一共用連結
 window.createRoom=async()=>{
  try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message));}
  if(el("pwd").value!=="17696969")return alert("管理員密碼錯誤");
- let count = Math.min(4, Math.max(1, +el("roomCreateCount").value || 1));
+ let count = Math.min(4, Math.max(1, +el("roomCreateCount").value || 4));
  let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
  
  createdRoomIds = [];
  let createdHtml = "";
+ batchGroupId = "group_" + Math.floor(100000 + Math.random() * 900000);
 
  for(let i = 0; i < count; i++) {
    let rId = String(Math.floor(100000+Math.random()*900000));
@@ -302,8 +306,10 @@ window.createRoom=async()=>{
    let tickets=buildTickets(pr,n);
    await set(ref(db,"rooms_v4/"+rId),{
      type:"bigtwo4",
+     batchGroupId: batchGroupId,
+     roomOrder: i + 1,
      status:"waiting",
-     currentGameRound: 1, // 總共玩 4 局，從第 1 局開始
+     currentGameRound: 1, 
      maxGameRounds: 4,
      players:{},
      waitingList:{},
@@ -318,21 +324,26 @@ window.createRoom=async()=>{
      logs:[`房間 #${i+1} 建立，等待玩家加入 (滿4人自動開局並進行4局賽程)。`]
    });
 
-   let link = makeJoinLink(rId);
    createdHtml += `
      <div class="room-box">
        <div><b>房間 ${i+1}</b>｜房號：<span class="room">${rId}</span></div>
-       <div style="margin:5px 0"><input class="input" value="${link}" readonly></div>
-       <div class="row">
-         <button class="primary" onclick="copyCustomText('${link}')">複製連結</button>
-         <button class="gray" onclick="copyCustomText('${rId}')">複製房號</button>
+       <div class="row" style="margin-top:6px">
+         <button class="gray" onclick="copyCustomText('${rId}')">複製單獨房號</button>
          <button class="success" onclick="selectAdminRoom('${rId}')">觀看／管理此房</button>
        </div>
      </div>
    `;
  }
 
+ // 儲存批次組別紀錄
+ await set(ref(db, "batch_groups_v4/" + batchGroupId), {
+   createdRoomIds,
+   createdAt: Date.now()
+ });
+
  roomId = createdRoomIds[0];
+ const sharedLink = makeJoinGroupLink(batchGroupId);
+ el("sharedGroupLink").value = sharedLink;
  el("roomInfo").classList.remove("hidden");
  el("createdRoomsList").innerHTML = createdHtml;
  isAdmin=true; viewMode="admin";
@@ -340,7 +351,7 @@ window.createRoom=async()=>{
  el("game").classList.add("hidden"); el("setup").classList.remove("hidden");
  el("adminGameBar").classList.add("hidden"); el("adminBox").classList.add("hidden");
  await watchRoomData();
- alert(`成功建立 ${count} 個四人大老二房間！`);
+ alert(`成功建立 ${count} 個房間！已生成單一配對網址。`);
 };
 
 window.copyCustomText = async (text) => {
@@ -355,6 +366,10 @@ window.selectAdminRoom = async (rId) => {
 function makeJoinLink(room){
  const base=new URL(window.location.href); base.search=""; base.hash=""; base.searchParams.set("room",String(room)); return base.href;
 }
+function makeJoinGroupLink(groupId){
+ const base=new URL(window.location.href); base.search=""; base.hash=""; base.searchParams.set("group",String(groupId)); return base.href;
+}
+
 async function copyText(text){
  try{
    if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
@@ -366,20 +381,63 @@ el("joinBtn")?.addEventListener("click",()=>window.join());
 window.copyLink=async()=>{ alert(await copyText(makeJoinLink(roomId))?"玩家加入連結已複製！":"請手動複製連結"); };
 window.copyRoom=async()=>{ alert(await copyText(roomId)?"房號已複製！":"請手動複製房號："+roomId); };
 
+// 需求1修正：玩家點選同一連結後，自動依序尋找1~4號未滿的房間配對進入
 window.join=async()=>{
  const status=el("joinStatus");
  const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
  try{ setStatus("正在連線 Firebase…"); await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
 
- playerName=el("name").value.trim(); roomId=el("joinRoom").value.trim()||new URLSearchParams(location.search).get("room");
- if(!playerName) return alert("請輸入暱稱");
- if(!roomId) return alert("請輸入房號");
+ playerName=el("name").value.trim(); 
+ const targetRoomInput = el("joinRoom").value.trim();
+ const urlParams = new URLSearchParams(location.search);
+ const targetGroup = urlParams.get("group") || targetRoomInput;
+ const targetRoom = urlParams.get("room");
 
- roomId=String(roomId).trim(); setStatus("正在檢查房間 "+roomId+"…");
+ if(!playerName) return alert("請輸入暱稱");
+
+ setStatus("正在搜尋可用房間配對中…");
  try{
+   let targetRoomIdToJoin = null;
+
+   if (targetRoom) {
+     targetRoomIdToJoin = targetRoom;
+   } else if (targetGroup) {
+     const gSnap = await get(ref(db, "batch_groups_v4/" + targetGroup));
+     if (gSnap.exists()) {
+       const rIds = gSnap.val().createdRoomIds || [];
+       for (let rId of rIds) {
+         const rSnap = await get(ref(db, "rooms_v4/" + rId));
+         if (rSnap.exists()) {
+           const d = rSnap.val();
+           const pCount = Object.keys(d.players || {}).length;
+           // 若玩家已在房間內直接進入
+           if (d.players?.[playerId] || d.waitingList?.[playerId]) {
+             targetRoomIdToJoin = rId;
+             break;
+           }
+           // 按順序尋找未滿 4 人且還沒結束/開始的房間
+           if (pCount < 4 && d.status === "waiting") {
+             targetRoomIdToJoin = rId;
+             break;
+           }
+         }
+       }
+       if (!targetRoomIdToJoin && rIds.length > 0) {
+         targetRoomIdToJoin = rIds[rIds.length - 1]; // 若全滿則進入最後一間的等候區
+       }
+     } else {
+       targetRoomIdToJoin = targetGroup; // 嘗試作為一般房號
+     }
+   } else {
+     return alert("請輸入房號或使用共享連結加入遊戲！");
+   }
+
+   roomId = String(targetRoomIdToJoin).trim(); 
+   setStatus("正在加入房間 "+roomId+"…");
+
    const roomRef=ref(db,"rooms_v4/"+roomId);
    const s=await get(roomRef);
-   if(!s.exists()) return alert("找不到房間："+roomId);
+   if(!s.exists()) return alert("找不到指定房間："+roomId);
 
    const d=s.val()||{};
    if(d.status==="ended") return alert("這個房間的遊戲已結束。");
@@ -398,7 +456,7 @@ window.join=async()=>{
      await update(ref(db, `rooms_v4/${roomId}`), {
        logs: [...(d.logs||[]), `👀 ${playerName} 加入了觀賽/等候區。`].slice(-80)
      });
-     alert("目前桌上已有4人或遊戲進行中，您已加入「觀賽等候區」！");
+     alert("前續房間已額滿，您已自動配對並加入「觀賽等候區」！");
    } else {
      const playersRef=ref(db,"rooms_v4/"+roomId+"/players");
      const tx=await runTransaction(playersRef,current=>{
@@ -432,7 +490,7 @@ async function watchRoomData(){
 
    checkAndHandleOfflinePlayerTurn();
 
-   // 需求 1: 每4人額滿該房間就自動開始遊戲
+   // 滿 4 人自動開局並進行 4 局
    if(count===4 && roomData.status==="waiting" && !startCallBusy){
      startCallBusy=true;
      try{ await tryStartGame(); } finally{ startCallBusy=false; }
@@ -526,7 +584,6 @@ function updateDebugPanel(room){
   if(el("debugRoomStatus"))el("debugRoomStatus").textContent=room?.status||"unknown";
 }
 
-// 自動開始或開始下一局
 async function tryStartGame(){
  const roomRef=ref(db,"rooms_v4/"+roomId);
  try{
@@ -549,7 +606,6 @@ async function tryStartGame(){
 
    const currentRound = room.currentGameRound || 1;
 
-   // 重置玩家局內狀態
    const resetPlayers = {};
    Object.entries(room.players || {}).forEach(([pid, p]) => {
      resetPlayers[pid] = { ...p, status: "playing" };
@@ -692,7 +748,6 @@ window.toggleCard = function(cardId) {
   renderHand();
 };
 
-// 需求1: 處理連玩4局的邏輯
 window.playCards = async function() {
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
@@ -729,7 +784,6 @@ window.playCards = async function() {
 
   selectedSet.clear();
 
-  // 本局結束（該玩家牌出完）
   if (newHand.length === 0) {
     const players = { ...(roomData.players || {}) };
     players[playerId] = { ...players[playerId], status: "win", wins: (players[playerId].wins || 0) + 1 };
@@ -748,7 +802,6 @@ window.playCards = async function() {
     updates.scratchTickets = tickets;
 
     if (currentGRound < 4) {
-      // 未滿4局，自動推進到下一局
       updates.currentGameRound = currentGRound + 1;
       updates.status = "waiting";
       updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！準備自動開始第 ${currentGRound + 1} / 4 局...`);
@@ -759,11 +812,9 @@ window.playCards = async function() {
         showScratch(ticket);
       }
       
-      // 自動觸發下一局發牌
       setTimeout(() => { tryStartGame(); }, 2000);
       return;
     } else {
-      // 已滿4局，全賽事結束
       updates.status = "ended";
       updates.winnerId = playerId;
       updates.logs.push(`🏆 第 4 局結束！全 4 局競賽圓滿完成！恭喜最終優勝玩家！`);
@@ -982,10 +1033,12 @@ window.addEventListener("DOMContentLoaded",()=>{
 });
 
 window.addEventListener("load",()=>{
- const r=new URLSearchParams(location.search).get("room");
- if(r){
-   el("joinRoom").value=r;
-   if(el("joinStatus"))el("joinStatus").textContent="已載入邀請房號："+r+"，請輸入暱稱後按「加入房間」。";
+ const urlParams = new URLSearchParams(location.search);
+ const g = urlParams.get("group");
+ const r = urlParams.get("room");
+ if(g || r){
+   if(el("joinRoom")) el("joinRoom").value = g || r;
+   if(el("joinStatus")) el("joinStatus").textContent = "已載入組別/配對網址，請輸入暱稱後點擊「快速配對加入」。";
    if(el("adminBtn")) el("adminBtn").classList.add("hidden");
    if(el("lobbyBtn")) el("lobbyBtn").classList.add("hidden");
  }
