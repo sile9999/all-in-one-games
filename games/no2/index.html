@@ -46,29 +46,6 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .winner-box{background:#fffbebf0;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .winner-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 12px;border-radius:6px;margin-top:4px;border:1px solid #fde68a;font-size:14px}
 
-/* 每局結束倒數遮罩 CSS */
-.overlay-mask {
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  color: #fff;
-  text-align: center;
-}
-.overlay-card {
-  background: #1e293b;
-  padding: 30px 40px;
-  border-radius: 20px;
-  border: 3px solid #f59e0b;
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
-}
-.overlay-title { font-size: 28px; font-weight: 800; color: #f59e0b; margin-bottom: 10px; }
-.overlay-timer { font-size: 64px; font-weight: 900; color: #22c55e; margin: 15px 0; }
-
 @media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
 </style>
 <script>
@@ -101,7 +78,6 @@ setInterval(function() {
   <input id="name" class="input" placeholder="請輸入暱稱" autocomplete="off">
 </div>
 
-<!-- 需求 2：新增通關碼輸入欄位 -->
 <div class="field">
   <label>房間通關碼（如管理者有設定則必填）</label>
   <input id="joinPasscode" class="input" placeholder="請輸入通關碼" autocomplete="off">
@@ -116,7 +92,6 @@ setInterval(function() {
 
 <div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
 <div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
-<!-- 需求 2：管理者建立房間時可設定通關碼 -->
 <div class="field"><label>防亂入房間通關碼（留空代表不設限）</label><input id="roomPasscode" class="input" placeholder="例如：8888"></div>
 <div class="field"><label>刮刮樂總張數 (每個房間)</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
 <div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
@@ -127,7 +102,6 @@ setInterval(function() {
   <div style="font-weight:bold;margin-bottom:6px">🔗 玩家專用連結 (一律進入等候區)：</div>
   <div class="row">
     <input id="lobbyLinkInput" class="input" style="flex:1" readonly>
-    <!-- 修改處：改為調用 copyLobbyInfo() 函數 -->
     <button class="primary" onclick="copyLobbyInfo()">複製等候區連結</button>
   </div>
 
@@ -187,15 +161,6 @@ setInterval(function() {
 <button class="primary" onclick="closeScratch()">確定 / 關閉</button>
 </div>
 
-<!-- 需求 1：每局結束倒數全螢幕遮罩 (預設 5 秒) -->
-<div id="roundOverlay" class="overlay-mask hidden">
-  <div class="overlay-card">
-    <div class="overlay-title" id="overlayTitle">本局結束！</div>
-    <p style="margin:0;font-size:16px;color:#cbd5e1;">即將開始下一局，請準備…</p>
-    <div class="overlay-timer" id="overlayTimer">5</div>
-  </div>
-</div>
-
 <script>
 window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -237,7 +202,7 @@ let roomId=null, createdRoomIds=[], selectedRoomForAssign="", playerId=sessionSt
 sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
-let overlayInterval = null, isAutoPassing = false;
+let isAutoPassing = false;
 
 window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -418,7 +383,6 @@ async function copyText(text){
  }catch(e){ return false; }
 }
 
-// 新增功能：按鈕點擊後複製格式化的完整等候區資訊
 window.copyLobbyInfo = async () => {
  const link = el("lobbyLinkInput").value;
  const passcode = el("roomPasscode").value.trim() || "無";
@@ -926,13 +890,13 @@ window.playCards = async function() {
       updates.currentGameRound = currentGRound + 1;
       updates.status = "waiting";
       updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！準備開始第 ${currentGRound + 1} / 4 局...`);
-      await update(ref(db, "rooms_v4/" + roomId), updates);
-
+      
       if (ticket) {
         myTicketId = ticket.id;
+        await update(ref(db, "rooms_v4/" + roomId), updates);
         showScratch(ticket);
       } else {
-        trigger5SecOverlay(currentGRound);
+        await update(ref(db, "rooms_v4/" + roomId), updates);
       }
       return;
     } else {
@@ -951,30 +915,6 @@ window.playCards = async function() {
 
   await update(ref(db, "rooms_v4/" + roomId), updates);
 };
-
-function trigger5SecOverlay(currentGRound) {
-  const overlay = el("roundOverlay");
-  const timerDisplay = el("overlayTimer");
-  const titleDisplay = el("overlayTitle");
-  if (!overlay || !timerDisplay) return;
-
-  if (titleDisplay) titleDisplay.textContent = `第 ${currentGRound} 局結束！`;
-  overlay.classList.remove("hidden");
-
-  let count = 5;
-  timerDisplay.textContent = count;
-
-  if (overlayInterval) clearInterval(overlayInterval);
-  overlayInterval = setInterval(() => {
-    count--;
-    timerDisplay.textContent = count;
-    if (count <= 0) {
-      clearInterval(overlayInterval);
-      overlay.classList.add("hidden");
-      tryStartGame();
-    }
-  }, 1000);
-}
 
 window.passTurn = async function() {
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
@@ -1026,11 +966,6 @@ window.closeScratch=function(){
   el("scratch")?.classList.add("hidden"); 
   el("game")?.classList.remove("hidden"); 
   render();
-
-  const currentGRound = roomData?.currentGameRound || 1;
-  if (roomData && roomData.status !== "ended") {
-    trigger5SecOverlay(currentGRound - 1);
-  }
 };
 
 function render(){
