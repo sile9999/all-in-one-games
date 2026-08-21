@@ -16,425 +16,47 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.field{margin:8px 0}.field label{display:block;font-weight:700;margin-bottom:5px}.input{width:100%;padding:10px;border:2px solid #cbd5e1;border-radius:8px}
 #setup{max-width:620px;margin:8vh auto}.room{font-size:24px;font-weight:800;color:#2563eb;letter-spacing:1px}
 .hidden{display:none!important}
-.players{
-  position:absolute;
-  inset:0;
-  z-index:20;
-  pointer-events:none;
-}
-.player-seat{
-  position:absolute;
-  width:min(220px,24vw);
-  min-width:150px;
-  color:#334155;
-  pointer-events:auto;
-}
+.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px;position:relative;overflow:hidden}
+.player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800;display:flex;align-items:center;gap:4px}.player .state{font-size:12px;margin-top:5px}
 
-/* 四方座位定位 */
-.player-seat.seat-top{
-  top:10px;
-  left:50%;
-  transform:translateX(-50%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-.player-seat.seat-left{
-  left:10px;
-  top:50%;
-  transform:translateY(-50%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-.player-seat.seat-right{
-  right:10px;
-  top:50%;
-  transform:translateY(-50%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-.player-seat.seat-bottom{
-  left:50%;
-  bottom:12px;
-  transform:translateX(-50%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
+/* 表情最大化遮罩樣式 */
+.player-emoji-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);display:flex;justify-content:center;align-items:center;font-size:38px;z-index:10;animation:fadeInOut 2s ease forwards}
+@keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
 
-/* 上方玩家：半透明狀態框覆蓋在牌面上方中央 */
-.player-seat.seat-top .player-status{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background:rgba(15,23,42,.65);
-  border:2px solid rgba(255,255,255,.3);
-  border-radius:8px;
-  padding:4px 12px;
-  color:#fff;
-  z-index:30;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
-  white-space:nowrap;
-}
-.player-seat.seat-top .player-status .name{
-  font-size:14px;
-  font-weight:800;
-  color:#fff;
-  text-shadow:0 1px 2px #000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-}
-.player-seat.seat-top .player-status .state,
-.player-seat.seat-top .player-status .status-dot{
-  display:none;
-}
-
-/* 左右玩家：半透明狀態框直式覆蓋在牌面中央 */
-.player-seat.seat-left .player-status,
-.player-seat.seat-right .player-status{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  width:36px;
-  background:rgba(15,23,42,.65);
-  border:2px solid rgba(255,255,255,.3);
-  border-radius:8px;
-  padding:8px 4px;
-  color:#fff;
-  z-index:30;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-.player-seat.seat-left .player-status .name,
-.player-seat.seat-right .player-status .name{
-  writing-mode:vertical-rl;
-  text-orientation:mixed;
-  font-size:14px;
-  font-weight:800;
-  color:#fff;
-  text-shadow:0 1px 2px #000;
-  line-height:1.2;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.player-seat.seat-left .player-status .state,
-.player-seat.seat-right .player-status .state,
-.player-seat.seat-left .player-status .status-dot,
-.player-seat.seat-right .player-status .status-dot{
-  display:none;
-}
-
-/* 自己（下方）狀態框：半透明顯示在發布表情區塊旁邊 */
-.player-seat.seat-bottom .player-status{
-  background:rgba(15,23,42,.65);
-  border:2px solid rgba(255,255,255,.3);
-  border-radius:8px;
-  padding:4px 12px;
-  color:#fff;
-  z-index:30;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
-  margin-bottom:6px;
-  white-space:nowrap;
-}
-.player-seat.seat-bottom .player-status .name{
-  font-size:14px;
-  font-weight:800;
-  color:#fff;
-  text-shadow:0 1px 2px #000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-}
-.player-seat.seat-bottom .player-status .state,
-.player-seat.seat-bottom .player-status .status-dot{
-  display:none;
-}
-
-/* 對手牌面設計 */
-.opponent-cards{
-  position:relative;
-  margin:auto;
-  pointer-events:none;
-}
-.opponent-cards.horizontal{
-  width:140px;
-  height:36px;
-}
-.opponent-cards.horizontal .back-card{
-  position:absolute;
-  top:0;
-  width:20px;
-  height:32px;
-  border-radius:3px;
-}
-.opponent-cards.vertical{
-  width:36px;
-  height:140px;
-}
-.opponent-cards.vertical .back-card{
-  position:absolute;
-  left:0;
-  width:32px;
-  height:20px;
-  border-radius:3px;
-}
-.back-card{
-  background:
-    repeating-linear-gradient(135deg,#2563eb 0 2px,#60a5fa 2px 4px),
-    #2563eb;
-  border:2px solid #dbeafe;
-  box-shadow:0 2px 4px rgba(0,0,0,.3);
-}
-.seat-top .opponent-cards{margin-top:2px}
-.seat-left .opponent-cards{margin:0 auto}
-.seat-right .opponent-cards{margin:0 auto}
-
-.player-seat .remaining{
-  text-align:center;
-  font-size:11px;
-  color:#e2e8f0;
-  margin-top:4px;
-  text-shadow:0 1px 2px #000;
-}
-
-.player-emoji-overlay{
-  position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,.65);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  font-size:38px;
-  z-index:50;
-  animation:fadeInOut 2s ease forwards;
-  pointer-events:none;
-}
-@keyframes fadeInOut{
-  0%{opacity:0;transform:scale(.5)}
-  20%{opacity:1;transform:scale(1.2)}
-  80%{opacity:1;transform:scale(1)}
-  100%{opacity:0;transform:scale(1)}
-}
-
-/* 表情發送區塊移至自己手牌上方 */
-.emoji-bar{
-  position:absolute;
-  left:50%;
-  bottom:130px;
-  transform:translateX(-50%);
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  align-items:center;
-  z-index:28;
-  background:rgba(0,0,0,0.3);
-  padding:4px 10px;
-  border-radius:20px;
-}
-.emoji-btn{
-  background:#e2e8f0;
-  border:none;
-  border-radius:6px;
-  padding:4px 8px;
-  font-size:16px;
-  cursor:pointer;
-  transition:transform .1s;
-}
+/* 表情選擇列樣式 */
+.emoji-bar{display:flex;gap:6px;justify-content:center;margin:8px 0;align-items:center}
+.emoji-btn{background:#e2e8f0;border:none;border-radius:6px;padding:6px 10px;font-size:18px;cursor:pointer;transition:transform 0.1s}
 .emoji-btn:hover{transform:scale(1.1);background:#cbd5e1}
 
-.kick-btn{
-  position:absolute;
-  top:2px;
-  right:2px;
-  padding:2px 5px;
-  font-size:10px;
-  border-radius:4px;
-  z-index:55;
-}
-
-.table{
-  background:#166534;
-  border-radius:18px;
-  padding:14px;
-  position:relative;
-  min-height:600px;
-  overflow:hidden;
-}
-.center{
-  position:absolute;
-  left:50%;
-  top:46%;
-  transform:translate(-50%,-50%);
-  width:min(520px,85%);
-  min-height:95px;
-  background:#14532d;
-  border:2px solid #22c55e;
-  border-radius:14px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-  z-index:4;
-  padding:8px;
-}
-.center .big{
-  font-size:24px;
-  font-weight:900;
-  color:#fff!important;
-  text-shadow:0 2px 4px rgba(0,0,0,.6);
-}
-.center .small{font-size:12px;color:#e2e8f0}
-/* 縮小倒數區塊 */
-.timer-box{font-size:11px;font-weight:700;color:#f59e0b;margin-top:1px}
-
-.hand{
-  position:absolute;
-  left:10px;
-  right:10px;
-  bottom:55px;
-  display:flex;
-  flex-wrap:nowrap;
-  gap:4px;
-  justify-content:center;
-  align-items:flex-end;
-  z-index:25;
-  overflow-x:auto;
-  overflow-y:visible;
-  padding:8px 4px 2px;
-  scrollbar-width:none;
-}
-.hand::-webkit-scrollbar{display:none}
-
-.tile{
-  flex:0 0 auto;
-  width:40px;
-  height:58px;
-  border-radius:6px;
-  background:#fff;
-  color:#111827;
-  border:1px solid #cbd5e1;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  font-size:17px;
-  font-weight:900;
-  box-shadow:0 2px 3px #0004;
-  cursor:pointer;
-  transition:transform .12s;
-}
+.kick-btn{position:absolute;top:5px;right:5px;padding:2px 6px;font-size:11px;border-radius:4px;z-index:5}
+.table{background:#166534;border-radius:18px;padding:14px;position:relative;min-height:420px}
+.center{background:#14532d;border:2px solid #22c55e;border-radius:14px;min-height:110px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.center .big{font-size:34px;font-weight:900;color:#ffffff !important;text-shadow:0 2px 4px rgba(0,0,0,0.6)}
+.center .small{font-size:13px;color:#e2e8f0}
+.timer-box{font-size:18px;font-weight:900;color:#f59e0b;margin-top:4px}
+.hand-title{margin:12px 0 5px;font-weight:800}.hand{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tile{width:46px;height:65px;border-radius:6px;background:#fff;color:#111827;border:1px solid #cbd5e1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;font-weight:900;box-shadow:0 2px 3px #0004;cursor:pointer}
 .tile.red{color:#dc2626}
-.tile:hover{transform:translateY(-4px)}
-.tile.selected{
-  background:#fde68a;
-  border:3px solid #f59e0b;
-  transform:translateY(-8px);
-}
-.smalltile{
-  width:30px;
-  height:42px;
-  font-size:13px;
-  cursor:default;
-}
-.actions{
-  position:absolute;
-  left:10px;
-  right:10px;
-  bottom:10px;
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  flex-wrap:wrap;
-  z-index:30;
-}
-.discard{
-  position:absolute;
-  left:50%;
-  top:calc(46% + 56px);
-  transform:translateX(-50%);
-  width:min(460px,80%);
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  justify-content:center;
-  min-height:55px;
-  align-items:center;
-  margin:0;
-  background:rgba(0,0,0,.15);
-  padding:6px;
-  border-radius:8px;
-  z-index:5;
-}
+.tile:hover{transform:translateY(-5px)}.tile.selected{background:#fde68a;border:3px solid #f59e0b;transform:translateY(-10px)}
+.smalltile{width:36px;height:50px;font-size:15px;cursor:default}
+.actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.discard{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:70px;align-items:center;margin-top:8px;background:rgba(0,0,0,0.15);padding:10px;border-radius:8px}
 .log{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;max-height:150px;overflow:auto;font-size:13px}
-.scratch{max-width:420px;text-align:center;margin:7vh auto}
-.ticket{width:210px;height:125px;margin:14px auto;border-radius:14px;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:46px;cursor:pointer;border:5px dashed #fff}
-.ticket.revealed{background:#fff;color:#111;border:3px solid #f59e0b}
-.ticket img{max-width:180px;max-height:105px;object-fit:contain}
-.prize-row{display:grid;grid-template-columns:1fr 80px 100px 45px;gap:6px;align-items:center;margin:6px 0}
-.preview{width:42px;height:42px;object-fit:contain;border:1px solid #ddd;border-radius:5px}
-.lb table{width:100%;border-collapse:collapse}
-.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
+.scratch{max-width:420px;text-align:center;margin:7vh auto}.ticket{width:210px;height:125px;margin:14px auto;border-radius:14px;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:46px;cursor:pointer;border:5px dashed #fff}.ticket.revealed{background:#fff;color:#111;border:3px solid #f59e0b}.ticket img{max-width:180px;max-height:105px;object-fit:contain}.prize-row{display:grid;grid-template-columns:1fr 80px 100px 45px;gap:6px;align-items:center;margin:6px 0}.preview{width:42px;height:42px;object-fit:contain;border:1px solid #ddd;border-radius:5px}.lb table{width:100%;border-collapse:collapse}.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
 
-.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .online{background-color:#22c55e;box-shadow:0 0 6px #22c55e}
 .offline{background-color:#ef4444}
-.room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;cursor:pointer;transition:all .2s}
+.room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;cursor:pointer;transition:all 0.2s}
 .room-box.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px #2563eb}
 .lobby-box{background:#f1f5f9;border:2px solid #94a3b8;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .lobby-user-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
+
 .winner-box{background:#fffbebf0;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .winner-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 12px;border-radius:6px;margin-top:4px;border:1px solid #fde68a;font-size:14px}
 
-/* 手機版與極小螢幕優化：完全防範超出螢幕 */
-@media(max-width:700px){
-  body{padding:4px}
-  .container{max-width:100%;padding:0}
-  .card{padding:10px;border-radius:10px;margin-bottom:8px}
-  .table{min-height:480px;padding:4px;border-radius:12px}
-  .center{width:90%;min-height:80px;top:44%}
-  .center .big{font-size:18px}
-  .center .small{font-size:10px}
-  .timer-box{font-size:10px}
-  .discard{width:90%;top:calc(44% + 46px);min-height:45px;padding:4px}
-  .smalltile{width:24px;height:34px;font-size:10px}
-  
-  .player-seat.seat-top{top:4px}
-  .player-seat.seat-left{left:4px}
-  .player-seat.seat-right{right:4px}
-  
-  .opponent-cards.horizontal{width:100px;height:26px}
-  .opponent-cards.horizontal .back-card{width:15px;height:24px}
-  .opponent-cards.vertical{width:26px;height:100px}
-  .opponent-cards.vertical .back-card{width:24px;height:15px}
-  
-  .player-seat .remaining{font-size:9px}
-  .player-seat.seat-top .player-status .name{font-size:11px;padding:2px 6px}
-  .player-seat.seat-left .player-status .name,
-  .player-seat.seat-right .player-status .name{font-size:11px}
-  
-  .emoji-bar{bottom:115px;padding:3px 8px;gap:4px}
-  .emoji-btn{padding:3px 6px;font-size:14px}
-  .emoji-bar span{display:none}
-  
-  .hand{bottom:48px;left:2px;right:2px;gap:2px;padding:4px 2px}
-  .tile{width:31px;height:45px;font-size:13px}
-  .actions{bottom:6px;left:2px;right:2px;gap:4px}
-  .actions button{padding:6px 8px;font-size:11px}
-}
+@media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
 </style>
 <script>
 document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
@@ -519,18 +141,18 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
-<div class="table" id="gameTable" style="margin-top:12px;">
 <div id="players" class="players"></div>
+
+<div class="table" style="margin-top:12px;">
 <div class="center">
   <div class="big" id="turnText">等待四人...</div>
   <div class="small" id="roundText">等待管理員安排玩家加入，滿4人自動開局</div>
   <div class="timer-box" id="timerBox"></div>
-</div>
-<div id="discards" class="discard"></div>
+</div><div id="discards" class="discard"></div>
 
-<!-- 表情發送選項列 (移至自己手牌上方) -->
+<!-- 表情發送選項列 (移至你的手牌旁邊/上方) -->
 <div class="emoji-bar" id="emojiBar">
-  <span style="font-size:12px;font-weight:bold;color:#ffffff;">發送表情：</span>
+  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;">發送表情：</span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
   <button class="emoji-btn" onclick="sendEmoji('👏')">👏</button>
   <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
@@ -595,6 +217,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
+// --- Web Audio API 音效系統 ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -673,10 +296,22 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 function setupPresence() {
-  if (!roomId || !playerId) return;
-  const userPresenceRef = ref(db, `rooms_v4/${roomId}/presence/${playerId}`);
-  const connectedRef = ref(db, ".info/connected");
+  if (!playerId) return;
+  // 同步在等候區與遊戲房間內設置上線狀態與斷線偵測
+  const userPresenceRef = ref(db, `rooms_v4/${LOBBY_ROOM_ID}/presence/${playerId}`);
+  if (roomId && roomId !== LOBBY_ROOM_ID) {
+    // 若已在房間內，也同步房間內的 presence
+    const roomPresenceRef = ref(db, `rooms_v4/${roomId}/presence/${playerId}`);
+    const connectedRef = ref(db, ".info/connected");
+    onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        onDisconnect(roomPresenceRef).set({ online: false, lastSeen: serverTimestamp() });
+        set(roomPresenceRef, { online: true, lastSeen: serverTimestamp() });
+      }
+    });
+  }
 
+  const connectedRef = ref(db, ".info/connected");
   onValue(connectedRef, (snap) => {
     if (snap.val() === true) {
       onDisconnect(userPresenceRef).set({ online: false, lastSeen: serverTimestamp() });
@@ -686,8 +321,11 @@ function setupPresence() {
 
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   heartbeatInterval = setInterval(() => {
-    if (roomId && playerId) {
+    if (playerId) {
       set(userPresenceRef, { online: true, lastSeen: Date.now() });
+      if (roomId && roomId !== LOBBY_ROOM_ID) {
+        set(ref(db, `rooms_v4/${roomId}/presence/${playerId}`), { online: true, lastSeen: Date.now() });
+      }
     }
   }, 5000);
 }
@@ -695,6 +333,16 @@ function setupPresence() {
 function isUserOnline(pId, room = roomData) {
   if (!room || !room.presence || !room.presence[pId]) return false;
   const p = room.presence[pId];
+  if (!p.online) return false;
+  const now = Date.now();
+  const lastSeen = typeof p.lastSeen === 'number' ? p.lastSeen : now;
+  return (now - lastSeen) < 15000;
+}
+
+// 針對等候區玩家的在線判斷
+function isLobbyUserOnline(pId, lobbyData) {
+  if (!lobbyData || !lobbyData.presence || !lobbyData.presence[pId]) return false;
+  const p = lobbyData.presence[pId];
   if (!p.online) return false;
   const now = Date.now();
   const lastSeen = typeof p.lastSeen === 'number' ? p.lastSeen : now;
@@ -807,7 +455,8 @@ window.createRoom=async()=>{
  await set(ref(db, "rooms_v4/" + LOBBY_ROOM_ID), {
    type: "lobby",
    passcode: passcode,
-   users: {}
+   users: {},
+   presence: {}
  });
 
  for(let i = 0; i < createdRoomIds.length; i++) {
@@ -865,6 +514,11 @@ window.copyLobbyInfo = async () => {
  
  const success = await copyText(formattedText);
  alert(success ? "已成功複製房間發送格式！" : "複製失敗，請手動複製：\n" + formattedText);
+};
+
+window.copyCustomText = async (text) => {
+ const success = await copyText(text);
+ alert(success ? "複製成功！" : "複製失敗，請手動複製：" + text);
 };
 
 window.openAdminRoomWindow = (rId) => {
@@ -961,7 +615,7 @@ async function checkDisconnectedTurn() {
   if (!currPlayerEntry) return;
   const [currPid, currP] = currPlayerEntry;
 
-  if (!isUserOnline(currPid, roomData)) {
+  if (currP.isOfflineBot || !isUserOnline(currPid, roomData)) {
     isAutoPassing = true;
     try {
       const isFirstPlay = !roomData.lastPlay && (roomData.logs || []).some(l => l.includes("擁有梅花 3"));
@@ -986,7 +640,7 @@ async function checkDisconnectedTurn() {
           turnStartTime: Date.now(),
           passCount: 0,
           lastPlay: { playerId: currPid, playerName: currP.name, cards: playCandidate, handType: getHandType(playCandidate), isNewRound: false },
-          logs: [...(roomData.logs || []), `🤖 [離線託管] ${currP.name} 打出了：${playCandidate.map(cardName).join(" ")}`].slice(-80)
+          logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${playCandidate.map(cardName).join(" ")}`].slice(-80)
         });
       } else if (isNewRound) {
         const minCard = [hand[0]];
@@ -1000,7 +654,7 @@ async function checkDisconnectedTurn() {
           turnStartTime: Date.now(),
           passCount: 0,
           lastPlay: { playerId: currPid, playerName: currP.name, cards: minCard, handType: getHandType(minCard), isNewRound: false },
-          logs: [...(roomData.logs || []), `🤖 [離線託管] ${currP.name} 打出了：${minCard.map(cardName).join(" ")}`].slice(-80)
+          logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${minCard.map(cardName).join(" ")}`].slice(-80)
         });
       } else {
         const passCount = (roomData.passCount || 0) + 1;
@@ -1014,11 +668,11 @@ async function checkDisconnectedTurn() {
           turnStartTime: Date.now(),
           passCount: passCount >= 3 ? 0 : passCount,
           lastPlay,
-          logs: [...(roomData.logs || []), `🤖 [離線自動過牌] ${currP.name} 選擇 Pass`].slice(-80)
+          logs: [...(roomData.logs || []), `🤖 [空白/離線自動過牌] ${currP.name} 選擇 Pass`].slice(-80)
         });
       }
     } catch (e) {
-      console.error("離線自動過牌失敗:", e);
+      console.error("空白/離線自動過牌失敗:", e);
     } finally {
       setTimeout(() => { isAutoPassing = false; }, 1000);
     }
@@ -1026,10 +680,15 @@ async function checkDisconnectedTurn() {
 }
 
 let adminRoomsData = {};
+let adminLobbyDataCache = { users: {}, presence: {} }; // 新增快取，用來記錄等候區的使用者與 presence 資料
+
 function listenToLobbyAndRooms() {
-  onValue(ref(db, `rooms_v4/${LOBBY_ROOM_ID}/users`), (snap) => {
-    const users = snap.val() || {};
-    renderAdminLobbyList(users);
+  // 同時監聽等候區的使用者以及 presence 資料以判斷紅綠燈
+  onValue(ref(db, `rooms_v4/${LOBBY_ROOM_ID}`), (snap) => {
+    const data = snap.val() || {};
+    adminLobbyDataCache.users = data.users || {};
+    adminLobbyDataCache.presence = data.presence || {};
+    renderAdminLobbyList();
   });
 
   createdRoomIds.forEach(rId => {
@@ -1055,7 +714,8 @@ function renderAdminRoomsList() {
           <div>人數：<b>${count} / 4</b> ｜ 狀態：<b>${r.status||'waiting'}</b></div>
         </div>
         <div class="row" style="margin-top:6px">
-          <button class="success" onclick="event.stopPropagation(); openAdminRoomWindow('${rId}')">觀看／管理此房 (另開視窗)</button>
+          <button class="success" onclick="event.stopPropagation(); openAdminRoomWindow('${rId}')">管理此房</button>
+          <button class="primary" onclick="event.stopPropagation(); forceStartRoom('${rId}')">直接開局</button>
           <button class="danger" onclick="event.stopPropagation(); resetRoomGame('${rId}')">重置牌局</button>
         </div>
       </div>
@@ -1063,6 +723,68 @@ function renderAdminRoomsList() {
   });
   el("createdRoomsList").innerHTML = html;
 }
+
+window.forceStartRoom = async (rId) => {
+  try {
+    const roomRef = ref(db, "rooms_v4/" + rId);
+    const snap = await get(roomRef);
+    if (!snap.exists()) return alert("找不到此房間！");
+    const room = snap.val();
+
+    if (room.status === "playing") {
+      return alert("此房間已經在遊戲中！");
+    }
+
+    const players = { ...(room.players || {}) };
+    const usedIndexes = Object.values(players).map(p => Number(p.index));
+
+    for (let i = 0; i < 4; i++) {
+      if (!usedIndexes.includes(i)) {
+        const dummyId = `offline_bot_${rId}_${i}_${Date.now()}`;
+        players[dummyId] = {
+          name: `[離線玩家 ${i + 1}]`,
+          index: i,
+          status: "waiting",
+          wins: 0,
+          ticketCount: 0,
+          isOfflineBot: true
+        };
+      }
+    }
+
+    const entries = Object.entries(players).sort((a, b) => Number(a[1].index) - Number(b[1].index));
+    const deck = makeDeck(), hands = {};
+    let startingTurn = 0;
+
+    entries.forEach(([id], i) => {
+      const pCards = sortCards(deck.slice(i * 13, (i + 1) * 13));
+      hands[id] = pCards;
+      if (pCards.includes(0)) startingTurn = Number(players[id].index);
+    });
+
+    const currentRound = room.currentGameRound || 1;
+    const playingPlayers = {};
+    Object.entries(players).forEach(([pid, p]) => {
+      playingPlayers[pid] = { ...p, status: "playing" };
+    });
+
+    await update(roomRef, {
+      status: "playing",
+      players: playingPlayers,
+      round: currentRound,
+      turn: startingTurn,
+      turnStartTime: Date.now(),
+      hands,
+      lastPlay: null,
+      passCount: 0,
+      logs: [...(room.logs || []), `👑 管理員手動執行「直接開局」，空白位已轉為離線託管處理！第 ${currentRound} 局開始！`].slice(-80)
+    });
+
+    alert(`房間 ${room.name || rId} 已強制直接開局！`);
+  } catch (e) {
+    alert("直接開局失敗：" + e.message);
+  }
+};
 
 window.resetRoomGame = async (rId) => {
   if (!confirm(`確定要重置「${adminRoomsData[rId]?.name || rId}」的牌局嗎？這將會清除當前手牌、局數與對局狀態。`)) return;
@@ -1144,7 +866,8 @@ window.copyWinnerList = async () => {
   alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + text);
 };
 
-function renderAdminLobbyList(users) {
+function renderAdminLobbyList() {
+  const users = adminLobbyDataCache.users || {};
   const entries = Object.entries(users).filter(([id, u]) => !u.assignedRoom);
   el("adminLobbyCount").textContent = entries.length;
 
@@ -1154,9 +877,13 @@ function renderAdminLobbyList(users) {
   }
 
   el("adminLobbyUsers").innerHTML = entries.map(([uId, u]) => {
+    // 判斷等候區玩家是否在線並顯示對應紅燈/綠燈
+    const online = isLobbyUserOnline(uId, adminLobbyDataCache);
+    const dotHtml = `<span class="status-dot ${online ? 'online' : 'offline'}" title="${online ? '在線' : '離線'}"></span>`;
+
     return `
       <div class="lobby-user-item">
-        <div><b>${esc(u.name)}</b></div>
+        <div style="display:flex;align-items:center;">${dotHtml}<b>${esc(u.name)}</b></div>
         <div>
           <button class="primary" style="padding:4px 8px;font-size:12px" onclick="assignUserToRoom('${uId}', '${esc(u.name)}')">排入 ${selectedRoomForAssign ? adminRoomsData[selectedRoomForAssign]?.name || selectedRoomForAssign : '已選房間'}</button>
         </div>
@@ -1292,11 +1019,11 @@ function startTurnTimer() {
   const startTime = roomData.turnStartTime || Date.now();
   
   turnTimer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    countdown = Math.max(0, 10 - elapsed);
+    const elapsed = Math.floor((Date.now() - startTime) / 2000);
+    countdown = Math.max(0, 20 - elapsed);
     
     if (el("timerBox")) {
-      el("timerBox").textContent = `⏳ 倒數：${countdown} 秒`;
+      el("timerBox").textContent = `⏳ 出牌倒數：${countdown} 秒`;
     }
 
     if (countdown <= 3 && countdown > 0) {
@@ -1517,83 +1244,55 @@ window.closeScratch=function(){
   render();
 };
 
-function getPerspectiveIndex(){
-  if(viewMode==="player" && roomData?.players?.[playerId]){
-    return Number(roomData.players[playerId].index);
-  }
-  return 0;
-}
-
-function getRelativeSeat(playerIndex, perspectiveIndex){
-  const diff=(Number(playerIndex)-Number(perspectiveIndex)+4)%4;
-  return ["bottom","right","top","left"][diff];
-}
-
-function buildOpponentBacks(count, direction){
-  const total=Math.max(0,Math.min(13,Number(count)||0));
-  const vertical=direction==="left" || direction==="right";
-  const cards=[];
-  for(let i=0;i<total;i++){
-    const offset=i*(vertical?6:8);
-    cards.push(`<span class="back-card" style="${vertical?`top:${offset}px`:`left:${offset}px`}"></span>`);
-  }
-  return `<div class="opponent-cards ${vertical?"vertical":"horizontal"}">${cards.join("")}</div>`;
-}
-
 function render(){
  el("setup").classList.add("hidden"); el("game").classList.remove("hidden");
  el("gameRoom").textContent=roomId;
  if(el("gameRoundBadge")) el("gameRoundBadge").textContent = `第 ${roomData.currentGameRound || 1} / 4 局`;
 
  const ps=Object.entries(roomData.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
- const perspectiveIndex=getPerspectiveIndex();
- const now=Date.now();
+ const seat={}; ps.forEach(([id,p])=>seat[p.index]={id,p});
 
- el("players").innerHTML=ps.map(([id,p])=>{
-   const relativeSeat=getRelativeSeat(p.index,perspectiveIndex);
-   const pCards=(roomData.hands?.[id]||[]);
-   const isMe=(id===playerId && viewMode==="player");
-   const isTurn=roomData.status==="playing" && Number(p.index)===Number(roomData.turn);
-   const kickBtn=(viewMode==="admin")
-     ? `<button class="danger kick-btn" onclick="kickPlayer('${id}', '${esc(p.name)}')">踢出</button>`
-     : "";
+ const now = Date.now();
 
-   const online=isUserOnline(id);
-   const dotHtml=`<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
+ el("players").innerHTML=[0,1,2,3].map(i=>{
+   const item=seat[i];
+   if(!item) return '<div class="player"><div class="name">'+(i+1)+'. 等待玩家</div><div class="state">尚未加入</div></div>';
+   const {id,p}=item;
+   const pCards = (roomData.hands?.[id] || []);
+   const state= p.status==="win" ? "🏆 本局獲勝" : roomData.status==="playing" && p.index===roomData.turn ? "♠️ 出牌中" : "等待中";
+   const kickBtn = (viewMode === "admin") ? `<button class="danger kick-btn" onclick="kickPlayer('${id}', '${esc(p.name)}')">踢出</button>` : '';
+   
+   const online = p.isOfflineBot ? false : isUserOnline(id);
+   const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
 
-   let emojiOverlayHtml="";
-   if(p.currentEmoji && p.emojiTime && (now-p.emojiTime<2000)){
-     emojiOverlayHtml=`<div class="player-emoji-overlay">${p.currentEmoji}</div>`;
+   let emojiOverlayHtml = "";
+   if (p.currentEmoji && p.emojiTime && (now - p.emojiTime < 2000)) {
+     emojiOverlayHtml = `<div class="player-emoji-overlay">${p.currentEmoji}</div>`;
    }
 
-   return `<div class="player-seat seat-${relativeSeat} ${isTurn?"turn":""}">
+   return `<div class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn":"")}">
      ${emojiOverlayHtml}
      ${kickBtn}
-     <div class="player-status">
-       <div class="name">${isMe ? '' : dotHtml}${esc(p.name)}</div>
-     </div>
-     ${isMe ? '' : buildOpponentBacks(pCards.length,relativeSeat)}
-     ${isMe ? '' : `<div class="remaining">剩餘 ${pCards.length} 張</div>`}
+     <div class="name">${dotHtml} ${(p.index+1)}. ${esc(p.name)}</div>
+     <div class="state">${state} ｜ 勝場: ${p.wins||0} ｜ 剩餘 ${pCards.length} 張牌</div>
    </div>`;
  }).join("");
 
  const turn=ps.find(x=>Number(x[1].index)===Number(roomData.turn));
- if(roomData.status==="ended"){
-   el("turnText").textContent="全 4 局結束！";
-   el("roundText").textContent="感謝參與，請看排行榜賽果！";
- }else{
-   el("turnText").textContent=roomData.status==="playing" && turn ? "輪到："+turn[1].name : "等待四人...";
-   el("roundText").textContent=roomData.status==="playing"
-     ? `遊戲進行中 (第 ${roomData.currentGameRound || 1}/4 局)`
-     : "四人到齊後自動開局";
+ if (roomData.status === "ended") {
+   el("turnText").textContent = "全 4 局結束！";
+   el("roundText").textContent = "感謝參與，請看排行榜賽果！";
+ } else {
+   el("turnText").textContent= roomData.status==="playing" && turn ? "輪到："+turn[1].name : "等待四人...";
+   el("roundText").textContent= roomData.status==="playing" ? `遊戲進行中 (第 ${roomData.currentGameRound || 1}/4 局)` : "四人到齊後自動開局";
  }
 
- if(roomData.status==="playing" && roomData.turnStartTime!==lastTurnStartTime){
-   lastTurnStartTime=roomData.turnStartTime;
+ if (roomData.status === "playing" && roomData.turnStartTime !== lastTurnStartTime) {
+   lastTurnStartTime = roomData.turnStartTime;
    startTurnTimer();
- }else if(roomData.status!=="playing"){
-   if(turnTimer) clearInterval(turnTimer);
-   if(el("timerBox")) el("timerBox").textContent="";
+ } else if (roomData.status !== "playing") {
+   if (turnTimer) clearInterval(turnTimer);
+   if (el("timerBox")) el("timerBox").textContent = "";
  }
 
  renderHand();
@@ -1635,13 +1334,13 @@ function renderHand(){
 function renderDiscards(){
  const lp = roomData.lastPlay;
  if (!lp || !lp.cards || lp.cards.length === 0 || lp.isNewRound) {
-   el("discards").innerHTML = '<span style="color:#ddd;font-size:13px;">新一輪（可任意出牌）</span>';
+   el("discards").innerHTML = '<span style="color:#ddd;font-size:14px;">新一輪（可任意出牌）</span>';
    return;
  }
  el("discards").innerHTML = lp.cards.map(c => {
    const info = getCardInfo(c);
    return `<div class="tile smalltile ${info.isRed?'red':''}"><div>${info.rank}</div><div>${info.suit}</div></div>`;
- }).join("") + `<div style="width:100%;text-align:center;font-size:11px;color:#fde68a;margin-top:2px;">出牌者：${esc(lp.playerName)}</div>`;
+ }).join("") + `<div style="width:100%;text-align:center;font-size:12px;color:#fde68a;margin-top:4px;">出牌者：${esc(lp.playerName)}</div>`;
 }
 
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
