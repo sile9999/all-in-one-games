@@ -510,7 +510,7 @@ async function copyText(text){
 window.copyLobbyInfo = async () => {
  const link = el("lobbyLinkInput").value;
  const passcode = el("roomPasscode").value.trim() || "無";
- const formattedText = `A標題 : 種菜大老二\nB連結 : ${link}\nC通關密碼 : ${passcode}`;
+ const formattedText = `蕉蕉大老二\n連結 : ${link}\n通關密碼 : ${passcode}`;
  
  const success = await copyText(formattedText);
  alert(success ? "已成功複製房間發送格式！" : "複製失敗，請手動複製：\n" + formattedText);
