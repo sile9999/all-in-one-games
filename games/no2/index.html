@@ -22,7 +22,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 
 /* 表情最大化遮罩樣式 */
 .player-emoji-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);display:flex;justify-content:center;align-items:center;font-size:38px;z-index:10;animation:fadeInOut 2s ease forwards}
-@keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+@keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0)}}
 
 /* 表情選擇列樣式 */
 .emoji-bar{display:flex;gap:6px;justify-content:center;margin:8px 0;align-items:center}
@@ -152,12 +152,13 @@ setInterval(function() {
 
 <!-- 表情發送選項列 (移至你的手牌旁邊/上方) -->
 <div class="emoji-bar" id="emojiBar">
-  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;">發送表情：</span>
+  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;"></span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
-  <button class="emoji-btn" onclick="sendEmoji('👏')">👏</button>
+  <button class="emoji-btn" onclick="sendEmoji('😭')">😭</button>
   <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
   <button class="emoji-btn" onclick="sendEmoji('😡')">😡</button>
   <button class="emoji-btn" onclick="sendEmoji('😱')">😱</button>
+  <button class="emoji-btn" onclick="sendEmoji('💋')">💋</button>
 </div>
 
 <div id="myHand" class="hand"></div>
@@ -217,7 +218,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 ---
+// --- Web Audio API 音效系統 (新增單張與一對帶數字語音) ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -228,24 +229,65 @@ function initAudio() {
   }
 }
 
-function playSound(type) {
+function playSound(type, handTypeObj = null) {
   try {
     initAudio();
     if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+
+    // 使用語音合成朗讀牌型 (包含單張與對子的數字語音)
+    if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
+      let text = "出牌";
+      
+      if (handTypeObj.type === 'single') {
+        const info = getCardInfo(handTypeObj.val);
+        text = `單張 ${info.suit}${info.rank}`;
+      } else if (handTypeObj.type === 'pair') {
+        const info = getCardInfo(handTypeObj.val);
+        text = `一對 ${info.rank}`;
+      } else {
+        const typeNames = {
+          triple: "三條",
+          straight: "順子",
+          fullhouse: "葫蘆",
+          four: "鐵支",
+          straightFlush: "同花順"
+        };
+        text = typeNames[handTypeObj.type] || "出牌";
+      }
+
+      window.speechSynthesis.cancel(); // 停止先前的語音
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'zh-TW';
+      msg.rate = 1.2; // 稍微加快語速
+      window.speechSynthesis.speak(msg);
+    }
+
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
 
     if (type === 'play') {
+      let startFreq = 440;
+      let endFreq = 880;
+      let duration = 0.1;
+
+      // 針對特殊牌型給予不同音調變化
+      if (handTypeObj) {
+        if (handTypeObj.type === 'straight') { startFreq = 300; endFreq = 600; duration = 0.2; }
+        else if (handTypeObj.type === 'fullhouse') { startFreq = 400; endFreq = 800; duration = 0.25; }
+        else if (handTypeObj.type === 'four') { startFreq = 500; endFreq = 1000; duration = 0.3; }
+        else if (handTypeObj.type === 'straightFlush') { startFreq = 600; endFreq = 1200; duration = 0.35; }
+      }
+
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+      osc.frequency.setValueAtTime(startFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
       gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
       osc.start(now);
-      osc.stop(now + 0.1);
+      osc.stop(now + duration);
     } else if (type === 'pass') {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(250, now);
@@ -510,7 +552,7 @@ async function copyText(text){
 window.copyLobbyInfo = async () => {
  const link = el("lobbyLinkInput").value;
  const passcode = el("roomPasscode").value.trim() || "無";
- const formattedText = `蕉蕉大老二\n連結 : ${link}\n通關密碼 : ${passcode}`;
+ const formattedText = `🍌 蕉蕉大老二 🍌\n連結 : ${link}\n通關密碼 : ${passcode}\n※備註:順子3開頭，2結尾，沒有23456`;
  
  const success = await copyText(formattedText);
  alert(success ? "已成功複製房間發送格式！" : "複製失敗，請手動複製：\n" + formattedText);
@@ -632,28 +674,30 @@ async function checkDisconnectedTurn() {
 
         const newHand = hand.filter(c => !playCandidate.includes(c));
         const nextTurn = (currentTurn + 1) % 4;
+        const playHandType = getHandType(playCandidate);
 
-        playSound('play');
+        playSound('play', playHandType);
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
           turnStartTime: Date.now(),
           passCount: 0,
-          lastPlay: { playerId: currPid, playerName: currP.name, cards: playCandidate, handType: getHandType(playCandidate), isNewRound: false },
+          lastPlay: { playerId: currPid, playerName: currP.name, cards: playCandidate, handType: playHandType, isNewRound: false },
           logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${playCandidate.map(cardName).join(" ")}`].slice(-80)
         });
       } else if (isNewRound) {
         const minCard = [hand[0]];
         const newHand = hand.filter(c => !minCard.includes(c));
         const nextTurn = (currentTurn + 1) % 4;
+        const playHandType = getHandType(minCard);
 
-        playSound('play');
+        playSound('play', playHandType);
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
           turnStartTime: Date.now(),
           passCount: 0,
-          lastPlay: { playerId: currPid, playerName: currP.name, cards: minCard, handType: getHandType(minCard), isNewRound: false },
+          lastPlay: { playerId: currPid, playerName: currP.name, cards: minCard, handType: playHandType, isNewRound: false },
           logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${minCard.map(cardName).join(" ")}`].slice(-80)
         });
       } else {
@@ -861,14 +905,20 @@ function renderAdminWinners() {
 
 window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
-  const text = currentWinners.map((w, i) => `${i + 1}. ${w.name} - ${w.prize}`).join("\n");
-  const success = await copyText(text);
-  alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + text);
+  
+  // 複製列表按獎品名稱優先進行排序，並格式化
+  const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
+  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
+  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n${winnerTextList}`;
+  
+  const success = await copyText(formattedText);
+  alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + formattedText);
 };
 
 function renderAdminLobbyList() {
   const users = adminLobbyDataCache.users || {};
-  const entries = Object.entries(users).filter(([id, u]) => !u.assignedRoom);
+  // 過濾出尚未分配房間且狀態為「線上 (綠燈)」的玩家
+  const entries = Object.entries(users).filter(([id, u]) => !u.assignedRoom && isLobbyUserOnline(id, adminLobbyDataCache));
   el("adminLobbyCount").textContent = entries.length;
 
   if (entries.length === 0) {
@@ -877,9 +927,7 @@ function renderAdminLobbyList() {
   }
 
   el("adminLobbyUsers").innerHTML = entries.map(([uId, u]) => {
-    // 判斷等候區玩家是否在線並顯示對應紅燈/綠燈
-    const online = isLobbyUserOnline(uId, adminLobbyDataCache);
-    const dotHtml = `<span class="status-dot ${online ? 'online' : 'offline'}" title="${online ? '在線' : '離線'}"></span>`;
+    const dotHtml = `<span class="status-dot online" title="在線"></span>`;
 
     return `
       <div class="lobby-user-item">
@@ -1113,7 +1161,8 @@ window.playCards = async function() {
   const nextTurn = (Number(me.index) + 1) % 4;
   const playedType = getHandType(selectedCards);
 
-  playSound('play');
+  // 出牌時呼叫 playSound 並傳入牌型，觸發語音/音效
+  playSound('play', playedType);
 
   const updates = {
     [`hands/${playerId}`]: newHand,
