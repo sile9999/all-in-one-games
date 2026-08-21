@@ -325,6 +325,7 @@ sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoP
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
 let isAutoPassing = false;
+let lastPlayTimestamp = 0; // 用於廣播語音與判斷出牌變化
 
 window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -636,6 +637,13 @@ async function subscribeToRoom(){
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
    if(!roomData) return;
+   
+   // 監聽房間出牌更新，只要有人出牌就在房間內所有人的裝置廣播播放語音
+   if (roomData.lastPlay && roomData.lastPlay.timestamp && roomData.lastPlay.timestamp !== lastPlayTimestamp) {
+     lastPlayTimestamp = roomData.lastPlay.timestamp;
+     playSound('play', roomData.lastPlay.handType);
+   }
+
    if(el("game") && !el("game").classList.contains("hidden")) render();
    
    const count=Object.keys(roomData.players||{}).length;
@@ -676,13 +684,12 @@ async function checkDisconnectedTurn() {
         const nextTurn = (currentTurn + 1) % 4;
         const playHandType = getHandType(playCandidate);
 
-        playSound('play', playHandType);
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
           turnStartTime: Date.now(),
           passCount: 0,
-          lastPlay: { playerId: currPid, playerName: currP.name, cards: playCandidate, handType: playHandType, isNewRound: false },
+          lastPlay: { playerId: currPid, playerName: currP.name, cards: playCandidate, handType: playHandType, isNewRound: false, timestamp: Date.now() },
           logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${playCandidate.map(cardName).join(" ")}`].slice(-80)
         });
       } else if (isNewRound) {
@@ -691,13 +698,12 @@ async function checkDisconnectedTurn() {
         const nextTurn = (currentTurn + 1) % 4;
         const playHandType = getHandType(minCard);
 
-        playSound('play', playHandType);
         await update(ref(db, `rooms_v4/${roomId}`), {
           [`hands/${currPid}`]: newHand,
           turn: nextTurn,
           turnStartTime: Date.now(),
           passCount: 0,
-          lastPlay: { playerId: currPid, playerName: currP.name, cards: minCard, handType: playHandType, isNewRound: false },
+          lastPlay: { playerId: currPid, playerName: currP.name, cards: minCard, handType: playHandType, isNewRound: false, timestamp: Date.now() },
           logs: [...(roomData.logs || []), `🤖 [空白/離線託管] ${currP.name} 打出了：${minCard.map(cardName).join(" ")}`].slice(-80)
         });
       } else {
@@ -1161,9 +1167,6 @@ window.playCards = async function() {
   const nextTurn = (Number(me.index) + 1) % 4;
   const playedType = getHandType(selectedCards);
 
-  // 出牌時呼叫 playSound 並傳入牌型，觸發語音/音效
-  playSound('play', playedType);
-
   const updates = {
     [`hands/${playerId}`]: newHand,
     turn: nextTurn,
@@ -1174,7 +1177,8 @@ window.playCards = async function() {
       playerName: me.name,
       cards: selectedCards,
       handType: playedType,
-      isNewRound: false
+      isNewRound: false,
+      timestamp: Date.now()
     },
     logs: [...(roomData.logs || []), `${me.name} 打出了：${selectedCards.map(cardName).join(" ")}`].slice(-80)
   };
