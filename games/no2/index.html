@@ -20,13 +20,16 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .player{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;border:2px solid #cbd5e1;min-height:70px;position:relative;overflow:hidden}
 .player.me{border-color:#2563eb}.player.turn{box-shadow:0 0 0 3px #f59e0b}.player .name{font-weight:800;display:flex;align-items:center;gap:4px}.player .state{font-size:12px;margin-top:5px}
 
+/* 表情最大化遮罩樣式 */
 .player-emoji-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);display:flex;justify-content:center;align-items:center;font-size:38px;z-index:10;animation:fadeInOut 2s ease forwards}
 @keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0)}}
 
+/* 表情選擇列樣式 */
 .emoji-bar{display:flex;gap:6px;justify-content:center;margin:8px 0;align-items:center}
 .emoji-btn{background:#e2e8f0;border:none;border-radius:6px;padding:6px 10px;font-size:18px;cursor:pointer;transition:transform 0.1s}
 .emoji-btn:hover{transform:scale(1.1);background:#cbd5e1}
 
+/* 新增：語音面板樣式 */
 .voice-bar{display:flex;gap:10px;align-items:center;justify-content:center;background:#1e293b;padding:8px 14px;border-radius:10px;margin-top:10px}
 .voice-btn{padding:6px 12px;font-size:13px}
 
@@ -142,11 +145,12 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
+<!-- 新增：語音錄製與發送控制列 -->
 <div class="voice-bar">
-  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 玩家語音頻道：</span>
-  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風</button>
-  <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音</button>
-  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未開啟</span>
+  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 語音對話：</span>
+  <button id="recordVoiceBtn" class="voice-btn success" onclick="startRecording()">按住/點擊 錄音發送</button>
+  <button id="stopVoiceBtn" class="voice-btn danger hidden" onclick="stopAndSendRecording()">停止並發送</button>
+  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未錄音</span>
 </div>
 
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
@@ -159,6 +163,7 @@ setInterval(function() {
   <div class="timer-box" id="timerBox"></div>
 </div><div id="discards" class="discard"></div>
 
+<!-- 表情發送選項列 -->
 <div class="emoji-bar" id="emojiBar">
   <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;"></span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
@@ -226,6 +231,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
+// --- Web Audio API 音效系統 (新增單張與一對帶數字語音) ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -242,6 +248,7 @@ function playSound(type, handTypeObj = null) {
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
 
+    // 使用語音合成朗讀牌型 (包含單張與對子的數字語音)
     if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
       let text = "出牌";
       
@@ -262,10 +269,10 @@ function playSound(type, handTypeObj = null) {
         text = typeNames[handTypeObj.type] || "出牌";
       }
 
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // 停止先前的語音
       const msg = new SpeechSynthesisUtterance(text);
       msg.lang = 'zh-TW';
-      msg.rate = 1.2;
+      msg.rate = 1.2; // 稍微加快語速
       window.speechSynthesis.speak(msg);
     }
 
@@ -279,6 +286,7 @@ function playSound(type, handTypeObj = null) {
       let endFreq = 880;
       let duration = 0.1;
 
+      // 針對特殊牌型給予不同音調變化
       if (handTypeObj) {
         if (handTypeObj.type === 'straight') { startFreq = 300; endFreq = 600; duration = 0.2; }
         else if (handTypeObj.type === 'fullhouse') { startFreq = 400; endFreq = 800; duration = 0.25; }
@@ -324,199 +332,80 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- WebRTC 語音通話修正版 ---
-let localStream = null;
-let peerConnections = {};
-let isVoiceActive = false;
-let isMuted = false;
+// --- 玩家短語音錄製與發送系統 ---
+let mediaRecorder = null;
+let audioChunks = [];
 
-// 擴充公共 STUN 伺服器，提高穿透成功率
-const iceServers = { 
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" }
-  ] 
-};
-
-window.toggleVoice = async function() {
+window.startRecording = async function() {
   if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
-  initAudio();
-  const btn = el("toggleVoiceBtn");
-  const muteBtn = el("toggleMuteBtn");
-  const status = el("voiceStatus");
-
-  if (!isVoiceActive) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      isVoiceActive = true;
-      btn.textContent = "關閉麥克風";
-      btn.className = "voice-btn danger";
-      muteBtn.classList.remove("hidden");
-      status.textContent = "通話中";
-
-      initVoiceSignaling();
-    } catch (e) {
-      alert("無法取得麥克風權限（請確定在 HTTPS 環境下開放麥克風）：" + e.message);
-    }
-  } else {
-    stopVoice();
-  }
-};
-
-window.toggleMute = function() {
-  if (!localStream) return;
-  isMuted = !isMuted;
-  localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-  const muteBtn = el("toggleMuteBtn");
-  muteBtn.textContent = isMuted ? "取消靜音" : "靜音";
-  muteBtn.className = isMuted ? "voice-btn danger" : "voice-btn gray";
-  el("voiceStatus").textContent = isMuted ? "已靜音" : "通話中";
-};
-
-function stopVoice() {
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-    localStream = null;
-  }
-  Object.keys(peerConnections).forEach(targetId => {
-    peerConnections[targetId].close();
-    delete peerConnections[targetId];
-  });
-  isVoiceActive = false;
-  isMuted = false;
-
-  const btn = el("toggleVoiceBtn");
-  const muteBtn = el("toggleMuteBtn");
-  if (btn) {
-    btn.textContent = "開啟麥克風";
-    btn.className = "voice-btn success";
-  }
-  if (muteBtn) muteBtn.classList.add("hidden");
-  if (el("voiceStatus")) el("voiceStatus").textContent = "未開啟";
-
-  if (roomId) {
-    remove(ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}`));
-  }
-}
-
-function initVoiceSignaling() {
-  const mySignalRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}`);
-  const roomVoiceRef = ref(db, `rooms_v4/${roomId}/voiceSignals`);
-
-  onDisconnect(mySignalRef).remove();
-
-  onValue(roomVoiceRef, (snap) => {
-    if (!isVoiceActive) return;
-    const signals = snap.val() || {};
-    Object.keys(signals).forEach(remoteId => {
-      if (remoteId !== playerId && !peerConnections[remoteId]) {
-        createPeerConnection(remoteId, true);
-      }
-    });
-  });
-
-  const myOffersRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/offers`);
-  onChildAdded(myOffersRef, async (snap) => {
-    if (!isVoiceActive) return;
-    const data = snap.val();
-    const remoteId = data.from;
-    const pc = createPeerConnection(remoteId, false);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
     
-    if (pc.signalingState !== "stable") {
-      await Promise.all([
-        pc.setLocalDescription({type: 'rollback'}),
-        pc.setRemoteDescription(new RTCSessionDescription(data.offer))
-      ]);
-    } else {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-    }
-    
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/answers`), {
-      from: playerId,
-      answer: answer
-    });
-  });
-
-  const myAnswersRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/answers`);
-  onChildAdded(myAnswersRef, async (snap) => {
-    if (!isVoiceActive) return;
-    const data = snap.val();
-    const pc = peerConnections[data.from];
-    if (pc && pc.signalingState === "have-local-offer") {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    }
-  });
-
-  const myCandidatesRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/candidates`);
-  onChildAdded(myCandidatesRef, async (snap) => {
-    if (!isVoiceActive) return;
-    const data = snap.val();
-    const pc = peerConnections[data.from];
-    if (pc && pc.remoteDescription) {
-      await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error(e));
-    }
-  });
-}
-
-function createPeerConnection(remoteId, isInitiator) {
-  if (peerConnections[remoteId]) return peerConnections[remoteId];
-
-  const pc = new RTCPeerConnection(iceServers);
-  peerConnections[remoteId] = pc;
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-  }
-
-  // 處理收到的聲音軌道，解決 Autoplay 被封鎖問題
-  pc.ontrack = (e) => {
-    let audio = document.getElementById(`audio_${remoteId}`);
-    if (!audio) {
-      audio = document.createElement("audio");
-      audio.id = `audio_${remoteId}`;
-      audio.autoplay = true;
-      audio.playsInline = true;
-      document.body.appendChild(audio);
-    }
-    if (e.streams && e.streams[0]) {
-      audio.srcObject = e.streams[0];
-      // 自動嘗試播放以破除自動播放限制
-      audio.play().catch(err => {
-        console.warn("自動播放聲音受阻，等待使用者點擊：" + err);
-      });
-    }
-  };
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate) {
-      push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/candidates`), {
-        from: playerId,
-        candidate: e.candidate.toJSON()
-      });
-    }
-  };
-
-  if (isInitiator) {
-    pc.onnegotiationneeded = async () => {
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/offers`), {
-          from: playerId,
-          offer: offer
-        });
-      } catch (err) {
-        console.error("Create offer error:", err);
-      }
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
     };
-  }
 
-  return pc;
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64Audio = reader.result;
+        // 將語音音訊推送至房間實時節點
+        await push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
+          senderId: playerId,
+          senderName: playerName,
+          audioData: base64Audio,
+          timestamp: Date.now()
+        });
+      };
+      // 關閉麥克風串流
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    mediaRecorder.start();
+    el("recordVoiceBtn").classList.add("hidden");
+    el("stopVoiceBtn").classList.remove("hidden");
+    el("voiceStatus").textContent = "錄音中...";
+  } catch (err) {
+    alert("無法使用麥克風錄音：" + err.message);
+  }
+};
+
+window.stopAndSendRecording = function() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+  el("recordVoiceBtn").classList.remove("hidden");
+  el("stopVoiceBtn").classList.add("hidden");
+  el("voiceStatus").textContent = "已發送";
+  setTimeout(() => {
+    if (el("voiceStatus").textContent === "已發送") el("voiceStatus").textContent = "未錄音";
+  }, 2000);
+};
+
+// 監聽房間內的語音廣播
+function listenVoiceMessages() {
+  if (!roomId) return;
+  const voiceMsgRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
+  onChildAdded(voiceMsgRef, (snapshot) => {
+    const msg = snapshot.val();
+    if (!msg || !msg.audioData) return;
+
+    // 當有新的語音訊息時，自動播報播放語音
+    const audio = new Audio(msg.audioData);
+    audio.play().catch(e => console.error("播放語音失敗:", e));
+
+    // 如果不是自己發送的，提示有語音來訊
+    if (msg.senderId !== playerId && el("voiceStatus")) {
+      el("voiceStatus").textContent = `${msg.senderName} 語音中...`;
+      setTimeout(() => {
+        if (el("voiceStatus")) el("voiceStatus").textContent = "未錄音";
+      }, 3000);
+    }
+  });
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
@@ -525,7 +414,7 @@ sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoP
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
 let isAutoPassing = false;
-let lastPlayTimestamp = 0;
+let lastPlayTimestamp = 0; // 用於廣播語音與判斷出牌變化
 
 window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -540,8 +429,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
 function setupPresence() {
   if (!playerId) return;
+  // 同步在等候區與遊戲房間內設置上線狀態與斷線偵測
   const userPresenceRef = ref(db, `rooms_v4/${LOBBY_ROOM_ID}/presence/${playerId}`);
   if (roomId && roomId !== LOBBY_ROOM_ID) {
+    // 若已在房間內，也同步房間內的 presence
     const roomPresenceRef = ref(db, `rooms_v4/${roomId}/presence/${playerId}`);
     const connectedRef = ref(db, ".info/connected");
     onValue(connectedRef, (snap) => {
@@ -580,6 +471,7 @@ function isUserOnline(pId, room = roomData) {
   return (now - lastSeen) < 15000;
 }
 
+// 針對等候區玩家的在線判斷
 function isLobbyUserOnline(pId, lobbyData) {
   if (!lobbyData || !lobbyData.presence || !lobbyData.presence[pId]) return false;
   const p = lobbyData.presence[pId];
@@ -655,20 +547,29 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
 
   const isMonsterCard = (type) => type === "four" || type === "straightFlush";
 
+  // 出五張牌時的特殊規範處理
   if (selectedCards.length === 5 && lastPlay.cards.length === 5) {
+    // 若上家出的不是怪獸牌（鐵支/同花順），且玩家出的是怪獸牌，允許直接壓牌
     if (!isMonsterCard(last.type) && isMonsterCard(played.type)) {
       return true;
     }
+
+    // 若上家與玩家都是怪獸牌，比較等級與點數
     if (isMonsterCard(last.type) && isMonsterCard(played.type)) {
       if (played.type === last.type) return played.val > last.val;
       return TYPE_RANK[played.type] > TYPE_RANK[last.type];
     }
+
+    // 非怪獸牌之間，必須強制完全符合首發者組合（如：順子接順子、葫蘆接葫蘆，不可用葫蘆接順子）
     if (played.type !== last.type) {
       return false;
     }
+
+    // 同組合則比較點數大小
     return played.val > last.val;
   }
 
+  // 非五張牌（1、2、3張牌）的標準比牌規則
   if (isMonsterCard(played.type) && !isMonsterCard(last.type)) return true;
   if (selectedCards.length !== lastPlay.cards.length) return false;
   if (played.type === last.type) return played.val > last.val;
@@ -836,10 +737,12 @@ function listenUserRoomAssignment() {
 
 async function subscribeToRoom(){
  if(!roomId)return;
+ listenVoiceMessages(); // 訂閱房間廣播語音訊息
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
    if(!roomData) return;
    
+   // 監聽房間出牌更新，只要有人出牌就在房間內所有人的裝置廣播播放語音
    if (roomData.lastPlay && roomData.lastPlay.timestamp && roomData.lastPlay.timestamp !== lastPlayTimestamp) {
      lastPlayTimestamp = roomData.lastPlay.timestamp;
      playSound('play', roomData.lastPlay.handType);
@@ -931,9 +834,10 @@ async function checkDisconnectedTurn() {
 }
 
 let adminRoomsData = {};
-let adminLobbyDataCache = { users: {}, presence: {} };
+let adminLobbyDataCache = { users: {}, presence: {} }; // 新增快取，用來記錄等候區的使用者與 presence 資料
 
 function listenToLobbyAndRooms() {
+  // 同時監聽等候區的使用者以及 presence 資料以判斷紅綠燈
   onValue(ref(db, `rooms_v4/${LOBBY_ROOM_ID}`), (snap) => {
     const data = snap.val() || {};
     adminLobbyDataCache.users = data.users || {};
@@ -1112,6 +1016,7 @@ function renderAdminWinners() {
 window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
   
+  // 複製列表按獎品名稱優先進行排序，並格式化
   const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
   const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
   const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n@${winnerTextList}`;
@@ -1122,6 +1027,7 @@ window.copyWinnerList = async () => {
 
 function renderAdminLobbyList() {
   const users = adminLobbyDataCache.users || {};
+  // 過濾出尚未分配房間且狀態為「線上 (綠燈)」的玩家
   const entries = Object.entries(users).filter(([id, u]) => !u.assignedRoom && isLobbyUserOnline(id, adminLobbyDataCache));
   el("adminLobbyCount").textContent = entries.length;
 
@@ -1177,7 +1083,6 @@ async function watchGame(){
 }
 
 window.backToRoomManager=()=>{
- stopVoice();
  el("game").classList.add("hidden"); el("setup").classList.remove("hidden");
  el("adminGameBar").classList.add("hidden"); viewMode="admin";
 };
