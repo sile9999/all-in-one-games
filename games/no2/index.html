@@ -164,7 +164,7 @@ setInterval(function() {
 
 <!-- 表情發送選項列 -->
 <div class="emoji-bar" id="emojiBar">
-  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;"></span>
+  <span style="font-size:13px;font-bold;color:#ffffff;margin-right:4px;"></span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
   <button class="emoji-btn" onclick="sendEmoji('😭')">😭</button>
   <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
@@ -230,7 +230,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 ---
+// --- Web Audio API 音效系統與 iOS 音訊解鎖 ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -241,7 +241,16 @@ function initAudio() {
   }
 }
 
-// iOS WebAudio 解鎖觸發
+// iOS 全域點擊解鎖 WebAudio 與 HTMLAudioElement
+document.addEventListener("touchstart", function unlockAudio() {
+  initAudio();
+  // 建立一次微小的語音合成，解鎖 iOS 的 SpeechSynthesizer
+  if ('speechSynthesis' in window) {
+    const dummy = new SpeechSynthesisUtterance('');
+    window.speechSynthesis.speak(dummy);
+  }
+}, { once: false, passive: true });
+
 document.addEventListener("click", () => {
   initAudio();
 }, { once: false });
@@ -432,21 +441,54 @@ function listenToVoiceMessages() {
   });
 }
 
+// 專為 iOS WebKit 解鎖並最佳化播放 DataURL 語音機制
 function playVoiceMessage(base64Data, senderName, senderId) {
   const status = el("voiceStatus");
   if (status) status.textContent = `🔊 播放來自 ${senderName} 的語音`;
 
-  const audio = new Audio(base64Data);
-  audio.play().then(() => {
-    // 播放正常
-  }).catch(err => {
-    console.error("iOS/瀏覽器自動播放限制攔截，請嘗試點擊畫面:", err);
-    if (status) status.textContent = "請點擊頁面解鎖語音播放";
-  });
+  try {
+    initAudio();
 
-  audio.onended = () => {
+    // 將 Base64 Data URI 轉換為 ArrayBuffer Blob URL，解決 iOS Safari 解碼 Data URI 的相容限制
+    const parts = base64Data.split(';base64,');
+    const contentType = parts[0].replace('data:', '') || 'audio/mp4';
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    const blob = new Blob([uInt8Array], { type: contentType });
+    const audioUrl = URL.createObjectURL(blob);
+
+    const audio = new Audio();
+    audio.src = audioUrl;
+    audio.setAttribute('playsinline', 'true');
+    audio.setAttribute('webkit-playsinline', 'true');
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        // 正常播放
+      }).catch(err => {
+        console.error("iOS 自動播放限制攔截，嘗試提示解鎖:", err);
+        if (status) status.textContent = "請點擊螢幕任意處播放語音";
+      });
+    }
+
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      if (status) status.textContent = "準備就緒";
+    };
+
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      if (status) status.textContent = "準備就緒";
+    };
+  } catch(e) {
+    console.error("語音播放解碼異常:", e);
     if (status) status.textContent = "準備就緒";
-  };
+  }
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
