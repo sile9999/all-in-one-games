@@ -47,6 +47,12 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 
 .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .online{background-color:#22c55e;box-shadow:0 0 6px #22c55e}
+/* 綠燈講話時閃烁效果 */
+.online.speaking{animation:greenBlink 0.4s infinite alternate;}
+@keyframes greenBlink{
+  0%{opacity:1;box-shadow:0 0 10px #22c55e;transform:scale(1.3);}
+  100%{opacity:0.2;box-shadow:0 0 2px #22c55e;transform:scale(0.9);}
+}
 .offline{background-color:#ef4444}
 .room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;cursor:pointer;transition:all 0.2s}
 .room-box.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px #2563eb}
@@ -150,7 +156,7 @@ setInterval(function() {
   <div class="timer-box" id="timerBox"></div>
 </div><div id="discards" class="discard"></div>
 
-<!-- 表情發送選項列 -->
+<!-- 表情發送選項列 (移至你的手牌旁邊/上方) -->
 <div class="emoji-bar" id="emojiBar">
   <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;"></span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
@@ -218,7 +224,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 ---
+// --- Web Audio API 音效系統 (新增單張與一對帶數字語音) ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -229,12 +235,13 @@ function initAudio() {
   }
 }
 
-function playSound(type, handTypeObj = null) {
+function playSound(type, handTypeObj = null, speakingPlayerId = null) {
   try {
     initAudio();
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
 
+    // 使用語音合成朗讀牌型 (包含單張與對子的數字語音)
     if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
       let text = "出牌";
       
@@ -255,10 +262,26 @@ function playSound(type, handTypeObj = null) {
         text = typeNames[handTypeObj.type] || "出牌";
       }
 
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // 停止先前的語音
       const msg = new SpeechSynthesisUtterance(text);
       msg.lang = 'zh-TW';
-      msg.rate = 1.2;
+      msg.rate = 1.2; // 稍微加快語速
+
+      if (speakingPlayerId) {
+        msg.onstart = () => {
+          if (roomData && roomData.players && roomData.players[speakingPlayerId]) {
+            roomData.players[speakingPlayerId].isSpeaking = true;
+            render();
+          }
+        };
+        msg.onend = msg.onerror = () => {
+          if (roomData && roomData.players && roomData.players[speakingPlayerId]) {
+            roomData.players[speakingPlayerId].isSpeaking = false;
+            render();
+          }
+        };
+      }
+
       window.speechSynthesis.speak(msg);
     }
 
@@ -272,6 +295,7 @@ function playSound(type, handTypeObj = null) {
       let endFreq = 880;
       let duration = 0.1;
 
+      // 針對特殊牌型給予不同音調變化
       if (handTypeObj) {
         if (handTypeObj.type === 'straight') { startFreq = 300; endFreq = 600; duration = 0.2; }
         else if (handTypeObj.type === 'fullhouse') { startFreq = 400; endFreq = 800; duration = 0.25; }
@@ -323,7 +347,7 @@ sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoP
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
 let isAutoPassing = false;
-let lastPlayTimestamp = 0;
+let lastPlayTimestamp = 0; // 用於廣播語音與判斷出牌變化
 
 window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -338,8 +362,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
 function setupPresence() {
   if (!playerId) return;
+  // 同步在等候區與遊戲房間內設置上線狀態與斷線偵測
   const userPresenceRef = ref(db, `rooms_v4/${LOBBY_ROOM_ID}/presence/${playerId}`);
   if (roomId && roomId !== LOBBY_ROOM_ID) {
+    // 若已在房間內，也同步房間內的 presence
     const roomPresenceRef = ref(db, `rooms_v4/${roomId}/presence/${playerId}`);
     const connectedRef = ref(db, ".info/connected");
     onValue(connectedRef, (snap) => {
@@ -378,6 +404,7 @@ function isUserOnline(pId, room = roomData) {
   return (now - lastSeen) < 15000;
 }
 
+// 針對等候區玩家的在線判斷
 function isLobbyUserOnline(pId, lobbyData) {
   if (!lobbyData || !lobbyData.presence || !lobbyData.presence[pId]) return false;
   const p = lobbyData.presence[pId];
@@ -453,23 +480,29 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
 
   const isMonsterCard = (type) => type === "four" || type === "straightFlush";
 
+  // 出五張牌時的特殊規範處理
   if (selectedCards.length === 5 && lastPlay.cards.length === 5) {
+    // 若上家出的不是怪獸牌（鐵支/同花順），且玩家出的是怪獸牌，允許直接壓牌
     if (!isMonsterCard(last.type) && isMonsterCard(played.type)) {
       return true;
     }
 
+    // 若上家與玩家都是怪獸牌，比較等級與點數
     if (isMonsterCard(last.type) && isMonsterCard(played.type)) {
       if (played.type === last.type) return played.val > last.val;
       return TYPE_RANK[played.type] > TYPE_RANK[last.type];
     }
 
+    // 非怪獸牌之間，必須強制完全符合首發者組合（如：順子接順子、葫蘆接葫蘆，不可用葫蘆接順子）
     if (played.type !== last.type) {
       return false;
     }
 
+    // 同組合則比較點數大小
     return played.val > last.val;
   }
 
+  // 非五張牌（1、2、3張牌）的標準比牌規則
   if (isMonsterCard(played.type) && !isMonsterCard(last.type)) return true;
   if (selectedCards.length !== lastPlay.cards.length) return false;
   if (played.type === last.type) return played.val > last.val;
@@ -641,9 +674,10 @@ async function subscribeToRoom(){
    roomData=snap.val();
    if(!roomData) return;
    
+   // 監聽房間出牌更新，只要有人出牌就在房間內所有人的裝置廣播播放語音
    if (roomData.lastPlay && roomData.lastPlay.timestamp && roomData.lastPlay.timestamp !== lastPlayTimestamp) {
      lastPlayTimestamp = roomData.lastPlay.timestamp;
-     playSound('play', roomData.lastPlay.handType);
+     playSound('play', roomData.lastPlay.handType, roomData.lastPlay.playerId);
    }
 
    if(el("game") && !el("game").classList.contains("hidden")) render();
@@ -732,9 +766,10 @@ async function checkDisconnectedTurn() {
 }
 
 let adminRoomsData = {};
-let adminLobbyDataCache = { users: {}, presence: {} };
+let adminLobbyDataCache = { users: {}, presence: {} }; // 新增快取，用來記錄等候區的使用者與 presence 資料
 
 function listenToLobbyAndRooms() {
+  // 同時監聽等候區的使用者以及 presence 資料以判斷紅綠燈
   onValue(ref(db, `rooms_v4/${LOBBY_ROOM_ID}`), (snap) => {
     const data = snap.val() || {};
     adminLobbyDataCache.users = data.users || {};
@@ -913,6 +948,7 @@ function renderAdminWinners() {
 window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
   
+  // 複製列表按獎品名稱優先進行排序，並格式化
   const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
   const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
   const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n@${winnerTextList}`;
@@ -923,6 +959,7 @@ window.copyWinnerList = async () => {
 
 function renderAdminLobbyList() {
   const users = adminLobbyDataCache.users || {};
+  // 過濾出尚未分配房間且狀態為「線上 (綠燈)」的玩家
   const entries = Object.entries(users).filter(([id, u]) => !u.assignedRoom && isLobbyUserOnline(id, adminLobbyDataCache));
   el("adminLobbyCount").textContent = entries.length;
 
@@ -1350,26 +1387,19 @@ function render(){
    if(!item) return '<div class="player"><div class="name">'+(i+1)+'. 等待玩家</div><div class="state">尚未加入</div></div>';
    const {id,p}=item;
    const pCards = (roomData.hands?.[id] || []);
-   const isCurrentTurn = roomData.status==="playing" && p.index===roomData.turn;
-   
-   // 根據狀態判定文字標籤與講話提示
-   const state = p.status==="win" 
-     ? "🏆 本局獲勝" 
-     : isCurrentTurn 
-       ? "<span style='color:#f59e0b;font-weight:bold;'>🔊 講話中 / 出牌中...</span>" 
-       : "等待中";
-       
+   const state= p.status==="win" ? "🏆 本局獲勝" : roomData.status==="playing" && p.index===roomData.turn ? "♠️ 出牌中" : "等待中";
    const kickBtn = (viewMode === "admin") ? `<button class="danger kick-btn" onclick="kickPlayer('${id}', '${esc(p.name)}')">踢出</button>` : '';
    
    const online = p.isOfflineBot ? false : isUserOnline(id);
-   const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
+   const isSpeaking = p.isSpeaking ? 'speaking' : '';
+   const dotHtml = `<span class="status-dot ${online?'online':''} ${isSpeaking}" title="${online?'在線':'離線'}"></span>`;
 
    let emojiOverlayHtml = "";
    if (p.currentEmoji && p.emojiTime && (now - p.emojiTime < 2000)) {
      emojiOverlayHtml = `<div class="player-emoji-overlay">${p.currentEmoji}</div>`;
    }
 
-   return `<div class="player ${(id===playerId?"me ":"")+(isCurrentTurn?"turn":"")}">
+   return `<div class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn":"")}">
      ${emojiOverlayHtml}
      ${kickBtn}
      <div class="name">${dotHtml} ${(p.index+1)}. ${esc(p.name)}</div>
@@ -1450,7 +1480,7 @@ function renderDiscards(){
 
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
 function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場 (總4局)</th><th>刮刮樂</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td></tr>").join("")+"</table>"}
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;">": "&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 </script>
 </body>
 </html>
