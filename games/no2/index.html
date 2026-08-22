@@ -55,7 +55,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;cursor:pointer;transition:all 0.2s}
 .room-box.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px #2563eb}
 .lobby-box{background:#f1f5f9;border:2px solid #94a3b8;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
-.lobby-user-item{display:flex;justify-space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
+.lobby-user-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
 
 .winner-box{background:#fffbebf0;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .winner-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 12px;border-radius:6px;margin-top:4px;border:1px solid #fde68a;font-size:14px}
@@ -83,6 +83,9 @@ setInterval(function() {
 </script>
 </head>
 <body>
+<!-- 用於 iOS 解鎖語音自動播放的隱藏容器 -->
+<div id="remoteAudioContainer" style="display:none;"></div>
+
 <div id="setup" class="card">
 <h1 id="mainTitle">♠️ 四人大老二刮刮樂</h1>
 <p id="setupDesc">連玩4局累計勝場獲勝！所有玩家將先進入「等候區」，由管理員分配至房間。</p>
@@ -145,11 +148,12 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
-<!-- 語音對談列 -->
+<!-- 語音通話控制列 -->
 <div class="voice-bar">
-  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 語音對話：</span>
-  <button id="voiceBtn" class="voice-btn success" onclick="toggleVoiceRecording()">按住/點擊錄音發送</button>
-  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">準備就緒</span>
+  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音對講：</span>
+  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風</button>
+  <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音</button>
+  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未開啟</span>
 </div>
 
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
@@ -230,10 +234,8 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API & iOS 解鎖音效系統 ---
+// --- Web Audio API 音效系統 ---
 let audioCtx = null;
-let unlockedAudio = null; // iOS 專用全域音訊播放實體
-
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -241,26 +243,7 @@ function initAudio() {
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
-
-  // iOS Safari 專用解鎖：使用空白靜音音效解鎖全局音訊權限
-  if (!unlockedAudio) {
-    unlockedAudio = new Audio();
-    unlockedAudio.setAttribute('playsinline', 'true');
-    unlockedAudio.setAttribute('webkit-playsinline', 'true');
-    // 使用微小無聲音效檔 Data URI 解鎖
-    unlockedAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
-    unlockedAudio.play().catch(() => {});
-  }
 }
-
-// iOS WebAudio & HTML5 Audio 觸發解鎖 (觸摸與點擊)
-document.addEventListener("click", () => {
-  initAudio();
-}, { once: false });
-
-document.addEventListener("touchstart", () => {
-  initAudio();
-}, { once: false });
 
 function playSound(type, handTypeObj = null) {
   try {
@@ -268,7 +251,6 @@ function playSound(type, handTypeObj = null) {
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
 
-    // 使用語音合成朗讀牌型 (包含單張與對子的數字語音)
     if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
       let text = "出牌";
       
@@ -289,10 +271,10 @@ function playSound(type, handTypeObj = null) {
         text = typeNames[handTypeObj.type] || "出牌";
       }
 
-      window.speechSynthesis.cancel(); // 停止先前的語音
+      window.speechSynthesis.cancel();
       const msg = new SpeechSynthesisUtterance(text);
       msg.lang = 'zh-TW';
-      msg.rate = 1.2; // 稍微加快語速
+      msg.rate = 1.2;
       window.speechSynthesis.speak(msg);
     }
 
@@ -351,134 +333,233 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- 跨平台高相容錄音廣播系統 (完全支援 iOS / Android / Desktop) ---
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
-let voiceSubscribed = false;
+// --- WebRTC 語音通話系統（包含 iOS 兼容相容修復） ---
+let localStream = null;
+let peerConnections = {};
+let isVoiceActive = false;
+let isMuted = false;
+const iceServers = { 
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ] 
+};
 
-window.toggleVoiceRecording = async function() {
+// 專門修復 iOS Safari 自動播放限制的函數
+function unlockiOSAudio() {
+  initAudio();
+  const container = document.getElementById("remoteAudioContainer");
+  if (container) {
+    const audios = container.getElementsByTagName("audio");
+    for (let a of audios) {
+      a.play().catch(()=>{});
+    }
+  }
+}
+
+window.toggleVoice = async function() {
+  unlockiOSAudio(); // 觸發使用者按壓點擊解鎖 iOS 音訊鎖
+
   if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
-  initAudio(); // 觸發解鎖 iOS 音訊
-
-  const btn = el("voiceBtn");
+  const btn = el("toggleVoiceBtn");
+  const muteBtn = el("toggleMuteBtn");
   const status = el("voiceStatus");
 
-  if (!isRecording) {
+  if (!isVoiceActive) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunks = [];
-      
-      // 依據瀏覽器環境選擇相容格式 (iOS 優先使用 mp4/aac，Android/PC 優先使用 webm)
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-        mimeType = 'audio/aac';
-      } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      }
-
-      mediaRecorder = new MediaRecorder(stream, { mimeType });
-
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: mimeType });
-        stream.getTracks().forEach(track => track.stop());
-
-        if (audioBlob.size < 500) {
-          status.textContent = "錄音時間太短";
-          setTimeout(() => { status.textContent = "準備就緒"; }, 1500);
-          return;
-        }
-
-        status.textContent = "傳送語音中...";
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64Audio = reader.result;
-          await push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
-            senderId: playerId,
-            senderName: playerName || "玩家",
-            audioData: base64Audio,
-            mimeType: mimeType,
-            timestamp: serverTimestamp()
-          });
-          status.textContent = "發送成功！";
-          setTimeout(() => { status.textContent = "準備就緒"; }, 1500);
-        };
-      };
-
-      mediaRecorder.start();
-      isRecording = true;
-      btn.textContent = "⏹️ 停止並發送";
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      isVoiceActive = true;
+      btn.textContent = "關閉麥克風";
       btn.className = "voice-btn danger";
-      status.textContent = "🔴 錄音中...";
+      muteBtn.classList.remove("hidden");
+      status.textContent = "通話中";
+
+      initVoiceSignaling();
     } catch (e) {
-      alert("無法存取麥克風，請確認權限設定：" + e.message);
+      alert("無法取得麥克風權限或瀏覽器不支援：" + e.message);
     }
   } else {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
-    }
-    isRecording = false;
-    btn.textContent = "🎙️ 開始錄音";
-    btn.className = "voice-btn success";
+    stopVoice();
   }
 };
 
-function listenToVoiceMessages() {
-  if (!roomId || voiceSubscribed) return;
-  voiceSubscribed = true;
+window.toggleMute = function() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+  const muteBtn = el("toggleMuteBtn");
+  muteBtn.textContent = isMuted ? "取消靜音" : "靜音";
+  muteBtn.className = isMuted ? "voice-btn danger" : "voice-btn gray";
+  el("voiceStatus").textContent = isMuted ? "已靜音" : "通話中";
+};
 
-  const voiceRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
-  const joinTime = Date.now() - 5000;
+function stopVoice() {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  Object.keys(peerConnections).forEach(targetId => {
+    peerConnections[targetId].close();
+    delete peerConnections[targetId];
+    const a = document.getElementById(`audio_${targetId}`);
+    if (a) a.remove();
+  });
+  isVoiceActive = false;
+  isMuted = false;
 
-  onChildAdded(voiceRef, (snap) => {
+  const btn = el("toggleVoiceBtn");
+  const muteBtn = el("toggleMuteBtn");
+  if (btn) {
+    btn.textContent = "開啟麥克風";
+    btn.className = "voice-btn success";
+  }
+  if (muteBtn) muteBtn.classList.add("hidden");
+  if (el("voiceStatus")) el("voiceStatus").textContent = "未開啟";
+
+  if (roomId) {
+    remove(ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}`));
+  }
+}
+
+function initVoiceSignaling() {
+  const mySignalRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}`);
+  const roomVoiceRef = ref(db, `rooms_v4/${roomId}/voiceSignals`);
+
+  onDisconnect(mySignalRef).remove();
+
+  // 告知房間自身在線語音狀態
+  set(mySignalRef, { active: true, updatedAt: serverTimestamp() });
+
+  onValue(roomVoiceRef, (snap) => {
+    if (!isVoiceActive) return;
+    const signals = snap.val() || {};
+    Object.keys(signals).forEach(remoteId => {
+      if (remoteId !== playerId && !peerConnections[remoteId]) {
+        createPeerConnection(remoteId, true);
+      }
+    });
+  });
+
+  const myOffersRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/offers`);
+  onChildAdded(myOffersRef, async (snap) => {
+    if (!isVoiceActive) return;
     const data = snap.val();
-    if (!data || !data.audioData) return;
+    if (!data || !data.offer) return;
+    const remoteId = data.from;
+    const pc = createPeerConnection(remoteId, false);
+    
+    if (pc.signalingState !== "stable") {
+      await Promise.all([
+        pc.setLocalDescription({type: "rollback"}),
+        pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+      ]);
+    } else {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    }
 
-    // 避開載入房間歷史累積訊息，只播放最新發出的語音
-    if (data.timestamp && data.timestamp < joinTime) return;
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-    playVoiceMessage(data.audioData, data.senderName, data.senderId);
+    push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/answers`), {
+      from: playerId,
+      answer: answer
+    });
+  });
+
+  const myAnswersRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/answers`);
+  onChildAdded(myAnswersRef, async (snap) => {
+    if (!isVoiceActive) return;
+    const data = snap.val();
+    if (!data || !data.answer) return;
+    const pc = peerConnections[data.from];
+    if (pc && pc.signalingState === "have-local-offer") {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    }
+  });
+
+  const myCandidatesRef = ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}/candidates`);
+  onChildAdded(myCandidatesRef, async (snap) => {
+    if (!isVoiceActive) return;
+    const data = snap.val();
+    if (!data || !data.candidate) return;
+    const pc = peerConnections[data.from];
+    if (pc && pc.remoteDescription) {
+      await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error(e));
+    }
   });
 }
 
-function playVoiceMessage(base64Data, senderName, senderId) {
-  const status = el("voiceStatus");
-  if (status) status.textContent = `🔊 播放來自 ${senderName} 的語音`;
+function createPeerConnection(remoteId, isInitiator) {
+  if (peerConnections[remoteId]) return peerConnections[remoteId];
 
-  initAudio(); // 再次確定 WebAudio/AudioContext 解鎖狀態
+  const pc = new RTCPeerConnection(iceServers);
+  peerConnections[remoteId] = pc;
 
-  // 使用全域預解鎖的 Audio 物件進行播放以繞過 iOS Safari 自動播放限制
-  let player = unlockedAudio;
-  if (!player) {
-    player = new Audio();
-    player.setAttribute('playsinline', 'true');
-    player.setAttribute('webkit-playsinline', 'true');
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
   }
 
-  player.src = base64Data;
+  // 特殊修正：解決 iOS 設備無法接收並播放語音問題
+  pc.ontrack = (e) => {
+    let container = document.getElementById("remoteAudioContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "remoteAudioContainer";
+      container.style.display = "none";
+      document.body.appendChild(container);
+    }
 
-  const promise = player.play();
-  if (promise !== undefined) {
-    promise.then(() => {
-      // 正常播放
-    }).catch(err => {
-      console.error("iOS 自動播放限制攔截，已切換點擊重試:", err);
-      if (status) {
-        status.innerHTML = `<button class="voice-btn primary" style="padding:2px 6px;font-size:11px" onclick="this.parentElement.innerHTML='播放中...'; playVoiceMessage('${base64Data}', '${senderName}', '${senderId}')">▶️ 點擊收聽 ${senderName} 的語音</button>`;
-      }
-    });
-  }
+    let audio = document.getElementById(`audio_${remoteId}`);
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.id = `audio_${remoteId}`;
+      audio.setAttribute("autoplay", "true");
+      audio.setAttribute("playsinline", "true"); // 關鍵：iOS 必須帶上 playsinline
+      audio.setAttribute("controls", "true"); // 關鍵：防止 iOS Safari 自動優化掉無 DOM audio 元素
+      container.appendChild(audio);
+    }
 
-  player.onended = () => {
-    if (status) status.textContent = "準備就緒";
+    if (e.streams && e.streams[0]) {
+      audio.srcObject = e.streams[0];
+    } else {
+      const inboundStream = new MediaStream([e.track]);
+      audio.srcObject = inboundStream;
+    }
+
+    // 顯式強制觸發播放並容錯
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.warn("iOS 自動播放限制，等待互動點擊:", error);
+      });
+    }
   };
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/candidates`), {
+        from: playerId,
+        candidate: e.candidate.toJSON()
+      });
+    }
+  };
+
+  if (isInitiator) {
+    pc.onnegotiationneeded = async () => {
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        push(ref(db, `rooms_v4/${roomId}/voiceSignals/${remoteId}/offers`), {
+          from: playerId,
+          offer: offer
+        });
+      } catch (err) {
+        console.error("Create offer error:", err);
+      }
+    };
+  }
+
+  return pc;
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
@@ -752,6 +833,7 @@ function makeLobbyJoinLink(){
 el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
 
 window.joinLobby=async()=>{
+ unlockiOSAudio(); // 玩家點擊加入時同時釋放 iOS 音訊權限
  const status=el("joinStatus");
  const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
  try{ status.textContent="正在連線 Firebase…"; await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
@@ -801,8 +883,6 @@ function listenUserRoomAssignment() {
 
 async function subscribeToRoom(){
  if(!roomId)return;
- listenToVoiceMessages(); // 訂閱新房間的語音訊息
-
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
    if(!roomData) return;
@@ -1144,6 +1224,7 @@ async function watchGame(){
 }
 
 window.backToRoomManager=()=>{
+ stopVoice();
  el("game").classList.add("hidden"); el("setup").classList.remove("hidden");
  el("adminGameBar").classList.add("hidden"); viewMode="admin";
 };
@@ -1335,6 +1416,7 @@ async function autoTimeoutPlay() {
 }
 
 window.toggleCard = function(cardId) {
+  unlockiOSAudio(); // 玩家點擊選擇撲克牌時，同步解除 iOS 音訊阻擋
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
   if (!me || Number(me.index) !== Number(roomData.turn)) return;
@@ -1354,6 +1436,7 @@ window.clearSelection = function() {
 };
 
 window.playCards = async function() {
+  unlockiOSAudio();
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
   if (!me || Number(me.index) !== Number(roomData.turn)) return alert("還沒輪到你出牌！");
@@ -1449,6 +1532,7 @@ window.playCards = async function() {
 };
 
 window.passTurn = async function() {
+  unlockiOSAudio();
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
   if (!me || Number(me.index) !== Number(roomData.turn)) return alert("還沒輪到你！");
@@ -1484,6 +1568,7 @@ function showScratch(ticket){
 }
 
 window.revealScratch=function(){
+  unlockiOSAudio();
   if(!myTicketId || !roomData) return;
   const ticket=(roomData.scratchTickets||[]).find(t=>t.id===myTicketId); if(!ticket) return;
   const prize=(roomData.scratchPrizes||[])[ticket.prizeIndex]||{};
