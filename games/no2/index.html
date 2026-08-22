@@ -31,7 +31,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 
 /* 新增：語音面板樣式 */
 .voice-bar{display:flex;gap:10px;align-items:center;justify-content:center;background:#1e293b;padding:8px 14px;border-radius:10px;margin-top:10px}
-.voice-btn{padding:6px 12px;font-size:13px;touch-action:none}
+.voice-btn{padding:6px 12px;font-size:13px}
 
 .kick-btn{position:absolute;top:5px;right:5px;padding:2px 6px;font-size:11px;border-radius:4px;z-index:5}
 .table{background:#166534;border-radius:18px;padding:14px;position:relative;min-height:420px}
@@ -145,11 +145,11 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
-<!-- 語音對談列：支援 iOS 設備的長按錄音廣播 -->
+<!-- 語音對話/錄音控制列 -->
 <div class="voice-bar">
-  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 語音訊息：</span>
-  <button id="recordVoiceBtn" class="voice-btn success">按住 說話 / 發送</button>
-  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">按住按鈕開始錄音</span>
+  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 語音對話：</span>
+  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleRecordVoice()">按住或點擊錄音</button>
+  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">點擊開始錄音</span>
 </div>
 
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
@@ -230,7 +230,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 (解決 iOS 解鎖自動播放) ---
+// --- Web Audio API 音效系統 ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -240,9 +240,6 @@ function initAudio() {
     audioCtx.resume();
   }
 }
-// 針對 iOS 設備在使用者點擊螢幕時主動激活解鎖 AudioContext
-window.addEventListener('touchstart', initAudio, { once: true });
-window.addEventListener('click', initAudio, { once: true });
 
 function playSound(type, handTypeObj = null) {
   try {
@@ -250,6 +247,7 @@ function playSound(type, handTypeObj = null) {
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
 
+    // 使用語音合成朗讀牌型 (包含單張與對子的數字語音)
     if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
       let text = "出牌";
       
@@ -332,115 +330,92 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- 相容 iOS 的錄音及同房間語音廣播系統 ---
+// --- 高效短語音傳輸系統 (支援iOS及各平臺廣播) ---
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
-let voiceUnsub = null;
 
-function setupVoiceRecording() {
-  const btn = el("recordVoiceBtn");
-  if (!btn) return;
+window.toggleRecordVoice = async function() {
+  if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
+  const btn = el("toggleVoiceBtn");
+  const status = el("voiceStatus");
 
-  const startRec = async (e) => {
-    e.preventDefault();
-    if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
-    if (isRecording) return;
-    initAudio();
-
+  if (!isRecording) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunks = [];
       
-      // 支援 iOS Safari 的 mimeType MIME 相容判定
-      let options = {};
-      if (MediaRecorder.isTypeSupported('audio/webm')) {
-        options = { mimeType: 'audio/webm' };
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        options = { mimeType: 'audio/mp4' };
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
       } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-        options = { mimeType: 'audio/aac' };
+        mimeType = 'audio/aac';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        mimeType = 'audio/ogg';
       }
 
-      mediaRecorder = new MediaRecorder(stream, options);
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunks.push(event.data);
+      mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunks.push(e.data);
       };
 
       mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
         stream.getTracks().forEach(track => track.stop());
-        if (audioChunks.length === 0) return;
-
-        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/mp4' });
-        if (blob.size < 500) return; // 避免太短的噪音
-
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const base64Audio = reader.result;
-          push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
-            senderId: playerId,
-            senderName: playerName || "玩家",
-            audioData: base64Audio,
-            timestamp: serverTimestamp()
-          });
-        };
+        
+        if (audioBlob.size > 0) {
+          status.textContent = "發送中...";
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            await push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
+              senderId: playerId,
+              senderName: playerName,
+              audioData: base64Audio,
+              timestamp: Date.now()
+            });
+            status.textContent = "點擊開始錄音";
+          };
+        }
       };
 
       mediaRecorder.start();
       isRecording = true;
-      btn.textContent = "🎙️ 正在錄音... (放開發送)";
+      btn.textContent = "停止並發送";
       btn.className = "voice-btn danger";
-      el("voiceStatus").textContent = "錄音中...";
-    } catch (err) {
-      alert("錄音失敗或麥克風權限被拒絕：" + err.message);
+      status.textContent = "🔴 正在錄音...";
+    } catch (e) {
+      alert("無法取得麥克風權限或瀏覽器不支援：" + e.message);
     }
-  };
-
-  const stopRec = (e) => {
-    e.preventDefault();
-    if (!isRecording) return;
-    isRecording = false;
-    btn.textContent = "按住 說話 / 發送";
-    btn.className = "voice-btn success";
-    el("voiceStatus").textContent = "訊息處理發送中...";
-
+  } else {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.stop();
     }
-  };
+    isRecording = false;
+    btn.textContent = "按住或點擊錄音";
+    btn.className = "voice-btn success";
+  }
+};
 
-  btn.addEventListener("mousedown", startRec);
-  btn.addEventListener("mouseup", stopRec);
-  btn.addEventListener("mouseleave", stopRec);
-
-  btn.addEventListener("touchstart", startRec, { passive: false });
-  btn.addEventListener("touchend", stopRec, { passive: false });
-}
-
-function listenVoiceMessages() {
-  if (voiceUnsub) voiceUnsub();
+function initVoiceReceiver() {
   if (!roomId || roomId === LOBBY_ROOM_ID) return;
+  const voiceMsgRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
 
-  const voiceRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
-  voiceUnsub = onChildAdded(voiceRef, (snap) => {
+  onChildAdded(voiceMsgRef, (snap) => {
     const data = snap.val();
-    if (!data || !data.audioData) return;
+    if (!data) return;
 
-    // 如果是 60 秒以前的語音歷史訊息則跳過，僅播放當前對局語音
-    if (data.timestamp && (Date.now() - data.timestamp > 60000)) return;
-
-    // 播放語音音訊，完美相容 iOS
-    const audio = new Audio(data.audioData);
-    audio.play().catch(e => {
-      console.log("Audio autoplay constrained on iOS:", e);
-    });
-
-    if (el("voiceStatus")) {
-      el("voiceStatus").textContent = `🔊 ${data.senderName} 語音播放中...`;
-      setTimeout(() => {
-        if (el("voiceStatus")) el("voiceStatus").textContent = "按住按鈕開始錄音";
-      }, 3000);
+    // 只有非自己發送的語音且在5秒內才進行自動播放
+    if (data.senderId !== playerId && (Date.now() - data.timestamp) < 5000) {
+      try {
+        initAudio();
+        const audio = new Audio(data.audioData);
+        audio.play().catch(e => console.log("Audio play blocked by browser:", e));
+      } catch (err) {
+        console.error("播放語音訊息失敗:", err);
+      }
     }
   });
 }
@@ -454,7 +429,6 @@ let isAutoPassing = false;
 let lastPlayTimestamp = 0;
 
 window.addEventListener("DOMContentLoaded", () => {
-  setupVoiceRecording();
   const urlParams = new URLSearchParams(window.location.search);
   const watchRoomParam = urlParams.get("watchRoom");
   if (watchRoomParam) {
@@ -766,7 +740,8 @@ function listenUserRoomAssignment() {
 
 async function subscribeToRoom(){
  if(!roomId)return;
- listenVoiceMessages();
+ initVoiceReceiver();
+
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
    if(!roomData) return;
@@ -1572,7 +1547,7 @@ function renderDiscards(){
 
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
 function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場 (總4局)</th><th>刮刮樂</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td></tr>").join("")+"</table>"}
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;">"&gt;','"':"&quot;","'":"&#039;"}[c]))}
 </script>
 </body>
 </html>
