@@ -55,7 +55,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;cursor:pointer;transition:all 0.2s}
 .room-box.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px #2563eb}
 .lobby-box{background:#f1f5f9;border:2px solid #94a3b8;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
-.lobby-user-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
+.lobby-user-item{display:flex;justify-space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
 
 .winner-box{background:#fffbebf0;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .winner-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 12px;border-radius:6px;margin-top:4px;border:1px solid #fde68a;font-size:14px}
@@ -164,7 +164,7 @@ setInterval(function() {
 
 <!-- 表情發送選項列 -->
 <div class="emoji-bar" id="emojiBar">
-  <span style="font-size:13px;font-bold;color:#ffffff;margin-right:4px;"></span>
+  <span style="font-size:13px;font-weight:bold;color:#ffffff;margin-right:4px;"></span>
   <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
   <button class="emoji-btn" onclick="sendEmoji('😭')">😭</button>
   <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
@@ -230,8 +230,10 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統與 iOS 音訊解鎖 ---
+// --- Web Audio API & iOS 解鎖音效系統 ---
 let audioCtx = null;
+let unlockedAudio = null; // iOS 專用全域音訊播放實體
+
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -239,19 +241,24 @@ function initAudio() {
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
+
+  // iOS Safari 專用解鎖：使用空白靜音音效解鎖全局音訊權限
+  if (!unlockedAudio) {
+    unlockedAudio = new Audio();
+    unlockedAudio.setAttribute('playsinline', 'true');
+    unlockedAudio.setAttribute('webkit-playsinline', 'true');
+    // 使用微小無聲音效檔 Data URI 解鎖
+    unlockedAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+    unlockedAudio.play().catch(() => {});
+  }
 }
 
-// iOS 全域點擊解鎖 WebAudio 與 HTMLAudioElement
-document.addEventListener("touchstart", function unlockAudio() {
-  initAudio();
-  // 建立一次微小的語音合成，解鎖 iOS 的 SpeechSynthesizer
-  if ('speechSynthesis' in window) {
-    const dummy = new SpeechSynthesisUtterance('');
-    window.speechSynthesis.speak(dummy);
-  }
-}, { once: false, passive: true });
-
+// iOS WebAudio & HTML5 Audio 觸發解鎖 (觸摸與點擊)
 document.addEventListener("click", () => {
+  initAudio();
+}, { once: false });
+
+document.addEventListener("touchstart", () => {
   initAudio();
 }, { once: false });
 
@@ -344,7 +351,7 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- 跨平台高相容錄音廣播系統 (支援 iOS / Android / Desktop) ---
+// --- 跨平台高相容錄音廣播系統 (完全支援 iOS / Android / Desktop) ---
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
@@ -441,54 +448,37 @@ function listenToVoiceMessages() {
   });
 }
 
-// 專為 iOS WebKit 解鎖並最佳化播放 DataURL 語音機制
 function playVoiceMessage(base64Data, senderName, senderId) {
   const status = el("voiceStatus");
   if (status) status.textContent = `🔊 播放來自 ${senderName} 的語音`;
 
-  try {
-    initAudio();
+  initAudio(); // 再次確定 WebAudio/AudioContext 解鎖狀態
 
-    // 將 Base64 Data URI 轉換為 ArrayBuffer Blob URL，解決 iOS Safari 解碼 Data URI 的相容限制
-    const parts = base64Data.split(';base64,');
-    const contentType = parts[0].replace('data:', '') || 'audio/mp4';
-    const raw = window.atob(parts[1]);
-    const rawLength = raw.length;
-    const uInt8Array = new Uint8Array(rawLength);
-    for (let i = 0; i < rawLength; ++i) {
-      uInt8Array[i] = raw.charCodeAt(i);
-    }
-    const blob = new Blob([uInt8Array], { type: contentType });
-    const audioUrl = URL.createObjectURL(blob);
-
-    const audio = new Audio();
-    audio.src = audioUrl;
-    audio.setAttribute('playsinline', 'true');
-    audio.setAttribute('webkit-playsinline', 'true');
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        // 正常播放
-      }).catch(err => {
-        console.error("iOS 自動播放限制攔截，嘗試提示解鎖:", err);
-        if (status) status.textContent = "請點擊螢幕任意處播放語音";
-      });
-    }
-
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (status) status.textContent = "準備就緒";
-    };
-
-    audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (status) status.textContent = "準備就緒";
-    };
-  } catch(e) {
-    console.error("語音播放解碼異常:", e);
-    if (status) status.textContent = "準備就緒";
+  // 使用全域預解鎖的 Audio 物件進行播放以繞過 iOS Safari 自動播放限制
+  let player = unlockedAudio;
+  if (!player) {
+    player = new Audio();
+    player.setAttribute('playsinline', 'true');
+    player.setAttribute('webkit-playsinline', 'true');
   }
+
+  player.src = base64Data;
+
+  const promise = player.play();
+  if (promise !== undefined) {
+    promise.then(() => {
+      // 正常播放
+    }).catch(err => {
+      console.error("iOS 自動播放限制攔截，已切換點擊重試:", err);
+      if (status) {
+        status.innerHTML = `<button class="voice-btn primary" style="padding:2px 6px;font-size:11px" onclick="this.parentElement.innerHTML='播放中...'; playVoiceMessage('${base64Data}', '${senderName}', '${senderId}')">▶️ 點擊收聽 ${senderName} 的語音</button>`;
+      }
+    });
+  }
+
+  player.onended = () => {
+    if (status) status.textContent = "準備就緒";
+  };
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
