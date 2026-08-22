@@ -655,7 +655,7 @@ function listenUserRoomAssignment() {
 }
 
 
-// ==================== 房間即時語音（WebRTC + Firebase Realtime Database Signaling） ====================
+// ==================== 房間即時語音（WebRTC + Firebase Realtime Database） ====================
 let voiceStream=null;
 let voiceMuted=false;
 let voicePeers=new Map();
@@ -664,185 +664,152 @@ let voiceStartedRoom=null;
 let voiceHandledOffers=new Set();
 let voiceHandledAnswers=new Set();
 let voiceHandledCandidates=new Set();
+let voiceRetryTimer=null;
 
-function setVoiceStatus(text){
-  const s=el("voiceStatus"); if(s) s.textContent=text;
-}
+function setVoiceStatus(text){ const s=el("voiceStatus"); if(s)s.textContent=text; }
 function updateVoiceUI(){
   const join=el("voiceJoinBtn"), mute=el("voiceMuteBtn");
-  if(join){
-    join.disabled=!!voiceStream;
-    join.textContent=voiceStream?"🎙️ 語音已開啟":"🎙️ 開啟語音";
-  }
-  if(mute){
-    mute.classList.toggle("hidden",!voiceStream);
-    mute.textContent=voiceMuted?"🎙️ 解除靜音":"🔇 麥克風靜音";
-    mute.classList.toggle("off",!voiceMuted);
-  }
+  if(join){ join.disabled=!!voiceStream; join.textContent=voiceStream?"🎙️ 語音已開啟":"🎙️ 開啟語音"; }
+  if(mute){ mute.classList.toggle("hidden",!voiceStream); mute.textContent=voiceMuted?"🎙️ 解除靜音":"🔇 麥克風靜音"; mute.classList.toggle("off",!voiceMuted); }
 }
-function getVoicePeerIds(){
-  if(!roomData || !roomData.players) return [];
-  return Object.entries(roomData.players)
-    .filter(([id,p])=>id!==playerId && !p.isOfflineBot)
-    .map(([id])=>id);
+function voiceSignalBase(){ return `rooms_v4/${roomId}/voice`; }
+function serializeDescription(d){ return d?{type:d.type,sdp:d.sdp}:null; }
+function voicePeerIds(data){
+  const users=data?.users||{};
+  return Object.keys(users).filter(id=>id!==playerId && users[id]?.enabled);
 }
-function voiceSignalBase(){
-  return `rooms_v4/${roomId}/voice`;
+async function registerVoiceUser(){
+  await set(ref(db,`${voiceSignalBase()}/users/${playerId}`),{enabled:true,name:playerName||"玩家",updatedAt:Date.now()});
 }
-function serializeDescription(d){
-  return d ? {type:d.type,sdp:d.sdp} : null;
-}
-async function ensureVoicePeer(remoteId, createOffer=false){
-  if(!voiceStream || !roomId || remoteId===playerId) return null;
-  let state=voicePeers.get(remoteId);
-  if(state) return state;
-  const pc=new RTCPeerConnection({
-    iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]
-  });
-  state={pc,remoteId,remoteStream:new MediaStream(),makingOffer:false};
+function makeVoicePeer(remoteId){
+  const old=voicePeers.get(remoteId);
+  if(old) return old;
+  const pc=new RTCPeerConnection({iceServers:[
+    {urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}
+  ]});
+  const state={pc,remoteId,remoteStream:new MediaStream(),pendingCandidates:[],remoteDescriptionSet:false,offerSent:false};
   voicePeers.set(remoteId,state);
   voiceStream.getTracks().forEach(track=>pc.addTrack(track,voiceStream));
   pc.ontrack=e=>{
-    const stream=e.streams?.[0] || state.remoteStream;
+    const stream=e.streams?.[0]||state.remoteStream;
     if(!e.streams?.[0]) state.remoteStream.addTrack(e.track);
     let audio=document.getElementById("voiceAudio_"+remoteId);
-    if(!audio){
-      audio=document.createElement("audio");
-      audio.id="voiceAudio_"+remoteId;
-      audio.autoplay=true;
-      audio.playsInline=true;
-      audio.style.display="none";
-      document.body.appendChild(audio);
-    }
+    if(!audio){ audio=document.createElement("audio"); audio.id="voiceAudio_"+remoteId; audio.autoplay=true; audio.playsInline=true; audio.style.display="none"; document.body.appendChild(audio); }
     audio.srcObject=stream;
-    audio.play().catch(()=>{});
+    const play=audio.play(); if(play) play.catch(()=>{ setVoiceStatus("🔊 已連線，請點一下頁面啟用播放"); });
   };
-  pc.onicecandidate=async e=>{
-    if(!e.candidate || !roomId) return;
-    const targetPath=createOffer
-      ? `${voiceSignalBase()}/candidates/${playerId}/${remoteId}`
-      : `${voiceSignalBase()}/candidates/${playerId}/${remoteId}`;
-    await push(ref(db,targetPath),{
-      candidate:e.candidate.candidate,
-      sdpMid:e.candidate.sdpMid,
-      sdpMLineIndex:e.candidate.sdpMLineIndex,
-      ts:Date.now()
-    }).catch(console.error);
+  pc.onicecandidate=e=>{
+    if(!e.candidate||!voiceStream||!roomId)return;
+    push(ref(db,`${voiceSignalBase()}/candidates/${playerId}/${remoteId}`),{
+      candidate:e.candidate.candidate,sdpMid:e.candidate.sdpMid,sdpMLineIndex:e.candidate.sdpMLineIndex,ts:Date.now()
+    }).catch(err=>console.error("voice ICE write",err));
   };
   pc.onconnectionstatechange=()=>{
-    if(["failed","closed"].includes(pc.connectionState)){
-      try{pc.close()}catch(_){}
+    const st=pc.connectionState;
+    if(st==="connected") setVoiceStatus("🟢 語音已連線");
+    if(["failed","closed"].includes(st)){
       voicePeers.delete(remoteId);
-      const a=document.getElementById("voiceAudio_"+remoteId); if(a) a.remove();
-      if(voiceStream && roomData?.players?.[remoteId]) setVoiceStatus("語音連線中…");
+      const a=document.getElementById("voiceAudio_"+remoteId); if(a)a.remove();
     }
   };
-  if(createOffer){
-    state.makingOffer=true;
-    const offer=await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await set(ref(db,`${voiceSignalBase()}/offers/${playerId}/${remoteId}`),{
-      description:serializeDescription(pc.localDescription),ts:Date.now()
-    });
-    state.makingOffer=false;
-  }
   return state;
 }
+async function sendVoiceOffer(remoteId,force=false){
+  if(!voiceStream||!roomId)return;
+  const state=makeVoicePeer(remoteId);
+  const pc=state.pc;
+  if(state.offerSent&&!force)return;
+  if(pc.signalingState!=="stable")return;
+  try{
+    const offer=await pc.createOffer({offerToReceiveAudio:true});
+    await pc.setLocalDescription(offer);
+    await set(ref(db,`${voiceSignalBase()}/offers/${playerId}/${remoteId}`),{description:serializeDescription(pc.localDescription),ts:Date.now()});
+    state.offerSent=true;
+  }catch(e){ console.error("voice offer",e); }
+}
+async function flushVoiceCandidates(state){
+  while(state.pendingCandidates.length){
+    const c=state.pendingCandidates.shift();
+    try{await state.pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){console.warn("voice ICE",e);}
+  }
+}
 async function processVoiceSignals(data){
-  if(!voiceStream || !data || !roomId) return;
-  const offers=data.offers?.[playerId] || {};
+  if(!voiceStream||!roomId)return;
+  const offers=data?.offers?.[playerId]||{};
   for(const [from,msg] of Object.entries(offers)){
-    if(from===playerId || !msg?.description || voiceHandledOffers.has(msg.ts)) continue;
-    voiceHandledOffers.add(msg.ts);
-    const state=await ensureVoicePeer(from,false);
-    if(!state) continue;
-    const pc=state.pc;
-    if(pc.signalingState!=="stable") continue;
-    await pc.setRemoteDescription(new RTCSessionDescription(msg.description));
-    const answer=await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await set(ref(db,`${voiceSignalBase()}/answers/${playerId}/${from}`),{
-      description:serializeDescription(pc.localDescription),ts:Date.now()
-    });
+    if(!msg?.description||from===playerId||voiceHandledOffers.has(String(msg.ts)))continue;
+    voiceHandledOffers.add(String(msg.ts));
+    const state=makeVoicePeer(from), pc=state.pc;
+    try{
+      if(pc.signalingState!=="stable") continue;
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.description));
+      state.remoteDescriptionSet=true;
+      await flushVoiceCandidates(state);
+      const answer=await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await set(ref(db,`${voiceSignalBase()}/answers/${playerId}/${from}`),{description:serializeDescription(pc.localDescription),ts:Date.now()});
+    }catch(e){console.error("voice answer",e);}
   }
-  const answers=data.answers?.[playerId] || {};
+  const answers=data?.answers?.[playerId]||{};
   for(const [from,msg] of Object.entries(answers)){
-    if(from===playerId || !msg?.description || voiceHandledAnswers.has(msg.ts)) continue;
-    voiceHandledAnswers.add(msg.ts);
-    const state=voicePeers.get(from);
-    if(!state || state.pc.signalingState==="closed") continue;
-    await state.pc.setRemoteDescription(new RTCSessionDescription(msg.description)).catch(console.error);
+    if(!msg?.description||voiceHandledAnswers.has(String(msg.ts)))continue;
+    const state=voicePeers.get(from); if(!state)continue;
+    try{
+      await state.pc.setRemoteDescription(new RTCSessionDescription(msg.description));
+      state.remoteDescriptionSet=true; voiceHandledAnswers.add(String(msg.ts));
+      await flushVoiceCandidates(state);
+    }catch(e){console.error("voice set answer",e);}
   }
-  const incoming=data.candidates || {};
+  const incoming=data?.candidates||{};
   for(const [from,targets] of Object.entries(incoming)){
-    if(from===playerId) continue;
-    const list=targets?.[playerId] || {};
-    const state=voicePeers.get(from);
-    if(!state) continue;
+    if(from===playerId)continue;
+    const list=targets?.[playerId]||{};
+    let state=voicePeers.get(from);
     for(const [cid,c] of Object.entries(list)){
-      const key=from+"_"+cid;
-      if(voiceHandledCandidates.has(key)) continue;
+      const key=from+"_"+cid; if(voiceHandledCandidates.has(key))continue;
       voiceHandledCandidates.add(key);
-      await state.pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+      if(!state) state=makeVoicePeer(from);
+      if(state.remoteDescriptionSet) { try{await state.pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){console.warn("voice ICE",e);} }
+      else state.pendingCandidates.push(c);
     }
   }
+  const ids=voicePeerIds(data).sort();
+  for(const id of ids){
+    if(playerId<id) await sendVoiceOffer(id);
+  }
+  const count=ids.length+1;
+  if(ids.length) setVoiceStatus(`🎧 語音已開啟（${count} 人）`);
 }
 window.startVoiceChat=async function(){
-  if(viewMode!=="player") return alert("管理員觀看模式不需要開啟玩家語音。");
-  if(!roomId || roomId===LOBBY_ROOM_ID) return alert("進入遊戲房間後才能開啟房間語音。");
-  if(voiceStream) return;
+  if(viewMode!=="player")return alert("管理員觀看模式不需要開啟玩家語音。");
+  if(!roomId||roomId===LOBBY_ROOM_ID)return alert("進入遊戲房間後才能開啟房間語音。");
+  if(voiceStream)return;
   try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error("此瀏覽器不支援麥克風");
     setVoiceStatus("正在要求麥克風權限…");
-    voiceStream=await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
-      video:false
-    });
-    voiceMuted=false;
-    voiceStartedRoom=roomId;
-    updateVoiceUI();
-    setVoiceStatus("正在連接房間玩家…");
-    voiceRoomListener=onValue(ref(db,voiceSignalBase()),snap=>{
-      processVoiceSignals(snap.val()||{}).catch(console.error);
-    });
-    const ids=getVoicePeerIds().sort();
-    // 固定由 playerId 字典序較小的一方主動發 offer，避免雙方同時發起造成碰撞
-    for(const id of ids){
-      if(playerId < id) await ensureVoicePeer(id,true);
-    }
-    setVoiceStatus(ids.length?`🎧 已開啟房間語音（${ids.length+1} 人房間）`:"🎧 已開啟語音，等待其他玩家");
+    voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    voiceMuted=false; voiceStartedRoom=roomId;
+    await registerVoiceUser();
+    updateVoiceUI(); setVoiceStatus("正在建立語音連線…");
+    voiceRoomListener=onValue(ref(db,voiceSignalBase()),snap=>{processVoiceSignals(snap.val()||{}).catch(e=>console.error("voice signal",e));});
+    if(voiceRetryTimer)clearInterval(voiceRetryTimer);
+    voiceRetryTimer=setInterval(()=>{ if(voiceStream) processVoiceSignals(roomData?.voice||{}).catch(()=>{}); },5000);
   }catch(e){
-    console.error("語音開啟失敗:",e);
-    voiceStream=null;
-    updateVoiceUI();
-    setVoiceStatus("無法使用麥克風");
-    alert("無法開啟語音，請確認瀏覽器已允許麥克風權限，並使用 HTTPS 網站。");
+    console.error("語音開啟失敗",e); voiceStream=null; updateVoiceUI(); setVoiceStatus("無法使用麥克風");
+    alert("無法開啟語音："+(e.message||e)+"\n請確認瀏覽器已允許麥克風，並使用 HTTPS 或 localhost。");
   }
 };
-window.toggleVoiceMute=function(){
-  if(!voiceStream) return;
-  voiceMuted=!voiceMuted;
-  voiceStream.getAudioTracks().forEach(t=>t.enabled=!voiceMuted);
-  updateVoiceUI();
-  setVoiceStatus(voiceMuted?"🔇 你目前已靜音":"🎙️ 麥克風已開啟");
-};
+window.toggleVoiceMute=function(){ if(!voiceStream)return; voiceMuted=!voiceMuted; voiceStream.getAudioTracks().forEach(t=>t.enabled=!voiceMuted); updateVoiceUI(); setVoiceStatus(voiceMuted?"🔇 你目前已靜音":"🎙️ 麥克風已開啟"); };
 async function stopVoiceChat(){
-  if(voiceRoomListener){ voiceRoomListener(); voiceRoomListener=null; }
-  voicePeers.forEach(({pc,remoteId})=>{
-    try{pc.close()}catch(_){}
-    const a=document.getElementById("voiceAudio_"+remoteId); if(a) a.remove();
-  });
-  voicePeers.clear();
-  if(voiceStream){ voiceStream.getTracks().forEach(t=>t.stop()); voiceStream=null; }
-  voiceHandledOffers.clear(); voiceHandledAnswers.clear(); voiceHandledCandidates.clear();
-  if(roomId && voiceStartedRoom===roomId){
-    await remove(ref(db,`${voiceSignalBase()}/offers/${playerId}`)).catch(()=>{});
-    await remove(ref(db,`${voiceSignalBase()}/answers/${playerId}`)).catch(()=>{});
-    await remove(ref(db,`${voiceSignalBase()}/candidates/${playerId}`)).catch(()=>{});
-  }
-  voiceStartedRoom=null; voiceMuted=false;
-  updateVoiceUI(); setVoiceStatus("語音未開啟");
+  if(voiceRoomListener){voiceRoomListener();voiceRoomListener=null;} if(voiceRetryTimer){clearInterval(voiceRetryTimer);voiceRetryTimer=null;}
+  voicePeers.forEach(({pc,remoteId})=>{try{pc.close()}catch(_){} const a=document.getElementById("voiceAudio_"+remoteId);if(a)a.remove();}); voicePeers.clear();
+  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
+  const vr=voiceStartedRoom;
+  voiceHandledOffers.clear();voiceHandledAnswers.clear();voiceHandledCandidates.clear();voiceMuted=false;
+  if(vr){const base=`rooms_v4/${vr}/voice`; await remove(ref(db,`${base}/users/${playerId}`)).catch(()=>{}); await remove(ref(db,`${base}/offers/${playerId}`)).catch(()=>{}); await remove(ref(db,`${base}/answers/${playerId}`)).catch(()=>{}); await remove(ref(db,`${base}/candidates/${playerId}`)).catch(()=>{});}
+  voiceStartedRoom=null;updateVoiceUI();setVoiceStatus("語音未開啟");
 }
-window.addEventListener("beforeunload",()=>{ if(voiceStream) voiceStream.getTracks().forEach(t=>t.stop()); });
+window.addEventListener("beforeunload",()=>{if(voiceStream)voiceStream.getTracks().forEach(t=>t.stop());});
 
 async function subscribeToRoom(){
  if(!roomId)return;
