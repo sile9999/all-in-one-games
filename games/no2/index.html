@@ -29,7 +29,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .emoji-btn{background:#e2e8f0;border:none;border-radius:6px;padding:6px 10px;font-size:18px;cursor:pointer;transition:transform 0.1s}
 .emoji-btn:hover{transform:scale(1.1);background:#cbd5e1}
 
-/* 新增：語音面板樣式 */
+/* 語音面板樣式 */
 .voice-bar{display:flex;gap:10px;align-items:center;justify-content:center;background:#1e293b;padding:8px 14px;border-radius:10px;margin-top:10px}
 .voice-btn{padding:6px 12px;font-size:13px}
 
@@ -145,11 +145,11 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
-<!-- 語音對話/錄音控制列 -->
+<!-- 語音對談列 -->
 <div class="voice-bar">
   <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 語音對話：</span>
-  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleRecordVoice()">按住或點擊錄音</button>
-  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">點擊開始錄音</span>
+  <button id="voiceBtn" class="voice-btn success" onclick="toggleVoiceRecording()">按住/點擊錄音發送</button>
+  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">準備就緒</span>
 </div>
 
 <div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
@@ -241,6 +241,11 @@ function initAudio() {
   }
 }
 
+// iOS WebAudio 解鎖觸發
+document.addEventListener("click", () => {
+  initAudio();
+}, { once: false });
+
 function playSound(type, handTypeObj = null) {
   try {
     initAudio();
@@ -268,10 +273,10 @@ function playSound(type, handTypeObj = null) {
         text = typeNames[handTypeObj.type] || "出牌";
       }
 
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // 停止先前的語音
       const msg = new SpeechSynthesisUtterance(text);
       msg.lang = 'zh-TW';
-      msg.rate = 1.2;
+      msg.rate = 1.2; // 稍微加快語速
       window.speechSynthesis.speak(msg);
     }
 
@@ -330,14 +335,17 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- 高效短語音傳輸系統 (支援iOS及各平臺廣播) ---
+// --- 跨平台高相容錄音廣播系統 (支援 iOS / Android / Desktop) ---
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let voiceSubscribed = false;
 
-window.toggleRecordVoice = async function() {
+window.toggleVoiceRecording = async function() {
   if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
-  const btn = el("toggleVoiceBtn");
+  initAudio(); // 觸發解鎖 iOS 音訊
+
+  const btn = el("voiceBtn");
   const status = el("voiceStatus");
 
   if (!isRecording) {
@@ -345,13 +353,14 @@ window.toggleRecordVoice = async function() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunks = [];
       
+      // 依據瀏覽器環境選擇相容格式 (iOS 優先使用 mp4/aac，Android/PC 優先使用 webm)
       let mimeType = 'audio/webm';
       if (MediaRecorder.isTypeSupported('audio/mp4')) {
         mimeType = 'audio/mp4';
       } else if (MediaRecorder.isTypeSupported('audio/aac')) {
         mimeType = 'audio/aac';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-        mimeType = 'audio/ogg';
+      } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
       }
 
       mediaRecorder = new MediaRecorder(stream, { mimeType });
@@ -363,61 +372,81 @@ window.toggleRecordVoice = async function() {
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks, { type: mimeType });
         stream.getTracks().forEach(track => track.stop());
-        
-        if (audioBlob.size > 0) {
-          status.textContent = "發送中...";
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            await push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
-              senderId: playerId,
-              senderName: playerName,
-              audioData: base64Audio,
-              timestamp: Date.now()
-            });
-            status.textContent = "點擊開始錄音";
-          };
+
+        if (audioBlob.size < 500) {
+          status.textContent = "錄音時間太短";
+          setTimeout(() => { status.textContent = "準備就緒"; }, 1500);
+          return;
         }
+
+        status.textContent = "傳送語音中...";
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result;
+          await push(ref(db, `rooms_v4/${roomId}/voiceMessages`), {
+            senderId: playerId,
+            senderName: playerName || "玩家",
+            audioData: base64Audio,
+            mimeType: mimeType,
+            timestamp: serverTimestamp()
+          });
+          status.textContent = "發送成功！";
+          setTimeout(() => { status.textContent = "準備就緒"; }, 1500);
+        };
       };
 
       mediaRecorder.start();
       isRecording = true;
-      btn.textContent = "停止並發送";
+      btn.textContent = "⏹️ 停止並發送";
       btn.className = "voice-btn danger";
-      status.textContent = "🔴 正在錄音...";
+      status.textContent = "🔴 錄音中...";
     } catch (e) {
-      alert("無法取得麥克風權限或瀏覽器不支援：" + e.message);
+      alert("無法存取麥克風，請確認權限設定：" + e.message);
     }
   } else {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.stop();
     }
     isRecording = false;
-    btn.textContent = "按住或點擊錄音";
+    btn.textContent = "🎙️ 開始錄音";
     btn.className = "voice-btn success";
   }
 };
 
-function initVoiceReceiver() {
-  if (!roomId || roomId === LOBBY_ROOM_ID) return;
-  const voiceMsgRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
+function listenToVoiceMessages() {
+  if (!roomId || voiceSubscribed) return;
+  voiceSubscribed = true;
 
-  onChildAdded(voiceMsgRef, (snap) => {
+  const voiceRef = ref(db, `rooms_v4/${roomId}/voiceMessages`);
+  const joinTime = Date.now() - 5000;
+
+  onChildAdded(voiceRef, (snap) => {
     const data = snap.val();
-    if (!data) return;
+    if (!data || !data.audioData) return;
 
-    // 只有非自己發送的語音且在5秒內才進行自動播放
-    if (data.senderId !== playerId && (Date.now() - data.timestamp) < 5000) {
-      try {
-        initAudio();
-        const audio = new Audio(data.audioData);
-        audio.play().catch(e => console.log("Audio play blocked by browser:", e));
-      } catch (err) {
-        console.error("播放語音訊息失敗:", err);
-      }
-    }
+    // 避開載入房間歷史累積訊息，只播放最新發出的語音
+    if (data.timestamp && data.timestamp < joinTime) return;
+
+    playVoiceMessage(data.audioData, data.senderName, data.senderId);
   });
+}
+
+function playVoiceMessage(base64Data, senderName, senderId) {
+  const status = el("voiceStatus");
+  if (status) status.textContent = `🔊 播放來自 ${senderName} 的語音`;
+
+  const audio = new Audio(base64Data);
+  audio.play().then(() => {
+    // 播放正常
+  }).catch(err => {
+    console.error("iOS/瀏覽器自動播放限制攔截，請嘗試點擊畫面:", err);
+    if (status) status.textContent = "請點擊頁面解鎖語音播放";
+  });
+
+  audio.onended = () => {
+    if (status) status.textContent = "準備就緒";
+  };
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
@@ -740,7 +769,7 @@ function listenUserRoomAssignment() {
 
 async function subscribeToRoom(){
  if(!roomId)return;
- initVoiceReceiver();
+ listenToVoiceMessages(); // 訂閱新房間的語音訊息
 
  onValue(ref(db,"rooms_v4/"+roomId),async snap=>{
    roomData=snap.val();
@@ -1547,7 +1576,7 @@ function renderDiscards(){
 
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
 function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場 (總4局)</th><th>刮刮樂</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td></tr>").join("")+"</table>"}
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;">"&gt;','"':"&quot;","'":"&#039;"}[c]))}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 </script>
 </body>
 </html>
