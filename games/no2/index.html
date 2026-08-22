@@ -177,7 +177,7 @@ setInterval(function() {
 
 <div id="scratch" class="card scratch hidden">
 <h2>🎉 恭喜獲勝！</h2><p>你在本次 4 局賽事中贏得局數，獲得刮刮樂體驗！</p>
-<div id="ticket" class="ticket" onclick="revealScratch()">刮開</div>
+<div id="ticket" class="ticket" onclick="revealScratch()">點一下\n看獎品</div>
 <div id="scratchResult"></div>
 <button class="primary" onclick="closeScratch()">確定 / 關閉</button>
 </div>
@@ -457,20 +457,34 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
   if (!last) return true;
 
   const isMonsterCard = (type) => type === "four" || type === "straightFlush";
-  const isNormalCard = (type) => ["single", "pair", "triple", "straight", "fullhouse"].includes(type);
 
-  if (isNormalCard(last.type) && isMonsterCard(played.type)) {
-    return true;
+  // 出五張牌時的特殊規範處理
+  if (selectedCards.length === 5 && lastPlay.cards.length === 5) {
+    // 若上家出的不是怪獸牌（鐵支/同花順），且玩家出的是怪獸牌，允許直接壓牌
+    if (!isMonsterCard(last.type) && isMonsterCard(played.type)) {
+      return true;
+    }
+
+    // 若上家與玩家都是怪獸牌，比較等級與點數
+    if (isMonsterCard(last.type) && isMonsterCard(played.type)) {
+      if (played.type === last.type) return played.val > last.val;
+      return TYPE_RANK[played.type] > TYPE_RANK[last.type];
+    }
+
+    // 非怪獸牌之間，必須強制完全符合首發者組合（如：順子接順子、葫蘆接葫蘆，不可用葫蘆接順子）
+    if (played.type !== last.type) {
+      return false;
+    }
+
+    // 同組合則比較點數大小
+    return played.val > last.val;
   }
 
-  if (selectedCards.length !== lastPlay.cards.length && !isMonsterCard(played.type)) return false;
-
+  // 非五張牌（1、2、3張牌）的標準比牌規則
+  if (isMonsterCard(played.type) && !isMonsterCard(last.type)) return true;
+  if (selectedCards.length !== lastPlay.cards.length) return false;
   if (played.type === last.type) return played.val > last.val;
 
-  if (TYPE_RANK[played.type] && TYPE_RANK[last.type]) {
-    return TYPE_RANK[played.type] > TYPE_RANK[last.type];
-  }
-  
   return false;
 }
 
@@ -553,7 +567,7 @@ async function copyText(text){
 window.copyLobbyInfo = async () => {
  const link = el("lobbyLinkInput").value;
  const passcode = el("roomPasscode").value.trim() || "無";
- const formattedText = `🍌 蕉蕉大老二 🍌\n連結 : ${link}\n通關密碼 : ${passcode}\n※備註:順子3開頭，2結尾，沒有23456`;
+ const formattedText = `🍌 蕉蕉大老二 🍌\n連結 : ${link}\n通關密碼 : ${passcode}\n※版本:葫蘆對葫蘆，順子對順子(順子3開頭，2結尾，沒有23456)`;
  
  const success = await copyText(formattedText);
  alert(success ? "已成功複製房間發送格式！" : "複製失敗，請手動複製：\n" + formattedText);
@@ -991,7 +1005,7 @@ async function tryStartGame(){
    const entries=Object.entries(room.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
    if(entries.length!==4)return;
 
-   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>v==="waiting"?"starting":v);
+   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>(v==="waiting"||v==="ended")?"starting":v);
    if(!lock.committed)return;
 
    const deck=makeDeck(), hands={};
@@ -1025,6 +1039,45 @@ async function tryStartGame(){
    console.error("開局失敗："+e.message);
  }
 }
+
+window.restartNewSeries = async function() {
+  if (!roomId || !roomData) return;
+  const roomRef = ref(db, "rooms_v4/" + roomId);
+  const triggerName = playerName || roomData.players?.[playerId]?.name || "有玩家";
+
+  try {
+    const snap = await get(roomRef);
+    if (!snap.exists()) return;
+    const room = snap.val();
+
+    if (room.status === "starting" || room.status === "playing") return;
+
+    const resetPlayers = {};
+    Object.entries(room.players || {}).forEach(([pid, p]) => {
+      resetPlayers[pid] = {
+        ...p,
+        status: "waiting",
+        wins: 0
+      };
+    });
+
+    await update(roomRef, {
+      status: "waiting",
+      currentGameRound: 1,
+      players: resetPlayers,
+      hands: {},
+      lastPlay: null,
+      passCount: 0,
+      turn: 0,
+      logs: [...(room.logs || []), `🔄 ${triggerName} 點擊了「再來一輪」，全新四局比賽開始！`].slice(-80)
+    });
+
+    await tryStartGame();
+  } catch(e) {
+    console.error("重新下一輪失敗：", e);
+    alert("開啟新一輪失敗：" + e.message);
+  }
+};
 
 window.kickPlayer = async function(targetPlayerId, targetName) {
   if (viewMode !== "admin") return;
@@ -1275,7 +1328,7 @@ window.passTurn = async function() {
 function showScratch(ticket){
   el("scratch")?.classList.remove("hidden");
   el("game")?.classList.add("hidden");
-  const t=el("ticket"); if(t){t.classList.remove("revealed");t.innerHTML="刮開";}
+  const t=el("ticket"); if(t){t.classList.remove("revealed");t.innerHTML="點一下";}
   if(el("scratchResult")) el("scratchResult").textContent="";
 }
 
@@ -1362,6 +1415,12 @@ function renderHand(){
  if(isAdminView){
    el("myHand").innerHTML='<span style="color:#fff;font-weight:800">管理員觀看模式</span>';
    el("actions").innerHTML="";
+   return;
+ }
+
+ if(roomData.status === "ended"){
+   el("myHand").innerHTML='<span style="color:#fff;font-weight:800">4 局賽事已結束</span>';
+   el("actions").innerHTML=`<button class="success" style="font-size:16px;padding:12px 24px;" onclick="restartNewSeries()">🔄 再來一輪</button>`;
    return;
  }
 
