@@ -33,7 +33,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .emoji-btn:hover{transform:scale(1.1);background:#cbd5e1}
 
 /* 語音面板樣式 */
-.voice-bar{display:flex;gap:10px;align-items:center;justify-content:center;background:#1e293b;padding:8px 14px;border-radius:10px;margin-top:10px;flex-wrap:wrap}
+.voice-bar{display:flex;gap:10px;align-items:center;justify-content:center;background:#1e293b;padding:8px 14px;border-radius:10px;margin-top:10px}
 .voice-btn{padding:6px 12px;font-size:13px}
 
 .kick-btn{position:absolute;top:5px;right:5px;padding:2px 6px;font-size:11px;border-radius:4px;z-index:5}
@@ -151,13 +151,12 @@ setInterval(function() {
   <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
-<!-- 語音通話與音效控制列 -->
+<!-- 語音通話控制列 -->
 <div class="voice-bar">
   <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音對講：</span>
   <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風</button>
   <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音</button>
   <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;margin-right:10px;">未開啟</span>
-  
   <!-- 新增：個人音效開關 -->
   <button id="toggleSoundBtn" class="voice-btn success" onclick="toggleSoundEffect()">🔊 音效：開啟</button>
 </div>
@@ -220,9 +219,6 @@ window.addEventListener("DOMContentLoaded", () => {
     if (lobbyBtn) lobbyBtn.style.display = "none";
     if (nameLabel) nameLabel.innerText = "請輸入暱稱：";
   }
-  
-  // 初始化載入音效按鈕狀態
-  updateSoundButtonUI();
 });
 
 window.admin = window.admin || function(){
@@ -243,7 +239,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統與個人開關 ---
+// --- Web Audio API 音效系統 ---
 let audioCtx = null;
 let isSoundEnabled = localStorage.getItem("bigtwo_sound_enabled") !== "false"; // 預設開啟
 
@@ -280,7 +276,7 @@ function initAudio() {
 }
 
 function playSound(type, handTypeObj = null) {
-  if (!isSoundEnabled) return; // 如果關閉音效則直接返回
+  if (!isSoundEnabled) return;
   try {
     initAudio();
     if (!audioCtx) return;
@@ -1276,8 +1272,8 @@ window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
   
   const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
-  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
-  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n@${winnerTextList}`;
+  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - @${w.name}`).join("\n");
+  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n${winnerTextList}`;
   
   const success = await copyText(formattedText);
   alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + formattedText);
