@@ -90,23 +90,23 @@ setInterval(function() {
 <div id="remoteAudioContainer" style="display:none;"></div>
 
 <div id="setup" class="card">
-<h1 id="mainTitle">♠️ 四人大老二刮刮樂</h1>
-<p id="setupDesc">連玩4局累計勝場獲勝！所有玩家將先進入「等候區」，由管理員分配至房間。</p>
+<h1 id="mainTitle">♠️ 四人大老二刮刮樂[cite: 1]</h1>
+<p id="setupDesc">連玩4局累計勝場獲勝！所有玩家將先進入「等候區」，由管理員分配至房間。[cite: 1]</p>
 
 <div class="field">
-  <label id="nameLabel">你的暱稱</label>
-  <input id="name" class="input" placeholder="請輸入暱稱" autocomplete="off">
+  <label id="nameLabel">你的暱稱[cite: 1]</label>
+  <input id="name" class="input" placeholder="請輸入暱稱" autocomplete="off">[cite: 1]
 </div>
 
 <div class="field">
-  <label>房間通關碼（如管理者有設定則必填）</label>
-  <input id="joinPasscode" class="input" placeholder="請輸入通關碼" autocomplete="off">
+  <label>房間通關碼（如管理者有設定則必填）[cite: 1]</label>
+  <input id="joinPasscode" class="input" placeholder="請輸入通關碼" autocomplete="off">[cite: 1]
 </div>
 
 <div class="row">
-<button id="joinBtn" type="button" class="primary">進入等候區</button>
-<button id="adminBtn" class="success" onclick="admin()">管理員控制台</button>
-<button id="lobbyBtn" class="gray" onclick="window.location.href='https://sile9999.github.io/all-in-one-games/'">回到遊戲大廳</button>
+<button id="joinBtn" type="button" class="primary">進入等候區[cite: 1]</button>
+<button id="adminBtn" class="success" onclick="admin()">管理員控制台[cite: 1]</button>
+<button id="lobbyBtn" class="gray" onclick="window.location.href='https://sile9999.github.io/all-in-one-games/'">回到遊戲大廳[cite: 1]</button>
 </div>
 <div id="joinStatus" style="margin-top:8px;font-size:13px;color:#475569"></div>
 
@@ -115,30 +115,30 @@ setInterval(function() {
 <div class="field"><label>防亂入房間通關碼（留空代表不設限）</label><input id="roomPasscode" class="input" placeholder="例如：8888"></div>
 <div class="field"><label>刮刮樂總張數 (每個房間)</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
 <div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
-<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">生成 10 個房間與等候區</button>
+<button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">生成 10 個房間與等候區[cite: 1]</button>
 </div>
 
 <div id="roomInfo" class="hidden" style="margin-top:12px;border-top:1px solid #ddd;padding-top:12px">
-  <div style="font-weight:bold;margin-bottom:6px">🔗 玩家專用連結 (一律進入等候區)：</div>
+  <div style="font-weight:bold;margin-bottom:6px">🔗 玩家專用連結 (一律進入等候區)：[cite: 1]</div>
   <div class="row">
     <input id="lobbyLinkInput" class="input" style="flex:1" readonly>
-    <button class="primary" onclick="copyLobbyInfo()">複製等候區連結</button>
+    <button class="primary" onclick="copyLobbyInfo()">複製等候區連結[cite: 1]</button>
   </div>
 
   <div class="winner-box">
     <div class="row" style="justify-content:space-between;margin-bottom:6px">
-      <div style="font-weight:bold;font-size:16px;color:#b45309">🎁 即時刮刮樂得獎名單 (<span id="adminWinnerCount">0</span> 人)</div>
-      <button class="success" style="padding:5px 10px;font-size:12px" onclick="copyWinnerList()">📋 複製得獎名單</button>
+      <div style="font-weight:bold;font-size:16px;color:#b45309">🎁 即時刮刮樂得獎名單 (<span id="adminWinnerCount">0</span> 人)[cite: 1]</div>
+      <button class="success" style="padding:5px 10px;font-size:12px" onclick="copyWinnerList()">📋 複製得獎名單[cite: 1]</button>
     </div>
     <div id="adminWinnerList" style="max-height:160px;overflow-y:auto"></div>
   </div>
 
-  <div style="margin-top:14px;font-weight:bold">🏢 房間清單與線上玩家即時管理 (點擊房間卡片可指定選取)：</div>
+  <div style="margin-top:14px;font-weight:bold">🏢 房間清單 (點擊房間卡片可指定選取)：[cite: 1]</div>
   <div id="createdRoomsList"></div>
 
   <div class="lobby-box">
-    <div style="font-weight:bold;font-size:16px">👀 公共等候區玩家名單 (<span id="adminLobbyCount">0</span> 人)</div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:8px">請先點擊上方的「目標房間」，再點擊玩家旁「排入此房間」按鈕。</div>
+    <div style="font-weight:bold;font-size:16px">👀 公共等候區玩家名單 (<span id="adminLobbyCount">0</span> 人)[cite: 1]</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">請先點擊上方的「目標房間」，再點擊玩家旁「排入此房間」按鈕。[cite: 1]</div>
     <div id="adminLobbyUsers"></div>
   </div>
 </div>
@@ -147,31 +147,31 @@ setInterval(function() {
 <div id="game" class="container hidden">
 <div class="card">
 <div class="row" style="justify-content:space-between">
-  <h2>♠️ 大老二 <b id="gameRoom"></b></h2> 
+  <h2>♠️ 大老二 <b id="gameRoom"></b>[cite: 1]</h2> 
   <div class="row" style="gap: 12px; align-items: center;">
     <!-- 新增：發牌音效開關 -->
     <label style="font-size: 13px; font-weight: normal; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-      <input type="checkbox" id="soundToggle" onchange="toggleSoundSetting(this)" style="cursor: pointer; width: 16px; height: 16px;"> 發牌與動作音效
+      <input type="checkbox" id="soundToggle" onchange="toggleSoundSetting(this)" style="cursor: pointer; width: 16px; height: 16px;"> 發牌與動作音效[cite: 1]
     </label>
-    <div><span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
+    <div><span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局[cite: 1]</span></div>
   </div>
 </div>
 
 <!-- 語音通話控制列 -->
 <div class="voice-bar">
-  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音：</span>
-  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風</button>
-  <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音</button>
-  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未開啟</span>
+  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音：[cite: 1]</span>
+  <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風[cite: 1]</button>
+  <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音[cite: 1]</button>
+  <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未開啟[cite: 1]</span>
 </div>
 
-<div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面</button><span>管理員觀看模式</span></div>
+<div id="adminGameBar" class="row hidden" style="margin-bottom:10px"><button class="gray" onclick="backToRoomManager()">← 回到房間管理頁面[cite: 1]</button><span>管理員觀看模式[cite: 1]</span></div>
 <div id="players" class="players"></div>
 
 <div class="table" style="margin-top:12px;">
 <div class="center">
-  <div class="big" id="turnText">等待四人...</div>
-  <div class="small" id="roundText">等待管理員安排玩家加入，滿4人自動開局</div>
+  <div class="big" id="turnText">等待四人...[cite: 1]</div>
+  <div class="small" id="roundText">等待管理員安排玩家加入，滿4人自動開局[cite: 1]</div>
   <div class="timer-box" id="timerBox"></div>
 </div><div id="discards" class="discard"></div>
 
@@ -191,20 +191,20 @@ setInterval(function() {
 </div>
 
 <div id="waitingLobbyNotice" class="hidden" style="text-align:center;padding:30px;background:#f8fafc;color:#334155;border-radius:12px;margin-top:12px">
-  <h2>⌛ 您目前位於「等候區」</h2>
-  <p>請等待管理員將您分配至房間後，即可自動進入遊戲！</p>
+  <h2>⌛ 您目前位於「等候區」[cite: 1]</h2>
+  <p>請等待管理員將您分配至房間後，即可自動進入遊戲！[cite: 1]</p>
 </div>
 </div>
 
-<div class="card"><h3>遊戲紀錄</h3><div id="log" class="log"></div></div>
-<div class="card lb"><h3>🏆 刮刮樂與勝場排行榜 (共4局)</h3><div id="leaderboard"></div></div>
+<div class="card"><h3>遊戲紀錄[cite: 1]</h3><div id="log" class="log"></div></div>
+<div class="card lb"><h3>🏆 刮刮樂與勝場排行榜 (共4局)[cite: 1]</h3><div id="leaderboard"></div></div>
 </div>
 
 <div id="scratch" class="card scratch hidden">
-<h2>🎉 恭喜獲勝！</h2><p>你在本次 4 局賽事中贏得局數，獲得刮刮樂體驗！</p>
-<div id="ticket" class="ticket" onclick="revealScratch()">點一下\n看獎品</div>
+<h2>🎉 恭喜獲勝！[cite: 1]</h2><p>你在本次 4 局賽事中贏得局數，獲得刮刮樂體驗！[cite: 1]</p>
+<div id="ticket" class="ticket" onclick="revealScratch()">點一下\n看獎品[cite: 1]</div>
 <div id="scratchResult"></div>
-<button class="primary" onclick="closeScratch()">確定 / 關閉</button>
+<button class="primary" onclick="closeScratch()">確定 / 關閉[cite: 1]</button>
 </div>
 
 <script>
@@ -224,7 +224,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (nameLabel) nameLabel.innerText = "請輸入暱稱：";
   }
   
-  // 初始化音效開關的勾選狀態 (預設開啟)
+  // 初始化音效開關的勾選狀態 (預設開啟)[cite: 1]
   const soundPref = localStorage.getItem("bigtwo_sound_enabled");
   const isSoundOn = soundPref === null ? true : (soundPref === "true");
   const soundToggleEl = document.getElementById("soundToggle");
@@ -239,7 +239,7 @@ window.toggleSoundSetting = function(checkbox) {
 
 window.admin = window.admin || function(){
   const box=document.getElementById("adminBox");
-  if(!box){ alert("找不到管理員設定區，請重新整理頁面。"); return; }
+  if(!box){ alert("找不到管理員設定區，請重新整理頁面。[cite: 1]"); return; }
   box.classList.toggle("hidden");
   const prizes=document.getElementById("prizes");
   if(prizes && !prizes.children.length && typeof window.addPrize==="function") window.addPrize();
@@ -255,7 +255,7 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 ---
+// --- Web Audio API 音效系統 ---[cite: 1]
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -277,7 +277,7 @@ function playSound(type, handTypeObj = null) {
     const now = audioCtx.currentTime;
 
     if (type === 'play' && handTypeObj && 'speechSynthesis' in window) {
-      let text = "出牌";
+      let text = "出牌";[cite: 1]
       
       if (handTypeObj.type === 'single') {
         const info = getCardInfo(handTypeObj.val);
@@ -287,13 +287,13 @@ function playSound(type, handTypeObj = null) {
         text = `一對 ${info.rank}`;
       } else {
         const typeNames = {
-          triple: "三條",
-          straight: "順子",
-          fullhouse: "葫蘆",
-          four: "鐵支",
-          straightFlush: "同花順"
+          triple: "三條",[cite: 1]
+          straight: "順子",[cite: 1]
+          fullhouse: "葫蘆",[cite: 1]
+          four: "鐵支",[cite: 1]
+          straightFlush: "同花順"[cite: 1]
         };
-        text = typeNames[handTypeObj.type] || "出牌";
+        text = typeNames[handTypeObj.type] || "出牌";[cite: 1]
       }
 
       window.speechSynthesis.cancel();
@@ -358,11 +358,11 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- WebRTC 語音通話系統 (含發話辨識偵測) ---
+// --- WebRTC 語音通話系統 (含發話辨識偵測) ---[cite: 1]
 let localStream = null;
 let peerConnections = {};
 let activeTalkingPlayers = new Set();
-let speechDetectors = {};
+let speechDetectors = {}; 
 
 let isVoiceActive = false;
 let isMuted = false;
@@ -451,9 +451,9 @@ function unlockiOSAudio() {
 }
 
 window.toggleVoice = async function() {
-  unlockiOSAudio();
+  unlockiOSAudio(); 
 
-  if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
+  if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！[cite: 1]");
   const btn = el("toggleVoiceBtn");
   const muteBtn = el("toggleMuteBtn");
   const status = el("voiceStatus");
@@ -462,10 +462,10 @@ window.toggleVoice = async function() {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       isVoiceActive = true;
-      btn.textContent = "關閉麥克風";
+      btn.textContent = "關閉麥克風";[cite: 1]
       btn.className = "voice-btn danger";
       muteBtn.classList.remove("hidden");
-      status.textContent = "通話中";
+      status.textContent = "通話中";[cite: 1]
 
       startSpeechDetection(localStream, playerId);
       initVoiceSignaling();
@@ -482,9 +482,9 @@ window.toggleMute = function() {
   isMuted = !isMuted;
   localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
   const muteBtn = el("toggleMuteBtn");
-  muteBtn.textContent = isMuted ? "取消靜音" : "靜音";
+  muteBtn.textContent = isMuted ? "取消靜音" : "靜音";[cite: 1]
   muteBtn.className = isMuted ? "voice-btn danger" : "voice-btn gray";
-  el("voiceStatus").textContent = isMuted ? "已靜音" : "通話中";
+  el("voiceStatus").textContent = isMuted ? "已靜音" : "通話中";[cite: 1]
 };
 
 function stopVoice() {
@@ -507,11 +507,11 @@ function stopVoice() {
   const btn = el("toggleVoiceBtn");
   const muteBtn = el("toggleMuteBtn");
   if (btn) {
-    btn.textContent = "開啟麥克風";
+    btn.textContent = "開啟麥克風";[cite: 1]
     btn.className = "voice-btn success";
   }
   if (muteBtn) muteBtn.classList.add("hidden");
-  if (el("voiceStatus")) el("voiceStatus").textContent = "未開啟";
+  if (el("voiceStatus")) el("voiceStatus").textContent = "未開啟";[cite: 1]
 
   if (roomId) {
     remove(ref(db, `rooms_v4/${roomId}/voiceSignals/${playerId}`));
@@ -626,7 +626,7 @@ function createPeerConnection(remoteId, isInitiator) {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(error => {
-        console.warn("iOS 自動播放限制:", error);
+        console.warn("iOS 自動播放限制，等待互動點擊:", error);
       });
     }
   };
@@ -929,7 +929,7 @@ function makeLobbyJoinLink(){
 el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
 
 window.joinLobby=async()=>{
- unlockiOSAudio();
+ unlockiOSAudio(); 
  const status=el("joinStatus");
  const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
  try{ status.textContent="正在連線 Firebase…"; await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
@@ -1097,29 +1097,38 @@ function renderAdminRoomsList() {
   let html = "";
   createdRoomIds.forEach(rId => {
     const r = adminRoomsData[rId] || {};
-    const players = r.players || {};
-    const playerEntries = Object.entries(players).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
-    const count = playerEntries.length;
+    const playersMap = r.players || {};
+    const count = Object.keys(playersMap).length;
     const isSelected = (rId === selectedRoomForAssign);
 
-    // 建立房間內玩家狀態框清單 HTML
-    let playersBoxHtml = '<div style="margin-top:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
-    for (let i = 0; i < 4; i++) {
-      const found = playerEntries.find(([id, p]) => Number(p.index) === i);
-      if (!found) {
-        playersBoxHtml += `<div style="background:#fff;border:1px dashed #cbd5e1;border-radius:6px;padding:6px;font-size:12px;color:#94a3b8;text-align:center;">位次 ${i+1}<br>空位</div>`;
-      } else {
-        const [pId, pObj] = found;
-        playersBoxHtml += `
-          <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px;font-size:12px;position:relative;">
-            <div style="font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:20px;">${esc(pObj.name)}</div>
-            <div style="font-size:10px;color:#64748b;margin-top:2px;">勝場: ${pObj.wins||0}</div>
-            <button class="danger" style="position:absolute;top:4px;right:4px;padding:1px 4px;font-size:10px;border-radius:3px;" onclick="event.stopPropagation(); kickPlayerFromRoom('${rId}', '${pId}', '${esc(pObj.name)}')">退</button>
-          </div>
-        `;
-      }
+    // 產生該房間內的玩家狀態卡片清單（直觀式管理：含線上/離線狀態、名字、退出按鈕）
+    let playersHtml = "";
+    if (count === 0) {
+      playersHtml = `<div style="font-size:12px;color:#94a3b8;padding:4px 0;">目前無加入玩家</div>`;
+    } else {
+      playersHtml = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0;">` + 
+        Object.entries(playersMap).map(([pId, p]) => {
+          const online = p.isOfflineBot ? false : (function() {
+            if (!r.presence || !r.presence[pId]) return false;
+            const pr = r.presence[pId];
+            if (!pr.online) return false;
+            const now = Date.now();
+            const lastSeen = typeof pr.lastSeen === 'number' ? pr.lastSeen : now;
+            return (now - lastSeen) < 15000;
+          })();
+          const dotHtml = `<span class="status-dot ${online?'online':'offline'}" title="${online?'在線':'離線'}"></span>`;
+          return `
+            <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center;font-size:13px;position:relative;">
+              <div style="display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:24px;">
+                ${dotHtml}
+                <span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;" title="${esc(p.name)}">${esc(p.name)}</span>
+              </div>
+              <button class="danger" style="padding:2px 6px;font-size:10px;border-radius:4px;position:absolute;top:6px;right:6px;" onclick="event.stopPropagation(); kickPlayerFromAdmin('${rId}', '${pId}', '${esc(p.name)}')">退出</button>
+            </div>
+          `;
+        }).join("") + 
+      `</div>`;
     }
-    playersBoxHtml += '</div>';
 
     html += `
       <div class="room-box ${isSelected ? 'selected' : ''}" onclick="setSelectedTargetRoom('${rId}')">
@@ -1127,8 +1136,8 @@ function renderAdminRoomsList() {
           <div><b>${r.name || rId}</b>（房號：${rId}）${isSelected ? ' <span style="color:#2563eb;font-weight:bold">【已選定目標】</span>' : ''}</div>
           <div>人數：<b>${count} / 4</b> ｜ 狀態：<b>${r.status||'waiting'}</b></div>
         </div>
-        ${playersBoxHtml}
-        <div class="row" style="margin-top:8px">
+        ${playersHtml}
+        <div class="row" style="margin-top:6px">
           <button class="success" onclick="event.stopPropagation(); openAdminRoomWindow('${rId}')">管理此房</button>
           <button class="primary" onclick="event.stopPropagation(); forceStartRoom('${rId}')">直接開局</button>
           <button class="danger" onclick="event.stopPropagation(); resetRoomGame('${rId}')">重置牌局</button>
@@ -1139,10 +1148,11 @@ function renderAdminRoomsList() {
   el("createdRoomsList").innerHTML = html;
 }
 
-window.kickPlayerFromRoom = async (targetRoomId, targetPlayerId, targetName) => {
-  if (!confirm(`確定要將玩家「${targetName}」從房間中退出/踢出嗎？`)) return;
+window.kickPlayerFromAdmin = async function(rId, targetPlayerId, targetName) {
+  if (!confirm(`確定要將房間內的玩家「${targetName}」退出/踢出嗎？`)) return;
+
   try {
-    const roomRef = ref(db, "rooms_v4/" + targetRoomId);
+    const roomRef = ref(db, "rooms_v4/" + rId);
     const snap = await get(roomRef);
     if (!snap.exists()) return;
     const data = snap.val();
@@ -1156,12 +1166,12 @@ window.kickPlayerFromRoom = async (targetRoomId, targetPlayerId, targetName) => 
       hands: {},
       lastPlay: null,
       passCount: 0,
-      logs: [...(data.logs || []), `管理員將 ${targetName} 移出了房間。`].slice(-80)
+      logs: [...(data.logs || []), `管理員將 ${targetName} 踢出了房間。`].slice(-80)
     });
     await update(ref(db, `rooms_v4/${LOBBY_ROOM_ID}/users/${targetPlayerId}`), { assignedRoom: null });
-    alert(`已將 ${targetName} 移出房間！`);
+    alert(`已將 ${targetName} 退出房間！`);
   } catch(e) {
-    alert("操作失敗：" + e.message);
+    alert("踢人失敗：" + e.message);
   }
 };
 
@@ -1560,7 +1570,7 @@ async function autoTimeoutPlay() {
 }
 
 window.toggleCard = function(cardId) {
-  unlockiOSAudio();
+  unlockiOSAudio(); 
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
   if (!me || Number(me.index) !== Number(roomData.turn)) return;
