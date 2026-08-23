@@ -148,7 +148,13 @@ setInterval(function() {
 <div class="card">
 <div class="row" style="justify-content:space-between">
   <h2>♠️ 四人大老二</h2>
-  <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
+  <div class="row">
+    <!-- 新增：個人發牌音效開關選項 -->
+    <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;background:#f1f5f9;color:#334155;padding:4px 8px;border-radius:6px;">
+      <input type="checkbox" id="soundToggleCheckbox" checked style="cursor:pointer;"> 🔊 發牌音效
+    </label>
+    <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
+  </div>
 </div>
 
 <!-- 語音通話控制列 -->
@@ -250,6 +256,10 @@ function initAudio() {
 
 function playSound(type, handTypeObj = null) {
   try {
+    // 檢查音效個人開關是否被勾選關閉
+    const soundToggle = document.getElementById('soundToggleCheckbox');
+    if (soundToggle && !soundToggle.checked) return;
+
     initAudio();
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
