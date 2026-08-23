@@ -1244,8 +1244,8 @@ window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
   
   const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
-  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - @${w.name}`).join("\n");
-  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n${winnerTextList}`;
+  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
+  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n@${winnerTextList}`;
   
   const success = await copyText(formattedText);
   alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + formattedText);
