@@ -55,7 +55,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .online{background-color:#22c55e;box-shadow:0 0 6px #22c55e}
 .offline{background-color:#ef4444}
-.room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;transition:all 0.2s}
+.room-box{border:2px solid #cbd5e1;padding:10px;margin-top:8px;border-radius:8px;background:#f8fafc;color:#334155;transition:all 0.2s;cursor:pointer}
 .room-box.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px #2563eb}
 .lobby-box{background:#f1f5f9;border:2px solid #94a3b8;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .lobby-user-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:8px;margin-top:6px;border:1px solid #cbd5e1}
@@ -63,7 +63,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .winner-box{background:#fffbebf0;border:2px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px;color:#1e293b}
 .winner-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 12px;border-radius:6px;margin-top:4px;border:1px solid #fde68a;font-size:14px}
 
-/* 管理員房間清單內嵌玩家卡片小區塊 */
+/* 管理員與玩家房間清單內嵌玩家卡片小區塊 */
 .admin-room-players {display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;}
 .admin-room-player-card {background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; font-size: 12px; position: relative;}
 
@@ -105,6 +105,12 @@ setInterval(function() {
 <div class="field">
   <label>房間通關碼（如管理者有設定則必填）</label>
   <input id="joinPasscode" class="input" placeholder="請輸入通關碼" autocomplete="off">
+</div>
+
+<!-- 玩家專用的全部房間動態清單區塊（含各房間玩家狀態框，不含退出按鈕） -->
+<div id="playerRoomSelectionArea" class="field hidden">
+  <label><b>請選擇目標房間（即時顯示各房間玩家狀態）：</b></label>
+  <div id="playerRoomsList" style="max-height:320px;overflow-y:auto"></div>
 </div>
 
 <div class="row">
@@ -153,7 +159,7 @@ setInterval(function() {
 <div class="row" style="justify-content:space-between">
   <h2>♠️ 大老二 <b id="gameRoom"></b></h2> 
   <div class="row" style="gap: 12px; align-items: center;">
-    <!-- 新增：發牌音效開關 -->
+    <!-- 發牌音效開關 -->
     <label style="font-size: 13px; font-weight: normal; display: flex; align-items: center; gap: 4px; cursor: pointer;">
       <input type="checkbox" id="soundToggle" onchange="toggleSoundSetting(this)" style="cursor: pointer; width: 16px; height: 16px;"> 發牌與動作音效
     </label>
@@ -220,15 +226,16 @@ window.addEventListener("DOMContentLoaded", () => {
     const adminBtn = document.getElementById("adminBtn");
     const lobbyBtn = document.getElementById("lobbyBtn");
     const nameLabel = document.getElementById("nameLabel");
+    const playerRoomArea = document.getElementById("playerRoomSelectionArea");
 
-    if (mainTitle) mainTitle.innerText = "🎮 玩家加入等候區";
-    if (setupDesc) setupDesc.style.display = "none";
+    if (mainTitle) mainTitle.innerText = "🎮 玩家加入遊戲";
+    if (setupDesc) setupDesc.innerText = "請選擇目標房間，輸入暱稱與通關碼後進入等候區，隨後加入房間！";
     if (adminBtn) adminBtn.style.display = "none";
     if (lobbyBtn) lobbyBtn.style.display = "none";
     if (nameLabel) nameLabel.innerText = "請輸入暱稱：";
+    if (playerRoomArea) playerRoomArea.classList.remove("hidden");
   }
   
-  // 初始化音效開關的勾選狀態 (預設開啟)
   const soundPref = localStorage.getItem("bigtwo_sound_enabled");
   const isSoundOn = soundPref === null ? true : (soundPref === "true");
   const soundToggleEl = document.getElementById("soundToggle");
@@ -259,7 +266,6 @@ const firebaseConfig={apiKey:"AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",authDomai
 const app=initializeApp(firebaseConfig); const db=getDatabase(app); const auth=getAuth(app); let authReady=null;
 async function ensureAuth(){ if(auth.currentUser)return auth.currentUser; if(!authReady){ authReady=new Promise(resolve=>{ const unsub=onAuthStateChanged(auth,u=>{unsub();resolve(u)}); }); } let u=await authReady; if(!u){ const r=await signInAnonymously(auth); u=r.user; } return u; }
 
-// --- Web Audio API 音效系統 ---
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -272,7 +278,6 @@ function initAudio() {
 
 function playSound(type, handTypeObj = null) {
   try {
-    // 檢查個人音效開關設定
     const soundPref = localStorage.getItem("bigtwo_sound_enabled");
     const isSoundOn = soundPref === null ? true : (soundPref === "true");
     if (!isSoundOn) return;
@@ -363,11 +368,10 @@ function playSound(type, handTypeObj = null) {
   }
 }
 
-// --- WebRTC 語音通話系統 (含發話辨識偵測) ---
 let localStream = null;
 let peerConnections = {};
 let activeTalkingPlayers = new Set();
-let speechDetectors = {}; // 儲存音量分析器
+let speechDetectors = {}; 
 
 let isVoiceActive = false;
 let isMuted = false;
@@ -378,7 +382,6 @@ const iceServers = {
   ] 
 };
 
-// 音量分析與說話檢測核心
 function startSpeechDetection(stream, targetPlayerId) {
   try {
     initAudio();
@@ -403,7 +406,6 @@ function startSpeechDetection(stream, targetPlayerId) {
       }
       const average = sum / dataArray.length;
 
-      // 當平均音量大於 15 視為正在講話
       if (average > 15 && !isMuted) {
         if (!isSpeaking) {
           isSpeaking = true;
@@ -446,7 +448,6 @@ function updateTalkingUI(targetPlayerId, isTalking) {
   }
 }
 
-// 專門修復 iOS Safari 自動播放限制的函數
 function unlockiOSAudio() {
   initAudio();
   const container = document.getElementById("remoteAudioContainer");
@@ -459,7 +460,7 @@ function unlockiOSAudio() {
 }
 
 window.toggleVoice = async function() {
-  unlockiOSAudio(); // 觸發使用者按壓點擊解鎖 iOS 音訊鎖
+  unlockiOSAudio();
 
   if (!roomId || roomId === LOBBY_ROOM_ID) return alert("請先進入遊戲房間！");
   const btn = el("toggleVoiceBtn");
@@ -475,9 +476,7 @@ window.toggleVoice = async function() {
       muteBtn.classList.remove("hidden");
       status.textContent = "通話中";
 
-      // 開啟自己（發話者）的音量偵測
       startSpeechDetection(localStream, playerId);
-
       initVoiceSignaling();
     } catch (e) {
       alert("無法取得麥克風權限或瀏覽器不支援：" + e.message);
@@ -533,8 +532,6 @@ function initVoiceSignaling() {
   const roomVoiceRef = ref(db, `rooms_v4/${roomId}/voiceSignals`);
 
   onDisconnect(mySignalRef).remove();
-
-  // 告知房間自身在線語音狀態
   set(mySignalRef, { active: true, updatedAt: serverTimestamp() });
 
   onValue(roomVoiceRef, (snap) => {
@@ -606,7 +603,6 @@ function createPeerConnection(remoteId, isInitiator) {
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
   }
 
-  // 特殊修正：解決 iOS 設備無法接收並播放語音問題，並建立遠端語音發訊偵測
   pc.ontrack = (e) => {
     let container = document.getElementById("remoteAudioContainer");
     if (!container) {
@@ -621,8 +617,8 @@ function createPeerConnection(remoteId, isInitiator) {
       audio = document.createElement("audio");
       audio.id = `audio_${remoteId}`;
       audio.setAttribute("autoplay", "true");
-      audio.setAttribute("playsinline", "true"); // 關鍵：iOS 必須帶上 playsinline
-      audio.setAttribute("controls", "true"); // 關鍵：防止 iOS Safari 自動優化掉無 DOM audio 元素
+      audio.setAttribute("playsinline", "true");
+      audio.setAttribute("controls", "true");
       container.appendChild(audio);
     }
 
@@ -634,10 +630,8 @@ function createPeerConnection(remoteId, isInitiator) {
     }
     audio.srcObject = remoteStream;
 
-    // 開啟對對方聲音音量的監聽
     startSpeechDetection(remoteStream, remoteId);
 
-    // 顯式強制觸發播放並容錯
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(error => {
@@ -674,7 +668,7 @@ function createPeerConnection(remoteId, isInitiator) {
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
-let roomId=null, createdRoomIds=[], selectedRoomForAssign="", playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null, viewMode="player", startCallBusy=false, isAdmin=false; 
+let roomId=null, createdRoomIds=Array.from({length: 10}, (_, i) => `ROOM_${i + 1}`), selectedRoomForAssign="", selectedPlayerTargetRoom="", playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null, viewMode="player", startCallBusy=false, isAdmin=false; 
 sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
@@ -688,6 +682,10 @@ window.addEventListener("DOMContentLoaded", () => {
     roomId = watchRoomParam;
     ensureAuth().then(() => {
       watchGame();
+    });
+  } else {
+    ensureAuth().then(() => {
+      initPlayerRoomListListener();
     });
   }
 });
@@ -851,7 +849,6 @@ window.createRoom=async()=>{
  let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
  const passcode = el("roomPasscode").value.trim();
 
- createdRoomIds = Array.from({length: 10}, (_, i) => `ROOM_${i + 1}`);
  selectedRoomForAssign = createdRoomIds[0];
 
  await set(ref(db, "rooms_v4/" + LOBBY_ROOM_ID), {
@@ -934,6 +931,11 @@ window.setSelectedTargetRoom = (rId) => {
   renderAdminRoomsList();
 };
 
+window.setPlayerTargetRoom = (rId) => {
+  selectedPlayerTargetRoom = rId;
+  renderPlayerRoomsList();
+};
+
 function makeLobbyJoinLink(){
  const base=new URL(window.location.href); 
  base.search = "?mode=player"; 
@@ -943,54 +945,137 @@ function makeLobbyJoinLink(){
 
 el("joinBtn")?.addEventListener("click",()=>window.joinLobby());
 
+// --- 玩家專用動態房間清單監聽與狀態框呈現 (不含退出按鈕) ---
+let playerRoomsDataCache = {};
+function initPlayerRoomListListener() {
+  createdRoomIds.forEach(rId => {
+    onValue(ref(db, `rooms_v4/${rId}`), (snap) => {
+      playerRoomsDataCache[rId] = snap.val() || { name: rId, status: "waiting", players: {} };
+      renderPlayerRoomsList();
+    });
+  });
+}
+
+function renderPlayerRoomsList() {
+  const container = el("playerRoomsList");
+  if (!container) return;
+
+  let html = "";
+  createdRoomIds.forEach(rId => {
+    const r = playerRoomsDataCache[rId] || {};
+    const players = r.players || {};
+    const count = Object.keys(players).length;
+    const statusText = r.status === "playing" ? "遊戲中" : r.status === "starting" ? "準備中" : "等待中";
+    const isSelected = (rId === selectedPlayerTargetRoom);
+
+    // 產生房間內玩家狀態框（完全不含退出按鈕）
+    let roomPlayersHtml = "";
+    if (count === 0) {
+      roomPlayersHtml = '<div style="font-size:12px;color:#94a3b8;grid-column:span 4;padding:4px">尚無玩家加入此房間</div>';
+    } else {
+      const sortedPlayers = Object.entries(players).sort((a,b) => Number(a[1].index) - Number(b[1].index));
+      roomPlayersHtml = sortedPlayers.map(([pId, p]) => {
+        let online = false;
+        if (p.isOfflineBot) {
+          online = false;
+        } else if (r.presence && r.presence[pId]) {
+          const pr = r.presence[pId];
+          const now = Date.now();
+          const lastSeen = typeof pr.lastSeen === 'number' ? pr.lastSeen : now;
+          online = pr.online && (now - lastSeen < 15000);
+        }
+
+        const dotClass = online ? 'online' : 'offline';
+        const dotTitle = online ? '線上' : '離線';
+
+        return `
+          <div class="admin-room-player-card">
+            <div style="font-weight:bold;display:flex;align-items:center;gap:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <span class="status-dot ${dotClass}" title="${dotTitle}" style="margin-right:2px;width:8px;height:8px;"></span>
+              ${esc(p.name)}
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">位置: #${(p.index||0)+1}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    html += `
+      <div class="room-box ${isSelected ? 'selected' : ''}" onclick="setPlayerTargetRoom('${rId}')">
+        <div class="row" style="justify-content:space-between">
+          <div><b>${esc(r.name || rId)}</b> ${isSelected ? ' <span style="color:#2563eb;font-weight:bold">【已選擇目標】</span>' : ''}</div>
+          <div>人數：<b>${count} / 4</b> ｜ 狀態：<b>${statusText}</b></div>
+        </div>
+        <div class="admin-room-players">
+          ${roomPlayersHtml}
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
 window.joinLobby=async()=>{
- unlockiOSAudio(); // 玩家點擊加入時同時釋放 iOS 音訊權限
+ unlockiOSAudio();
  const status=el("joinStatus");
  const setStatus=(t,err=false)=>{ if(status){ status.textContent=t; status.style.color=err?"#b91c1c":"#475569"; } };
  try{ status.textContent="正在連線 Firebase…"; await ensureAuth(); }catch(e){ return alert("Firebase 登入失敗："+(e.code||e.message)); }
 
  playerName=el("name").value.trim();
  if(!playerName) return alert("請輸入暱稱");
+ if(!selectedPlayerTargetRoom) return alert("請先選擇目標房間！");
 
  const userPass = el("joinPasscode").value.trim();
  const lobbySnap = await get(ref(db, `rooms_v4/${LOBBY_ROOM_ID}`));
- if (!lobbySnap.exists()) {
-   return alert("等候區尚未建立，請等待管理員開房！");
+ 
+ let requiredPasscode = "";
+ if (lobbySnap.exists() && lobbySnap.val().passcode) {
+   requiredPasscode = lobbySnap.val().passcode;
+ } else {
+   const targetRoomSnap = await get(ref(db, `rooms_v4/${selectedPlayerTargetRoom}`));
+   if (targetRoomSnap.exists() && targetRoomSnap.val().passcode) {
+     requiredPasscode = targetRoomSnap.val().passcode;
+   }
  }
- const lobbyData = lobbySnap.val();
- if (lobbyData.passcode && lobbyData.passcode !== userPass) {
+
+ if (requiredPasscode && requiredPasscode !== userPass) {
    setStatus("通關碼錯誤！", true);
    return alert("通關碼不正確，無法進入！");
  }
 
- setStatus("正在進入等候區…");
+ setStatus("正在進入等候區並加入目標房間…");
  try{
    roomId = LOBBY_ROOM_ID;
    await update(ref(db, `rooms_v4/${LOBBY_ROOM_ID}/users/${playerId}`), {
      name: playerName, joinedAt: Date.now()
    });
 
+   const targetRoomRef = ref(db, `rooms_v4/${selectedPlayerTargetRoom}`);
+   const targetSnap = await get(targetRoomRef);
+   if (targetSnap.exists()) {
+     const targetData = targetSnap.val();
+     const players = targetData.players || {};
+     if (Object.keys(players).length >= 4) {
+       return alert("該房間人數已滿 (4人)，請選擇其他房間！");
+     }
+     const used = Object.values(players).map(p => Number(p.index));
+     const freeIndex = [0,1,2,3].find(i => !used.includes(i));
+
+     const updates = {};
+     updates[`rooms_v4/${selectedPlayerTargetRoom}/players/${playerId}`] = { name: playerName, index: freeIndex, status: "waiting", wins: 0, ticketCount: 0 };
+     updates[`rooms_v4/${selectedPlayerTargetRoom}/logs`] = [...(targetData.logs || []), `玩家 ${playerName} 加入了房間。`].slice(-80);
+     updates[`rooms_v4/${LOBBY_ROOM_ID}/users/${playerId}/assignedRoom`] = selectedPlayerTargetRoom;
+
+     await update(ref(db), updates);
+     roomId = selectedPlayerTargetRoom;
+   }
+
    isAdmin=false; viewMode="player"; setupPresence(); 
-   listenUserRoomAssignment();
- }catch(e){ alert("進入等候區發生錯誤：\n"+(e.code||"")+" "+(e.message||e)); }
+   el("setup")?.classList.add("hidden");
+   el("game")?.classList.remove("hidden");
+   await subscribeToRoom();
+ }catch(e){ alert("進入房間發生錯誤：\n"+(e.code||"")+" "+(e.message||e)); }
 };
-
-function listenUserRoomAssignment() {
-  el("setup")?.classList.add("hidden");
-  el("game")?.classList.remove("hidden");
-  el("waitingLobbyNotice").classList.remove("hidden");
-
-  onValue(ref(db, `rooms_v4/${LOBBY_ROOM_ID}/users/${playerId}`), async (snap) => {
-    const data = snap.val();
-    if (data && data.assignedRoom) {
-      const assigned = data.assignedRoom;
-      roomId = assigned;
-      el("waitingLobbyNotice").classList.add("hidden");
-      setupPresence();
-      await subscribeToRoom();
-    }
-  });
-}
 
 async function subscribeToRoom(){
  if(!roomId)return;
@@ -1116,14 +1201,12 @@ function renderAdminRoomsList() {
     const count = Object.keys(players).length;
     const isSelected = (rId === selectedRoomForAssign);
 
-    // 產生房間內玩家狀態框
     let roomPlayersHtml = "";
     if (count === 0) {
       roomPlayersHtml = '<div style="font-size:12px;color:#94a3b8;grid-column:span 4;padding:4px">尚無玩家加入此房間</div>';
     } else {
       const sortedPlayers = Object.entries(players).sort((a,b) => Number(a[1].index) - Number(b[1].index));
       roomPlayersHtml = sortedPlayers.map(([pId, p]) => {
-        // 判斷是否在線
         let online = false;
         if (p.isOfflineBot) {
           online = false;
@@ -1593,7 +1676,7 @@ async function autoTimeoutPlay() {
 }
 
 window.toggleCard = function(cardId) {
-  unlockiOSAudio(); // 玩家點擊選擇撲克牌時，同步解除 iOS 音訊阻擋
+  unlockiOSAudio();
   if (viewMode !== "player" || !roomData || roomData.status !== "playing") return;
   const me = roomData.players?.[playerId];
   if (!me || Number(me.index) !== Number(roomData.turn)) return;
@@ -1754,7 +1837,7 @@ window.revealScratch=function(){
     t.classList.add("revealed");
     t.innerHTML = ticket.isWinner ? (prize.image ? `<img src="${prize.image}">` : ticket.prize) : "🐢 沒中獎";
   }
-  if(el("scratchResult")) el("scratchResult").textContent = ticket.isWinner ? "🎉 恭喜中獎："+ticket.prize : "🐢 沒中獎，再接再勵！";
+  if(el("scratchResult")) el("scratchResult".textContent = ticket.isWinner ? "🎉 恭喜中獎："+ticket.prize : "🐢 沒中獎，再接再勵！");
 };
 
 window.closeScratch=function(){
@@ -1789,7 +1872,6 @@ function render(){
      emojiOverlayHtml = `<div class="player-emoji-overlay">${p.currentEmoji}</div>`;
    }
 
-   // 自動加上發話中的類別 (talking)
    const isTalkingClass = activeTalkingPlayers.has(id) ? "talking" : "";
 
    return `<div id="player_card_${id}" class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn ":"")+isTalkingClass}">
