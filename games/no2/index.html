@@ -152,14 +152,13 @@ setInterval(function() {
     <!-- 新增：發牌音效開關 -->
     <label style="font-size: 13px; font-weight: normal; display: flex; align-items: center; gap: 4px; cursor: pointer;">
       <input type="checkbox" id="soundToggle" onchange="toggleSoundSetting(this)" style="cursor: pointer; width: 16px; height: 16px;"> 發牌與動作音效
-    </label>
-    <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
-  </div>
+    <div><span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
+  </div> </label>
 </div>
 
 <!-- 語音通話控制列 -->
 <div class="voice-bar">
-  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音對講：</span>
+  <span style="font-size:13px;font-weight:bold;color:#f8fafc;">🎙️ 房間語音：</span>
   <button id="toggleVoiceBtn" class="voice-btn success" onclick="toggleVoice()">開啟麥克風</button>
   <button id="toggleMuteBtn" class="voice-btn gray hidden" onclick="toggleMute()">靜音</button>
   <span id="voiceStatus" style="font-size:12px;color:#cbd5e1;">未開啟</span>
