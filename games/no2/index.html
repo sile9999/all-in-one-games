@@ -148,13 +148,7 @@ setInterval(function() {
 <div class="card">
 <div class="row" style="justify-content:space-between">
   <h2>♠️ 四人大老二</h2>
-  <div class="row" style="gap: 12px; align-items: center;">
-    <!-- 新增：發牌音效開關 -->
-    <label style="font-size: 13px; font-weight: normal; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-      <input type="checkbox" id="soundToggle" onchange="toggleSoundSetting(this)" style="cursor: pointer; width: 16px; height: 16px;"> 發牌與動作音效
-    </label>
-    <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
-  </div>
+  <div>房號：<b id="gameRoom"></b> <span id="gameRoundBadge" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:5px">第 1 / 4 局</span></div>
 </div>
 
 <!-- 語音通話控制列 -->
@@ -223,19 +217,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (lobbyBtn) lobbyBtn.style.display = "none";
     if (nameLabel) nameLabel.innerText = "請輸入暱稱：";
   }
-  
-  // 初始化音效開關的勾選狀態 (預設開啟)
-  const soundPref = localStorage.getItem("bigtwo_sound_enabled");
-  const isSoundOn = soundPref === null ? true : (soundPref === "true");
-  const soundToggleEl = document.getElementById("soundToggle");
-  if (soundToggleEl) {
-    soundToggleEl.checked = isSoundOn;
-  }
 });
-
-window.toggleSoundSetting = function(checkbox) {
-  localStorage.setItem("bigtwo_sound_enabled", checkbox.checked);
-};
 
 window.admin = window.admin || function(){
   const box=document.getElementById("adminBox");
@@ -268,11 +250,6 @@ function initAudio() {
 
 function playSound(type, handTypeObj = null) {
   try {
-    // 檢查個人音效開關設定
-    const soundPref = localStorage.getItem("bigtwo_sound_enabled");
-    const isSoundOn = soundPref === null ? true : (soundPref === "true");
-    if (!isSoundOn) return;
-
     initAudio();
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
@@ -1267,8 +1244,8 @@ window.copyWinnerList = async () => {
   if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
   
   const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
-  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - ${w.name}`).join("\n");
-  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n@${winnerTextList}`;
+  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - @${w.name}`).join("\n");
+  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n${winnerTextList}`;
   
   const success = await copyText(formattedText);
   alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + formattedText);
