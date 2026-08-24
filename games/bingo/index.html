@@ -67,17 +67,19 @@
     .bingo-caller-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); min-height: 110px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .caller-title { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* 叫號圖片及文字顯示容器 */
-    .current-number-display { font-size: 40px; font-weight: 900; line-height: 1.1; margin: 4px 0; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
-    .caller-img { height: 64px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+    /* 叫號圖片及文字顯示容器 - 最大化設計 */
+    .current-number-display { font-size: 48px; font-weight: 900; line-height: 1.1; margin: 4px 0; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+    .caller-img { height: 75px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+    .caller-poker { font-size: 42px; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
     .grid-container { position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
     .grid { display: grid; gap: 6px; }
 
-    /* 格子樣式 */
-    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; padding: 4px; font-size: 20px; font-weight: bold; color: #1e293b; }
+    /* 格子樣式 - 內容盡量最大化填滿 */
+    .tile { aspect-ratio: 1; background-color: #e2e8f0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; padding: 2px; font-size: 26px; font-weight: 900; color: #1e293b; }
     .tile img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
     .tile:hover { transform: scale(1.04); }
+    .tile-poker { font-size: 24px; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
     
     /* 成功的格子改為蓋牌樣式 */
     .tile.marked { 
@@ -94,8 +96,8 @@
       color: transparent; /* 隱藏數字文字 */
     }
     
-    /* 蓋牌後隱藏格內的原本圖片 */
-    .tile.marked img { 
+    /* 蓋牌後隱藏格內的原本圖片或撲克牌 */
+    .tile.marked img, .tile.marked .tile-poker { 
       display: none;
     }
     
@@ -103,7 +105,7 @@
     .tile.marked::after {
       content: '✓';
       color: #f59e0b;
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 900;
       text-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
       position: absolute;
@@ -177,18 +179,81 @@
       numberImages[i] = `https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images/farm (${i + 1}).png`;
     }
 
+    // 撲克牌花色與數值對照表（總共 52 張標準牌，編號 1 至 52）
+    const suits = [
+      { name: '黑桃', symbol: '♠', color: '#000000' },
+      { name: '紅心', symbol: '♥', color: '#ef4444' },
+      { name: '方塊', symbol: '♦', color: '#ef4444' },
+      { name: '梅花', symbol: '♣', color: '#000000' }
+    ];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+    function getPokerCard(id) {
+      const adjustedId = ((id - 1) % 52);
+      const suitIdx = Math.floor(adjustedId / 13);
+      const rankIdx = adjustedId % 13;
+      const suit = suits[suitIdx];
+      const rank = ranks[rankIdx];
+      
+      let speakRank = rank;
+      if (rank === 'A') speakRank = 'Ace';
+      else if (rank === '10') speakRank = '十';
+
+      return {
+        suitName: suit.name,
+        suitSymbol: suit.symbol,
+        rank: rank,
+        color: suit.color,
+        text: `${suit.name}${speakRank}`
+      };
+    }
+
+    // 預先加載語音清單，以取得更自然優質的人聲 (Natural/Neural Voice)
+    let voices = [];
+    function loadVoices() {
+      if ('speechSynthesis' in window) {
+        voices = window.speechSynthesis.getVoices();
+      }
+    }
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    // 語音播放輔助函數 (自然語音優化版)
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // 停止先前的語音避免堆疊
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        if (voices.length === 0) voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => 
+          (v.lang.includes('zh-TW') || v.lang.includes('zh-HK') || v.lang.includes('zh')) && 
+          (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('HsiaoChen') || v.name.includes('YunJhe'))
+        ) || voices.find(v => v.lang.includes('zh-TW'));
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+
+        utterance.lang = 'zh-TW';
+        utterance.rate = 1.0;  
+        utterance.pitch = 1.0; 
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
     let eventId = null;
     let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
     let playerName = '';
-    let customGameDurationSec = 60; // 預設單局時間 (秒)
-    let totalTiles = 25; // 預設 5x5
-    let gameMode = 'image'; // 預設遊戲模式：'image' (遊戲版/圖片) 或 'number' (數字版)
-    let callIntervalMs = 2000; // 預設叫號頻率 2 秒
+    let customGameDurationSec = 60; 
+    let totalTiles = 25; 
+    let gameMode = 'image'; // 'image', 'number', 'poker'
+    let callIntervalMs = 2000; 
     let startTimeMs = 0;
-    let matchStartTimestamp = 0; // 實際開始比賽時間點
-    let adminStatusTimer = null; // 控制頁面狀態自動比對計時器
+    let matchStartTimestamp = 0; 
+    let adminStatusTimer = null; 
     
-    // 賓果狀態變數
     let gridNumbers = [];
     let markedIndices = new Set();
     let currentDrawn = null;
@@ -201,7 +266,8 @@
     let eventRef = null;
     let currentLeaderboard = {};
     let isGameActive = false;
-    let globalCallList = []; // 全國一致叫號順序
+    let globalCallList = []; 
+    let lastSpokenIndex = -1; 
 
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
@@ -217,7 +283,6 @@
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
       setupOptionGroup('mode-options', (val) => gameMode = val);
 
-      // 預設開始時間為 1 分鐘後
       const now = new Date();
       const startDef = new Date(now.getTime() + 60000);
       document.getElementById('admin-starttime-input').value = formatDateForInput(startDef);
@@ -296,7 +361,6 @@
       });
     }
 
-    /* ---------------- 管理者機制 ---------------- */
     function openAdminModal() {
       document.getElementById('pwd-modal').classList.remove('hidden');
     }
@@ -332,7 +396,7 @@
 
       const speedSecInput = parseFloat(document.getElementById('admin-speed-input').value);
       if (isNaN(speedSecInput) || speedSecInput <= 0) {
-        alert('請輸入有效的賓果叫號速度（大於 0 的秒數）！');
+        alert('請輸入有效的賓果叫號速度！');
         return;
       }
       callIntervalMs = Math.round(speedSecInput * 1000);
@@ -404,16 +468,18 @@
       const fullLink = `${baseUrl}?event=${eventId}`;
       const timeText = customGameDurationSec + ' 秒';
       const speedText = (callIntervalMs / 1000) + ' 秒/個';
-      const modeText = gameMode === 'number' ? '數字版' : '遊戲圖片版';
+      let modeText = '遊戲圖片版';
+      if (gameMode === 'number') modeText = '數字版';
+      if (gameMode === 'poker') modeText = '撲克牌模式';
+      
       const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
 
-      let copyMsg = `🎰 種菜賓果遊戲 (${modeText})\n`;
+      let copyMsg = `🎰 賓果遊戲 (${modeText})\n`;
       copyMsg += `🔗 挑戰連結：${fullLink}\n`;
       copyMsg += `⏰ 開賽時間：${startText}\n`;
       copyMsg += `⏱️ 戰鬥時間：${timeText}\n`;
       copyMsg += `⚡ 叫號速度：${speedText}\n`;
-      copyMsg += `💡 遊戲說明：大家同步對號！只有點擊「當前叫號」才算成功，看誰連線最多條！\n`;
       copyMsg += `📝 備註：${noteText}\n`;
 
       navigator.clipboard.writeText(copyMsg).then(() => {
@@ -426,7 +492,7 @@
         return alert('目前尚無玩家成績！');
       }
       const sorted = Object.values(currentLeaderboard).sort((a, b) => b.lines - a.lines || (a.firstLineTime || 999) - (b.firstLineTime || 999) || b.clicks - a.clicks);
-      let text = `🏆【 種菜賓果連線賽 - 總排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      let text = `🏆【 賓果連線賽 - 總排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
       sorted.forEach((p, idx) => { 
         const lineTimeStr = p.firstLineTime !== null && p.firstLineTime !== undefined ? `${p.firstLineTime}s` : '--';
         text += `第 ${idx + 1} 名: ${p.name} - ${p.lines || 0} 條線 (成功: ${p.clicks || 0} 格, 首連線: ${lineTimeStr})\n`; 
@@ -457,7 +523,6 @@
       document.getElementById(id).classList.add('hidden');
     }
 
-    /* ---------------- 虛擬偽隨機算法 (全台統一叫號) ---------------- */
     function pseudoRandom(seed) {
       let value = seed;
       return function() {
@@ -468,7 +533,8 @@
 
     function generateGlobalCallList(seed) {
       const rng = pseudoRandom(seed);
-      const list = Array.from({ length: 99 }, (_, i) => i + 1);
+      const maxPool = (gameMode === 'poker') ? 52 : 99;
+      const list = Array.from({ length: maxPool }, (_, i) => i + 1);
       for (let i = list.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
         [list[i], list[j]] = [list[j], list[i]];
@@ -476,7 +542,6 @@
       return list;
     }
 
-    /* ---------------- 玩家賓果挑戰遊戲邏輯 ---------------- */
     function joinIndividualGame() {
       const inputEvent = document.getElementById('input-event-id').value.trim();
       const inputName = document.getElementById('input-player-name').value.trim();
@@ -551,8 +616,10 @@
       completedLineCount = 0;
       firstLineTimeSec = null;
       markedIndices = new Set();
+      lastSpokenIndex = -1;
 
-      const personalPool = Array.from({ length: 99 }, (_, i) => i + 1);
+      const maxPool = (gameMode === 'poker') ? 52 : 99;
+      const personalPool = Array.from({ length: maxPool }, (_, i) => i + 1);
       shuffleArray(personalPool);
       gridNumbers = personalPool.slice(0, totalTiles);
       renderGrid();
@@ -619,6 +686,7 @@
         currentDrawn = globalCallList[callIndex];
         
         const callContainer = document.getElementById('current-call-number');
+        
         if (gameMode === 'image' && numberImages[currentDrawn]) {
           const img = document.createElement('img');
           img.src = numberImages[currentDrawn];
@@ -627,8 +695,27 @@
           img.crossOrigin = "anonymous";
           callContainer.innerHTML = '';
           callContainer.appendChild(img);
+        } else if (gameMode === 'poker') {
+          const card = getPokerCard(currentDrawn);
+          callContainer.innerHTML = '';
+          const pokerDiv = document.createElement('div');
+          pokerDiv.className = 'caller-poker';
+          pokerDiv.style.color = card.color;
+          pokerDiv.innerHTML = `<span style="font-size: 52px;">${card.suitSymbol}</span> <span style="font-size: 50px;">${card.rank}</span>`;
+          callContainer.appendChild(pokerDiv);
         } else {
           callContainer.innerText = currentDrawn;
+        }
+
+        // 修改處：當為「撲克牌模式」或「數字版模式」時，叫號時觸發真人語音播放
+        if ((gameMode === 'poker' || gameMode === 'number') && callIndex !== lastSpokenIndex) {
+          lastSpokenIndex = callIndex;
+          if (gameMode === 'poker') {
+            const card = getPokerCard(currentDrawn);
+            speakText(card.text);
+          } else if (gameMode === 'number') {
+            speakText(String(currentDrawn));
+          }
         }
       } else {
         endPersonalGame(false, '🎉 所有號碼已叫完！');
@@ -662,6 +749,13 @@
           img.alt = val;
           img.crossOrigin = "anonymous";
           tile.appendChild(img);
+        } else if (gameMode === 'poker') {
+          const card = getPokerCard(val);
+          const pokerDiv = document.createElement('div');
+          pokerDiv.className = 'tile-poker';
+          pokerDiv.style.color = card.color;
+          pokerDiv.innerHTML = `<span>${card.suitSymbol}${card.rank}</span>`;
+          tile.appendChild(pokerDiv);
         } else {
           tile.innerText = val;
         }
@@ -875,6 +969,7 @@
       <div id="mode-options" class="btn-group">
         <div class="btn-option active" data-val="image">遊戲圖片版</div>
         <div class="btn-option" data-val="number">數字版</div>
+        <div class="btn-option" data-val="poker">撲克牌模式</div>
       </div>
     </div>
 
@@ -921,7 +1016,7 @@
     </div>
   </div>
 
-  <!-- 主設定頁面的回到大廳按鈕 (置中) -->
+  <!-- 主設定頁面的回到大廳按鈕 -->
   <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
