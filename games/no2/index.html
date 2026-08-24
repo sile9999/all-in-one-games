@@ -23,6 +23,17 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 /* 新增：正在講話時的發光效果 (不影響原本樣式) */
 .player.talking{border-color:#22c55e !important;box-shadow:0 0 12px #22c55e !important;}
 
+/* 新增：每一局結束贏家狀態區塊發光 5 秒動畫 */
+@keyframes winnerGlowPulse {
+  0% { transform: scale(1); box-shadow: 0 0 5px #f59e0b, 0 0 10px #f59e0b; border-color: #f59e0b; background-color: #fef3c7; }
+  50% { transform: scale(1.03); box-shadow: 0 0 25px #f59e0b, 0 0 40px #fbbf24; border-color: #d97706; background-color: #fde68a; }
+  100% { transform: scale(1); box-shadow: 0 0 5px #f59e0b, 0 0 10px #f59e0b; border-color: #f59e0b; background-color: #fef3c7; }
+}
+.player.winner-glow {
+  animation: winnerGlowPulse 1s ease-in-out infinite;
+  z-index: 20;
+}
+
 /* 表情最大化遮罩樣式 */
 .player-emoji-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);display:flex;justify-content:center;align-items:center;font-size:38px;z-index:10;animation:fadeInOut 2s ease forwards}
 @keyframes fadeInOut{0%{opacity:0;transform:scale(0.5)}20%{opacity:1;transform:scale(1.2)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0)}}
@@ -50,7 +61,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .discard{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:70px;align-items:center;margin-top:8px;background:rgba(0,0,0,0.15);padding:10px;border-radius:8px}
 .log{background:#f8fafc;color:#334155;border-radius:10px;padding:10px;max-height:150px;overflow:auto;font-size:13px}
-.scratch{max-width:420px;text-align:center;margin:7vh auto}.ticket{width:210px;height:125px;margin:14px auto;border-radius:14px;background:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:46px;cursor:pointer;border:5px dashed #fff}.ticket.revealed{background:#fff;color:#111;border:3px solid #f59e0b}.ticket img{max-width:180px;max-height:105px;object-fit:contain}.prize-row{display:grid;grid-template-columns:1fr 80px 100px 45px;gap:6px;align-items:center;margin:6px 0}.preview{width:42px;height:42px;object-fit:contain;border:1px solid #ddd;border-radius:5px}.lb table{width:100%;border-collapse:collapse}.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
+.lb table{width:100%;border-collapse:collapse}.lb th,.lb td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
 
 .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .online{background-color:#22c55e;box-shadow:0 0 6px #22c55e}
@@ -67,7 +78,7 @@ button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:point
 .admin-room-players {display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;}
 .admin-room-player-card {background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; font-size: 12px; position: relative;}
 
-@media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.admin-room-players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}.prize-row{grid-template-columns:1fr 65px 80px 38px}}
+@media(max-width:700px){.players{grid-template-columns:repeat(2,1fr)}.admin-room-players{grid-template-columns:repeat(2,1fr)}.tile{width:38px;height:54px;font-size:16px}.table{padding:8px}}
 </style>
 <script>
 document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
@@ -94,7 +105,7 @@ setInterval(function() {
 <div id="remoteAudioContainer" style="display:none;"></div>
 
 <div id="setup" class="card">
-<h1 id="mainTitle">♠️ 四人大老二刮刮樂</h1>
+<h1 id="mainTitle">♠️ 四人大老二</h1>
 <p id="setupDesc">連玩4局累計勝場獲勝！所有玩家將先進入「等候區」，由管理員分配至房間。</p>
 
 <div class="field">
@@ -123,8 +134,6 @@ setInterval(function() {
 <div id="adminBox" class="hidden" style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">
 <div class="field"><label>管理員密碼</label><input id="pwd" class="input" type="password"></div>
 <div class="field"><label>防亂入房間通關碼（留空代表不設限）</label><input id="roomPasscode" class="input" placeholder="例如：8888"></div>
-<div class="field"><label>刮刮樂總張數 (每個房間)</label><input id="ticketCount" class="input" type="number" min="1" value="30"></div>
-<div><b>獎項設定</b><div id="prizes"></div><button class="gray" onclick="addPrize()">＋新增獎項</button></div>
 <button class="success" style="width:100%;margin-top:10px" onclick="createRoom()">生成 10 個房間與等候區</button>
 </div>
 
@@ -133,14 +142,6 @@ setInterval(function() {
   <div class="row">
     <input id="lobbyLinkInput" class="input" style="flex:1" readonly>
     <button class="primary" onclick="copyLobbyInfo()">複製等候區連結</button>
-  </div>
-
-  <div class="winner-box">
-    <div class="row" style="justify-content:space-between;margin-bottom:6px">
-      <div style="font-weight:bold;font-size:16px;color:#b45309">🎁 即時刮刮樂得獎名單 (<span id="adminWinnerCount">0</span> 人)</div>
-      <button class="success" style="padding:5px 10px;font-size:12px" onclick="copyWinnerList()">📋 複製得獎名單</button>
-    </div>
-    <div id="adminWinnerList" style="max-height:160px;overflow-y:auto"></div>
   </div>
 
   <div style="margin-top:14px;font-weight:bold">🏢 房間清單 (點擊房間卡片可指定選取)：</div>
@@ -207,14 +208,7 @@ setInterval(function() {
 </div>
 
 <div class="card"><h3>遊戲紀錄</h3><div id="log" class="log"></div></div>
-<div class="card lb"><h3>🏆 刮刮樂與勝場排行榜 (共4局)</h3><div id="leaderboard"></div></div>
-</div>
-
-<div id="scratch" class="card scratch hidden">
-<h2>🎉 恭喜獲勝！</h2><p>你在本次 4 局賽事中贏得局數，獲得刮刮樂體驗！</p>
-<div id="ticket" class="ticket" onclick="revealScratch()">點一下\n看獎品</div>
-<div id="scratchResult"></div>
-<button class="primary" onclick="closeScratch()">確定 / 關閉</button>
+<div class="card lb"><h3>🏆 勝場排行榜 (共4局)</h3><div id="leaderboard"></div></div>
 </div>
 
 <script>
@@ -252,8 +246,6 @@ window.admin = window.admin || function(){
   const box=document.getElementById("adminBox");
   if(!box){ alert("找不到管理員設定區，請重新整理頁面。"); return; }
   box.classList.toggle("hidden");
-  const prizes=document.getElementById("prizes");
-  if(prizes && !prizes.children.length && typeof window.addPrize==="function") window.addPrize();
 };
 </script>
 
@@ -668,7 +660,7 @@ function createPeerConnection(remoteId, isInitiator) {
 }
 
 const LOBBY_ROOM_ID = "WAITING_LOBBY";
-let roomId=null, createdRoomIds=Array.from({length: 10}, (_, i) => `ROOM_${i + 1}`), selectedRoomForAssign="", selectedPlayerTargetRoom="", playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), myTicketId=null, viewMode="player", startCallBusy=false, isAdmin=false; 
+let roomId=null, createdRoomIds=Array.from({length: 10}, (_, i) => `ROOM_${i + 1}`), selectedRoomForAssign="", selectedPlayerTargetRoom="", playerId=sessionStorage.getItem("bigtwoPlayerId")||("p_"+crypto.randomUUID()), playerName="", roomData=null, selectedSet=new Set(), viewMode="player", startCallBusy=false, isAdmin=false; 
 sessionStorage.setItem("bigtwoPlayerId",playerId); localStorage.setItem("bigtwoPlayerId",playerId);
 
 let turnTimer = null, countdown = 10, lastTurnStartTime = 0, heartbeatInterval = null;
@@ -832,21 +824,12 @@ function canPlayCards(selectedCards, lastPlay, isFirstPlayOfGame) {
 }
 
 function el(id){return document.getElementById(id)}
-window.admin=()=>{el("adminBox").classList.toggle("hidden");if(!el("prizes").children.length)window.addPrize()};
-window.addPrize=(d={name:"獎項",count:1,image:""})=>{
- const row=document.createElement("div");row.className="prize-row";row.dataset.image=d.image||"";
- row.innerHTML='<input class="input pn" value="'+(d.name||"")+'" placeholder="獎項名稱"><input class="input pc" type="number" min="1" value="'+(d.count||1)+'"><label><img class="preview" src="'+(d.image||"")+'"><input type="file" accept="image/*" style="display:none"></label><button class="danger">×</button>';
- row.querySelector("input[type=file]").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{row.dataset.image=r.result;row.querySelector("img").src=r.result};r.readAsDataURL(f)};
- row.querySelector("button").onclick=()=>row.remove();el("prizes").appendChild(row)
-};
-function parsePrizes(){return [...document.querySelectorAll(".prize-row")].map(r=>({name:r.querySelector(".pn").value.trim(),count:+r.querySelector(".pc").value||0,image:r.dataset.image||""})).filter(x=>x.name&&x.count>0)}
-function buildTickets(prizes,n){let a=[];prizes.forEach((p,i)=>{for(let j=0;j<p.count;j++)a.push({prize:p.name,prizeIndex:i,isWinner:true})});while(a.length<n)a.push({prize:"沒中",prizeIndex:null,isWinner:false});return a.slice(0,n).sort(()=>Math.random()-.5).map((x,i)=>({id:"t"+i+"_"+Math.random().toString(36).slice(2,7),...x,claimed:false}))}
+window.admin=()=>{el("adminBox").classList.toggle("hidden");};
 
 window.createRoom=async()=>{
  try{await ensureAuth();}catch(e){return alert("Firebase 登入失敗："+(e.code||e.message));}
  if(el("pwd").value!=="17696969")return alert("管理員密碼錯誤");
  
- let n=Math.max(1,+el("ticketCount").value||30),pr=parsePrizes(),sum=pr.reduce((a,b)=>a+b.count,0);if(sum>n)return alert("獎項張數超過刮刮樂總張數");
  const passcode = el("roomPasscode").value.trim();
 
  selectedRoomForAssign = createdRoomIds[0];
@@ -860,7 +843,6 @@ window.createRoom=async()=>{
 
  for(let i = 0; i < createdRoomIds.length; i++) {
    let rId = createdRoomIds[i];
-   let tickets=buildTickets(pr,n);
    await set(ref(db,"rooms_v4/"+rId),{
      type:"bigtwo4",
      name:`房間 ${i+1}`,
@@ -874,8 +856,6 @@ window.createRoom=async()=>{
      lastPlay:null,
      passCount:0,
      round:0,
-     scratchPrizes:pr,
-     scratchTickets:tickets,
      logs:[`房間 #${i+1} 建立成功，等待管理員派人。`]
    });
  }
@@ -965,10 +945,9 @@ function renderPlayerRoomsList() {
     const r = playerRoomsDataCache[rId] || {};
     const players = r.players || {};
     const count = Object.keys(players).length;
-    const statusText = r.status === "playing" ? "遊戲中" : r.status === "starting" ? "準備中" : "等待中";
+    const statusText = r.status === "playing" ? "遊戲中" : r.status === "starting" ? "準備中" : r.status === "round_ended" ? "局間結算" : "等待中";
     const isSelected = (rId === selectedPlayerTargetRoom);
 
-    // 產生房間內玩家狀態框（完全不含退出按鈕）
     let roomPlayersHtml = "";
     if (count === 0) {
       roomPlayersHtml = '<div style="font-size:12px;color:#94a3b8;grid-column:span 4;padding:4px">尚無玩家加入此房間</div>';
@@ -1062,7 +1041,7 @@ window.joinLobby=async()=>{
      const freeIndex = [0,1,2,3].find(i => !used.includes(i));
 
      const updates = {};
-     updates[`rooms_v4/${selectedPlayerTargetRoom}/players/${playerId}`] = { name: playerName, index: freeIndex, status: "waiting", wins: 0, ticketCount: 0 };
+     updates[`rooms_v4/${selectedPlayerTargetRoom}/players/${playerId}`] = { name: playerName, index: freeIndex, status: "waiting", wins: 0 };
      updates[`rooms_v4/${selectedPlayerTargetRoom}/logs`] = [...(targetData.logs || []), `玩家 ${playerName} 加入了房間。`].slice(-80);
      updates[`rooms_v4/${LOBBY_ROOM_ID}/users/${playerId}/assignedRoom`] = selectedPlayerTargetRoom;
 
@@ -1188,7 +1167,6 @@ function listenToLobbyAndRooms() {
     onValue(ref(db, `rooms_v4/${rId}`), (snap) => {
       adminRoomsData[rId] = snap.val();
       renderAdminRoomsList();
-      renderAdminWinners();
     });
   });
 }
@@ -1200,6 +1178,7 @@ function renderAdminRoomsList() {
     const players = r.players || {};
     const count = Object.keys(players).length;
     const isSelected = (rId === selectedRoomForAssign);
+    const statusText = r.status === "playing" ? "遊戲中" : r.status === "starting" ? "準備中" : r.status === "round_ended" ? "局間結算" : "等待中";
 
     let roomPlayersHtml = "";
     if (count === 0) {
@@ -1237,7 +1216,7 @@ function renderAdminRoomsList() {
       <div class="room-box ${isSelected ? 'selected' : ''}" onclick="setSelectedTargetRoom('${rId}')">
         <div class="row" style="justify-content:space-between">
           <div><b>${r.name || rId}</b>（房號：${rId}）${isSelected ? ' <span style="color:#2563eb;font-weight:bold">【已選定目標】</span>' : ''}</div>
-          <div>人數：<b>${count} / 4</b> ｜ 狀態：<b>${r.status||'waiting'}</b></div>
+          <div>人數：<b>${count} / 4</b> ｜ 狀態：<b>${statusText}</b></div>
         </div>
         <div class="admin-room-players">
           ${roomPlayersHtml}
@@ -1303,7 +1282,6 @@ window.forceStartRoom = async (rId) => {
           index: i,
           status: "waiting",
           wins: 0,
-          ticketCount: 0,
           isOfflineBot: true
         };
       }
@@ -1358,8 +1336,7 @@ window.resetRoomGame = async (rId) => {
         name: p.name,
         index: p.index,
         status: "waiting",
-        wins: 0,
-        ticketCount: 0
+        wins: 0
       };
     });
 
@@ -1379,52 +1356,6 @@ window.resetRoomGame = async (rId) => {
   } catch (e) {
     alert("重置牌局失敗：" + e.message);
   }
-};
-
-let currentWinners = [];
-function renderAdminWinners() {
-  let winners = [];
-  createdRoomIds.forEach(rId => {
-    const r = adminRoomsData[rId] || {};
-    const tickets = r.scratchTickets || [];
-    tickets.forEach(t => {
-      if (t.claimed && t.isWinner) {
-        winners.push({
-          name: t.claimedByName || "未知玩家",
-          prize: t.prize || "未知獎項",
-          room: r.name || rId
-        });
-      }
-    });
-  });
-
-  currentWinners = winners;
-  el("adminWinnerCount").textContent = winners.length;
-
-  if (winners.length === 0) {
-    el("adminWinnerList").innerHTML = '<div style="font-size:13px;color:#94a3b8;text-align:center;padding:6px">尚無玩家獲勝中獎</div>';
-    return;
-  }
-
-  el("adminWinnerList").innerHTML = winners.map(w => {
-    return `
-      <div class="winner-item">
-        <div><b>${esc(w.name)}</b> <span style="font-size:12px;color:#64748b">(${esc(w.room)})</span></div>
-        <div style="font-weight:bold;color:#d97706">🎉 ${esc(w.prize)}</div>
-      </div>
-    `;
-  }).join("");
-}
-
-window.copyWinnerList = async () => {
-  if (currentWinners.length === 0) return alert("目前尚無得獎者紀錄！");
-  
-  const sortedWinners = [...currentWinners].sort((a, b) => a.prize.localeCompare(b.prize, 'zh-TW'));
-  const winnerTextList = sortedWinners.map((w, i) => `${i + 1}. ${w.prize} - @${w.name}`).join("\n");
-  const formattedText = `🍌 蕉蕉大老二 🍌\n得獎名單如下:\n----------------------------------------\n${winnerTextList}`;
-  
-  const success = await copyText(formattedText);
-  alert(success ? "得獎名單已成功複製至剪貼簿！" : "複製失敗，請手動複製：\n" + formattedText);
 };
 
 function renderAdminLobbyList() {
@@ -1465,7 +1396,7 @@ window.assignUserToRoom = async (uId, uName) => {
   const freeIndex = [0,1,2,3].find(i => !used.includes(i));
 
   const updates = {};
-  updates[`rooms_v4/${selectedRoomForAssign}/players/${uId}`] = { name: uName, index: freeIndex, status: "waiting", wins: 0, ticketCount: 0 };
+  updates[`rooms_v4/${selectedRoomForAssign}/players/${uId}`] = { name: uName, index: freeIndex, status: "waiting", wins: 0 };
   updates[`rooms_v4/${selectedRoomForAssign}/logs`] = [...(targetRoom.logs || []), `👑 管理員將 ${uName} 從等候區分配加入此房間。`].slice(-80);
   updates[`rooms_v4/${LOBBY_ROOM_ID}/users/${uId}/assignedRoom`] = selectedRoomForAssign;
 
@@ -1493,11 +1424,11 @@ async function tryStartGame(){
  const roomRef=ref(db,"rooms_v4/"+roomId);
  try{
    const snap=await get(roomRef); const room=snap.val();
-   if(!room || room.status==="playing")return;
+   if(!room || (room.status!=="waiting" && room.status!=="round_ended"))return;
    const entries=Object.entries(room.players||{}).sort((a,b)=>Number(a[1].index)-Number(b[1].index));
    if(entries.length!==4)return;
 
-   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>(v==="waiting"||v==="ended")?"starting":v);
+   const lock=await runTransaction(ref(db,"rooms_v4/"+roomId+"/status"),v=>(v==="waiting"||v==="round_ended"||v==="ended")?"starting":v);
    if(!lock.committed)return;
 
    const deck=makeDeck(), hands={};
@@ -1512,7 +1443,7 @@ async function tryStartGame(){
    const currentRound = room.currentGameRound || 1;
    const resetPlayers = {};
    Object.entries(room.players || {}).forEach(([pid, p]) => {
-     resetPlayers[pid] = { ...p, status: "playing" };
+     resetPlayers[pid] = { ...p, status: "waiting" };
    });
 
    await update(roomRef,{
@@ -1737,41 +1668,27 @@ window.playCards = async function() {
     const players = { ...(roomData.players || {}) };
     players[playerId] = { ...players[playerId], status: "win", wins: (players[playerId].wins || 0) + 1 };
 
-    let tickets = [...(roomData.scratchTickets || [])];
-    let ticketIndex = tickets.findIndex(t => !t.claimed);
-    let ticket = null;
-    if (ticketIndex >= 0) {
-      ticket = { ...tickets[ticketIndex], claimed: true, claimedBy: playerId, claimedByName: playerName };
-      tickets[ticketIndex] = ticket;
-      players[playerId].ticketCount = (players[playerId].ticketCount || 0) + 1;
-    }
-
     const currentGRound = roomData.currentGameRound || 1;
     updates.players = players;
-    updates.scratchTickets = tickets;
 
     if (currentGRound < 4) {
       updates.currentGameRound = currentGRound + 1;
-      updates.status = "waiting";
-      updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！5秒後自動開始第 ${currentGRound + 1} / 4 局...`);
+      updates.status = "round_ended"; // 使用獨立的狀態防止被立即洗牌或覆蓋
+      updates.logs.push(`🎉 ${me.name} 贏得了第 ${currentGRound} 局！狀態發光 5 秒後開始下一局...`);
       
+      // 更新資料庫狀態為贏得該局，此時畫面會套用發光特效持續 5 秒
       await update(ref(db, "rooms_v4/" + roomId), updates);
 
-      setTimeout(async () => {
-        if (viewMode === "player" || isAdmin) {
-          const freshSnap = await get(ref(db, "rooms_v4/" + roomId));
-          if (freshSnap.exists()) {
-            const fRoom = freshSnap.val();
-            if (fRoom.status === "waiting" && fRoom.currentGameRound === currentGRound + 1) {
-              await tryStartGame();
-            }
-          }
-        }
-      }, 5000);
+      // 等待 5 秒讓贏家狀態區塊發光結束後，再執行下一局的開局
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
-      if (ticket) {
-        myTicketId = ticket.id;
-        showScratch(ticket);
+      // 只有當房內狀態依然維持在 round_ended 時才自動觸發下一局，避免重複觸發
+      const freshSnap = await get(ref(db, "rooms_v4/" + roomId));
+      if (freshSnap.exists()) {
+        const fRoom = freshSnap.val();
+        if (fRoom.status === "round_ended") {
+          await tryStartGame();
+        }
       }
       return;
     } else {
@@ -1779,11 +1696,6 @@ window.playCards = async function() {
       updates.winnerId = playerId;
       updates.logs.push(`🏆 第 4 局結束！全 4 局競賽圓滿完成！恭喜最終優勝玩家！`);
       await update(ref(db, "rooms_v4/" + roomId), updates);
-
-      if (ticket) {
-        myTicketId = ticket.id;
-        showScratch(ticket);
-      }
       return;
     }
   }
@@ -1820,32 +1732,6 @@ window.passTurn = async function() {
   });
 };
 
-function showScratch(ticket){
-  el("scratch")?.classList.remove("hidden");
-  el("game")?.classList.add("hidden");
-  const t=el("ticket"); if(t){t.classList.remove("revealed");t.innerHTML="點一下";}
-  if(el("scratchResult")) el("scratchResult").textContent="";
-}
-
-window.revealScratch=function(){
-  unlockiOSAudio();
-  if(!myTicketId || !roomData) return;
-  const ticket=(roomData.scratchTickets||[]).find(t=>t.id===myTicketId); if(!ticket) return;
-  const prize=(roomData.scratchPrizes||[])[ticket.prizeIndex]||{};
-  const t=el("ticket");
-  if(t){
-    t.classList.add("revealed");
-    t.innerHTML = ticket.isWinner ? (prize.image ? `<img src="${prize.image}">` : ticket.prize) : "🐢 沒中獎";
-  }
-  if(el("scratchResult")) el("scratchResult".textContent = ticket.isWinner ? "🎉 恭喜中獎："+ticket.prize : "🐢 沒中獎，再接再勵！");
-};
-
-window.closeScratch=function(){
-  el("scratch")?.classList.add("hidden"); 
-  el("game")?.classList.remove("hidden"); 
-  render();
-};
-
 function render(){
  el("setup").classList.add("hidden"); el("game").classList.remove("hidden");
  el("gameRoom").textContent=roomId;
@@ -1873,8 +1759,10 @@ function render(){
    }
 
    const isTalkingClass = activeTalkingPlayers.has(id) ? "talking" : "";
+   // 新增：當局獲勝時加上 winner-glow 發光樣式
+   const isWinnerGlowClass = p.status === "win" ? "winner-glow" : "";
 
-   return `<div id="player_card_${id}" class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn ":"")+isTalkingClass}">
+   return `<div id="player_card_${id}" class="player ${(id===playerId?"me ":"")+(p.index===roomData.turn&&roomData.status==="playing"?"turn ":"")+isTalkingClass} ${isWinnerGlowClass}">
      ${emojiOverlayHtml}
      ${kickBtn}
      <div class="name">${dotHtml} ${(p.index+1)}. ${esc(p.name)}</div>
@@ -1886,6 +1774,9 @@ function render(){
  if (roomData.status === "ended") {
    el("turnText").textContent = "全 4 局結束！";
    el("roundText").textContent = "感謝參與，請看排行榜賽果！";
+ } else if (roomData.status === "round_ended") {
+   el("turnText").textContent = "本局已結束！";
+   el("roundText").textContent = "發光結算中，即將進入下一局...";
  } else {
    el("turnText").textContent= roomData.status==="playing" && turn ? "輪到："+turn[1].name : "等待四人...";
    el("roundText").textContent= roomData.status==="playing" ? `遊戲進行中 (第 ${roomData.currentGameRound || 1}/4 局)` : "四人到齊後自動開局";
@@ -1922,6 +1813,12 @@ function renderHand(){
    return;
  }
 
+ if(roomData.status === "round_ended"){
+   el("myHand").innerHTML='<span style="color:#fff;font-weight:800">🎉 本局結算中 (請欣賞贏家發光特效)</span>';
+   el("actions").innerHTML='<span>請稍候，即將自動開始下一局...</span>';
+   return;
+ }
+
  el("myHand").innerHTML=h.length
    ? h.map(c=>{
        const info = getCardInfo(c);
@@ -1954,7 +1851,7 @@ function renderDiscards(){
 }
 
 function renderLog(){el("log").innerHTML=(roomData.logs||[]).slice().reverse().map(x=>"<div>"+esc(x)+"</div>").join("")}
-function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場 (總4局)</th><th>刮刮樂</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td><td>"+(p.ticketCount||0)+"</td></tr>").join("")+"</table>"}
+function renderLB(){let ps=Object.values(roomData.players||{}).sort((a,b)=>(b.wins||0)-(a.wins||0));el("leaderboard").innerHTML="<table><tr><th>玩家</th><th>勝場 (總4局)</th></tr>"+ps.map(p=>"<tr><td>"+esc(p.name)+"</td><td>"+(p.wins||0)+"</td></tr>").join("")+"</table>"}
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 </script>
 </body>
