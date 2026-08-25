@@ -77,7 +77,7 @@
     .tile.error { background-color: #fca5a5; animation: shake 0.3s; }
     .tile.covered-done { background-color: #94a3b8; color: #64748b; opacity: 0.7; cursor: not-allowed; }
     
-    /* 詩句字體適性調整 */
+    /* 詩句/撲克牌字體適性調整 */
     .tile-text { 
       font-size: 15px; 
       font-weight: bold; 
@@ -91,6 +91,12 @@
       height: 100%; 
       padding: 4px;
       word-break: break-all;
+    }
+
+    /* 撲克牌模式文字最大化調整 */
+    .tile-text.poker-text {
+      font-size: 28px;
+      letter-spacing: -1px;
     }
 
     /* 手機螢幕適應 */
@@ -113,6 +119,10 @@
       .tile-text {
         font-size: 11px;
         padding: 2px;
+      }
+
+      .tile-text.poker-text {
+        font-size: 22px;
       }
     }
 
@@ -386,7 +396,7 @@
     let playerName = '';
     let totalTiles = 24;
     let poemCategory = 'all'; // 預設類型：不限
-    let coverMode = 'covered'; // 新增預設蓋牌模式：covered (蓋牌), open (不蓋牌/反向蓋牌)
+    let coverMode = 'covered'; // 新設預設蓋牌模式：covered (蓋牌), open (不蓋牌/反向蓋牌)
     let gridTiles = [];
     let matchedTiles = [];
     let selectedIndices = [];
@@ -555,7 +565,7 @@
       copyMsg += `🎯 遊戲模式：${modeText}\n`;
       copyMsg += `⏱️ 競賽模式：完成耗時比拼\n`;
       copyMsg += `⏳ 結束時間：${endTimeText}\n`;
-      copyMsg += `💡 說明：點擊連結進入後即可開始唐詩對句挑戰！\n`;
+      copyMsg += `💡 說明：點擊連結進入後即可開始挑戰！\n`;
       copyMsg += `📝 備註：${noteText}\n`;
 
       navigator.clipboard.writeText(copyMsg).then(() => {
@@ -572,7 +582,7 @@
         return (a.timeUsedMs || Infinity) - (b.timeUsedMs || Infinity);
       });
 
-      let text = `🏆【 唐詩對對碰排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
+      let text = `🏆【 排行榜】\n📍 房號：${roomId || '無'}\n-------------------\n`;
       sorted.forEach((p, idx) => {
         const timeStr = p.timeUsedMs ? `${(p.timeUsedMs / 1000).toFixed(3)} 秒` : '進行中/未完成';
         const prize = getPlayerPrize(p);
@@ -645,42 +655,60 @@
         currentScratchTickets = data.scratchTickets || {};
         currentScratchPrizes = data.scratchPrizes || [];
 
-        // 根據類型篩選「完整配對」
-        // 不能先逐句篩選，否則某些上下句字數不同的詩句會只剩 1 張，
-        // 造成例如設定 24 格卻實際只產生 23 格的問題。
-        const pairMap = new Map();
-        poemPool.forEach(item => {
-          if (!pairMap.has(item.pairId)) pairMap.set(item.pairId, []);
-          pairMap.get(item.pairId).push(item);
-        });
-
-        let validPairs = [...pairMap.values()].filter(pair => pair.length === 2);
-
-        if (roomSettings.poemCategory === '5') {
-          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 5));
-        } else if (roomSettings.poemCategory === '7') {
-          validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 7));
-        }
-
         const pairCount = totalTiles / 2;
+        let selectedPairs = [];
 
-        if (validPairs.length < pairCount) {
-          return alert(`目前選取的分類題庫量不足（完整配對僅有 ${validPairs.length} 組），請減少卡牌數量或選擇不限分類！`);
+        if (roomSettings.poemCategory === 'poker') {
+          const suits = ['♠', '♥', '♦', '♣'];
+          const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+          
+          let pokerPool = [];
+          let pairIdCounter = 1;
+          suits.forEach(suit => {
+            values.forEach(val => {
+              pokerPool.push([
+                { pairId: pairIdCounter, text: `${suit}${val}` },
+                { pairId: pairIdCounter, text: `${suit}${val}` }
+              ]);
+              pairIdCounter++;
+            });
+          });
+
+          pokerPool.sort(() => Math.random() - 0.5);
+          if (pokerPool.length < pairCount) {
+            return alert(`撲克牌組合不足！`);
+          }
+          selectedPairs = pokerPool.slice(0, pairCount);
+        } else {
+          const pairMap = new Map();
+          poemPool.forEach(item => {
+            if (!pairMap.has(item.pairId)) pairMap.set(item.pairId, []);
+            pairMap.get(item.pairId).push(item);
+          });
+
+          let validPairs = [...pairMap.values()].filter(pair => pair.length === 2);
+
+          if (roomSettings.poemCategory === '5') {
+            validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 5));
+          } else if (roomSettings.poemCategory === '7') {
+            validPairs = validPairs.filter(pair => pair.every(item => item.text.length === 7));
+          }
+
+          if (validPairs.length < pairCount) {
+            return alert(`目前選取的分類題庫量不足（完整配對僅有 ${validPairs.length} 組），請減少卡牌數量或選擇不限分類！`);
+          }
+
+          validPairs.sort(() => Math.random() - 0.5);
+          selectedPairs = validPairs.slice(0, pairCount);
         }
 
-        // 隨機選出指定數量的「完整上下句配對」
-        validPairs.sort(() => Math.random() - 0.5);
-        const selectedPairs = validPairs.slice(0, pairCount);
-
-        // 展開成卡牌並洗牌；因此一定會是 pairCount × 2 張
         let selectedPoemCards = selectedPairs.flat();
         selectedPoemCards.sort(() => Math.random() - 0.5);
 
         gridTiles = selectedPoemCards;
 
-        // 防呆：若題庫資料異常導致卡牌數量不符，禁止開始不完整盤面
         if (gridTiles.length !== totalTiles) {
-          return alert(`題庫產生卡牌數量異常（設定 ${totalTiles} 格，實際 ${gridTiles.length} 格），請重新建立房間或聯絡管理員。`);
+          return alert(`卡牌數量異常（設定 ${totalTiles} 格，實際 ${gridTiles.length} 格），請重新建立房間。`);
         }
         matchedTiles = [];
         timeUsedMs = null;
@@ -741,6 +769,7 @@
       gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
       const isUncoveredMode = roomSettings.coverMode === 'open';
+      const isPokerMode = roomSettings.poemCategory === 'poker';
 
       gridTiles.forEach((tileObj, idx) => {
         const tile = document.createElement('div');
@@ -748,33 +777,36 @@
         const isSelected = selectedIndices.includes(idx);
 
         let tileClass = 'tile';
+        const textClass = isPokerMode ? 'tile-text poker-text' : 'tile-text';
+
+        let extraStyle = '';
+        if (isPokerMode) {
+          if (tileObj.text.startsWith('♥') || tileObj.text.startsWith('♦')) {
+            extraStyle = ' color: #dc2626;';
+          }
+        }
 
         if (isUncoveredMode) {
-          /* === 反向玩法：不蓋牌模式 === */
           if (isMatched) {
-            // 成功配對後 -> 變成蓋牌 (並且鎖定無法點擊)
             tile.className = tileClass + ' covered-done';
-            tile.innerText = '📜';
+            tile.innerText = isPokerMode ? '🎴' : '📜';
           } else if (isSelected) {
-            // 選取中的牌 -> 黃色框強調
             tile.className = tileClass + ' selected';
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+            tile.innerHTML = `<span class="${textClass}" style="${extraStyle}">${tileObj.text}</span>`;
           } else {
-            // 未配對牌 -> 預設直接顯示文字
             tile.className = tileClass;
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+            tile.innerHTML = `<span class="${textClass}" style="${extraStyle}">${tileObj.text}</span>`;
           }
         } else {
-          /* === 正向玩法：傳統蓋牌模式 === */
           const isRevealed = isMatched || isSelected;
 
           if (isRevealed) {
             tileClass += ' selected';
             tile.className = tileClass;
-            tile.innerHTML = `<span class="tile-text">${tileObj.text}</span>`;
+            tile.innerHTML = `<span class="${textClass}" style="${extraStyle}">${tileObj.text}</span>`;
           } else {
             tile.className = tileClass;
-            tile.innerText = '📜';
+            tile.innerText = isPokerMode ? '🎴' : '📜';
           }
         }
 
@@ -796,7 +828,6 @@
       if (selectedIndices.length === 2) {
         const [firstIdx, secondIdx] = selectedIndices;
         
-        // 比對兩張牌的 pairId 是否相同（即上下句相匹配）
         if (gridTiles[firstIdx].pairId === gridTiles[secondIdx].pairId) {
           matchedTiles.push(firstIdx, secondIdx);
           selectedIndices = [];
@@ -1030,8 +1061,8 @@
       const noWin = Math.max(0, total - winning);
 
       summaryEl.innerHTML =
-        `目前設定：<b>${total}</b> 張刮刮樂　｜　` +
-        `獎項 <b>${winning}</b> 張　｜　` +
+        `目前設定：<b>${total}</b> 張刮刮樂 ｜ ` +
+        `獎項 <b>${winning}</b> 張 ｜ ` +
         `沒中 🐢 <b>${noWin}</b> 張` +
         (winning > total ? `<br><span style="color:#dc2626;font-weight:bold;">⚠️ 獎項數量超過總張數，無法建立房間。</span>` : '');
     }
@@ -1078,85 +1109,107 @@
 
     async function finishGameAndIssueScratch() {
       const roomRoot = ref(db, `rooms_v4/${roomId}`);
-      let awarded = null;
-      let nicknameAlreadyUsed = false;
+      let assignedTicketId = null;
+      let noTicketsLeft = false;
 
       try {
-        const result = await runTransaction(roomRoot, current => {
-          if (!current) return current;
-          current.usedNicknames = current.usedNicknames || {};
-          current.scratchTickets = current.scratchTickets || {};
+        const transactionResult = await runTransaction(roomRoot, (currentData) => {
+          if (!currentData) return currentData;
+          currentData.usedNicknames = currentData.usedNicknames || {};
+          currentData.scratchTickets = currentData.scratchTickets || {};
+          currentData.players = currentData.players || {};
+
           const key = nicknameToKey(playerName);
 
-          if (current.usedNicknames[key]) {
-            nicknameAlreadyUsed = true;
-            return;
+          // 檢查是否已經記錄過，若已經有 ticketId 則沿用舊的或直接標記
+          if (currentData.usedNicknames[key] && currentData.usedNicknames[key].ticketId) {
+            assignedTicketId = currentData.usedNicknames[key].ticketId;
+            currentData.players[playerId] = currentData.players[playerId] || {};
+            currentData.players[playerId].name = playerName;
+            currentData.players[playerId].timeUsedMs = timeUsedMs;
+            currentData.players[playerId].status = 'ended';
+            currentData.players[playerId].scratchTicketId = assignedTicketId;
+            return currentData;
           }
 
-          const available = Object.entries(current.scratchTickets).filter(([, t]) => t && !t.claimed);
-          if (available.length === 0) {
-            // 沒有獎券時仍完成遊戲，但不發刮刮樂
-            current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), noTicket: true };
-            if (current.players && current.players[playerId]) {
-              current.players[playerId].timeUsedMs = timeUsedMs;
-              current.players[playerId].status = 'ended';
-              current.players[playerId].scratchTicketId = null;
-            }
-            return current;
+          // 尋找尚未被領取的刮刮樂
+          const availableTickets = Object.entries(currentData.scratchTickets).filter(([, t]) => t && !t.claimed);
+          
+          if (availableTickets.length === 0) {
+            noTicketsLeft = true;
+            currentData.usedNicknames[key] = { name: playerName, completedAt: Date.now(), noTicket: true };
+          } else {
+            const [ticketId, ticket] = availableTickets[Math.floor(Math.random() * availableTickets.length)];
+            ticket.claimed = true;
+            ticket.claimedBy = playerName;
+            ticket.claimedAt = Date.now();
+            assignedTicketId = ticketId;
+            currentData.usedNicknames[key] = { name: playerName, completedAt: Date.now(), ticketId };
           }
 
-          const [ticketId, ticket] = available[Math.floor(Math.random() * available.length)];
-          ticket.claimed = true;
-          ticket.claimedBy = playerName;
-          ticket.claimedAt = Date.now();
-          current.usedNicknames[key] = { name: playerName, completedAt: Date.now(), ticketId };
-          if (current.players && current.players[playerId]) {
-            current.players[playerId].timeUsedMs = timeUsedMs;
-            current.players[playerId].status = 'ended';
-            current.players[playerId].scratchTicketId = ticketId;
-            current.players[playerId].prize = ticket.prize || '沒中';
-            current.players[playerId].prizeImage = ticket.prizeIndex !== null && ticket.prizeIndex !== undefined
-              ? (current.scratchPrizes?.[ticket.prizeIndex]?.image || '')
+          currentData.players[playerId] = currentData.players[playerId] || {};
+          currentData.players[playerId].name = playerName;
+          currentData.players[playerId].timeUsedMs = timeUsedMs;
+          currentData.players[playerId].status = 'ended';
+          currentData.players[playerId].scratchTicketId = assignedTicketId;
+
+          if (assignedTicketId && currentData.scratchTickets[assignedTicketId]) {
+            const t = currentData.scratchTickets[assignedTicketId];
+            currentData.players[playerId].prize = t.prize || '沒中';
+            currentData.players[playerId].prizeImage = (t.prizeIndex !== null && t.prizeIndex !== undefined && currentData.scratchPrizes?.[t.prizeIndex])
+              ? currentData.scratchPrizes[t.prizeIndex].image || ''
               : '';
-            current.players[playerId].isWinner = ticket.isWinner !== false && ticket.prize !== '沒中';
+            currentData.players[playerId].isWinner = t.isWinner !== false && t.prize !== '沒中';
           }
-          return current;
+
+          return currentData;
         });
 
-        if (!result.committed) {
-          alert('遊戲完成資料寫入失敗，請重新整理後確認排行榜。');
+        if (!transactionResult.committed) {
+          alert('成績送出失敗，請重新整理頁面後確認。');
           return;
         }
 
-        const latest = (await get(roomRoot)).val();
-        const key = nicknameToKey(playerName);
-        const record = latest?.usedNicknames?.[key];
-        if (nicknameAlreadyUsed || !record) {
-          alert(`暱稱【${playerName}】已經使用過，不能重複領取刮刮樂。`);
-          return;
-        }
-
-        if (record.noTicket) {
+        if (noTicketsLeft) {
           document.getElementById('game-over-mask').classList.remove('hidden');
-          alert('🎉 恭喜完成挑戰！但本房間的刮刮樂已經發完了。');
+          alert('🎉 恭喜完成挑戰！但本房間的刮刮樂已經全數發完了。');
           return;
         }
 
-        const awardedTicket = latest.scratchTickets?.[record.ticketId];
+        if (!assignedTicketId) {
+          document.getElementById('game-over-mask').classList.remove('hidden');
+          return;
+        }
+
+        // 從最新資料中撈取派發的票券與圖片細節
+        const latestSnap = await get(roomRoot);
+        const latestData = latestSnap.val();
+        const awardedTicket = latestData?.scratchTickets?.[assignedTicketId];
+
         if (!awardedTicket) {
           document.getElementById('game-over-mask').classList.remove('hidden');
           return;
         }
 
-        const awardedImage = awardedTicket.prizeIndex !== null && awardedTicket.prizeIndex !== undefined
-          ? (latest.scratchPrizes?.[awardedTicket.prizeIndex]?.image || '')
+        const prizeImage = (awardedTicket.prizeIndex !== null && awardedTicket.prizeIndex !== undefined)
+          ? (latestData?.scratchPrizes?.[awardedTicket.prizeIndex]?.image || '')
           : (awardedTicket.image || '');
 
-        awarded = { ...awardedTicket, image: awardedImage };
+        const awarded = {
+          ...awardedTicket,
+          image: prizeImage
+        };
+
         showScratchModal(awarded);
+
       } catch (err) {
-        console.error(err);
-        alert('刮刮樂派發時發生錯誤，請重新整理頁面確認。');
+        console.error('Scratch issue error:', err);
+        // 保底處理：即使領取過程出現例外，至少要顯示一般遊戲結束遮罩
+        document.getElementById('game-over-mask').classList.remove('hidden');
+        update(ref(db, `rooms_v4/${roomId}/players/${playerId}`), {
+          timeUsedMs: timeUsedMs,
+          status: 'ended'
+        });
       }
     }
 
@@ -1365,11 +1418,12 @@
 
   <div id="setting-fields" class="disabled-area">
     <div class="menu-group">
-      <label>詩詞類型：</label>
+      <label>挑戰類型（新增撲克牌模式）：</label>
       <div class="btn-group" id="category-options">
         <button class="btn-option active" data-val="all">不限</button>
         <button class="btn-option" data-val="5">五言絕句</button>
         <button class="btn-option" data-val="7">七言絕句</button>
+        <button class="btn-option" data-val="poker">🎴 撲克牌</button>
       </div>
     </div>
 
@@ -1429,7 +1483,7 @@
 
     <div class="menu-group">
       <label>房間備註說明 (選填)：</label>
-      <input type="text" id="admin-note-input" class="input-box" placeholder="例：三年一班唐詩對句大賽" maxlength="30">
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例：挑戰大賽" maxlength="30">
     </div>
   </div>
 
