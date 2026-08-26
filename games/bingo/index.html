@@ -248,7 +248,9 @@
     let playerName = '';
     let customGameDurationSec = 60; 
     let totalTiles = 25; 
-    let gameMode = 'image'; // 'image', 'number', 'poker'
+    let gameMode = 'image'; // 'image', 'number', 'original', 'poker'
+    let endConditionType = 'time'; // 'time' (限時制) 或 'lines' (連線制)
+    let targetLinesCount = 3; // 連線制目標條數
     let callIntervalMs = 2000; 
     let startTimeMs = 0;
     let matchStartTimestamp = 0; 
@@ -282,6 +284,20 @@
 
       setupOptionGroup('grid-options', (val) => totalTiles = parseInt(val));
       setupOptionGroup('mode-options', (val) => gameMode = val);
+      
+      // 設定結束條件切換監聽
+      setupOptionGroup('end-condition-options', (val) => {
+        endConditionType = val;
+        const targetLinesGroup = document.getElementById('target-lines-group');
+        const durationGroup = document.getElementById('duration-group');
+        if (val === 'lines') {
+          targetLinesGroup.classList.remove('hidden');
+          durationGroup.classList.add('hidden');
+        } else {
+          targetLinesGroup.classList.add('hidden');
+          durationGroup.classList.remove('hidden');
+        }
+      });
 
       const now = new Date();
       const startDef = new Date(now.getTime() + 60000);
@@ -306,7 +322,7 @@
           const durationMs = (data.customGameDurationSec || 60) * 1000;
           const endTimeMs = data.startTime + durationMs;
           
-          if (data.isEnded || nowMs >= endTimeMs) {
+          if (data.isEnded || (data.endConditionType !== 'lines' && nowMs >= endTimeMs)) {
             showEventEndedView('本次賓果活動已結束');
             return;
           }
@@ -388,10 +404,18 @@
         return;
       }
 
-      customGameDurationSec = parseInt(document.getElementById('admin-duration-input').value);
-      if (isNaN(customGameDurationSec) || customGameDurationSec <= 0) {
-        alert('請輸入有效的單局戰鬥秒數！');
-        return;
+      if (endConditionType === 'time') {
+        customGameDurationSec = parseInt(document.getElementById('admin-duration-input').value);
+        if (isNaN(customGameDurationSec) || customGameDurationSec <= 0) {
+          alert('請輸入有效的單局戰鬥秒數！');
+          return;
+        }
+      } else {
+        targetLinesCount = parseInt(document.getElementById('admin-targetlines-input').value);
+        if (isNaN(targetLinesCount) || targetLinesCount <= 0) {
+          alert('請輸入有效的目標連線數！');
+          return;
+        }
       }
 
       const speedSecInput = parseFloat(document.getElementById('admin-speed-input').value);
@@ -411,6 +435,8 @@
 
       set(eventRef, {
         customGameDurationSec: customGameDurationSec,
+        endConditionType: endConditionType,
+        targetLinesCount: targetLinesCount,
         totalTiles: totalTiles,
         gameMode: gameMode,
         callIntervalMs: callIntervalMs,
@@ -449,11 +475,16 @@
       const roomNumEl = document.getElementById('room-num-display');
       if (!roomNumEl) return;
 
-      const durationMs = (data.customGameDurationSec || 60) * 1000;
-      const endTime = data.startTime + durationMs;
       const now = Date.now();
+      let isEndedByTime = false;
 
-      if (data.isEnded || now > endTime) {
+      if (data.endConditionType !== 'lines') {
+        const durationMs = (data.customGameDurationSec || 60) * 1000;
+        const endTime = data.startTime + durationMs;
+        if (now > endTime) isEndedByTime = true;
+      }
+
+      if (data.isEnded || isEndedByTime) {
         roomNumEl.innerText = '該局結束';
         roomNumEl.classList.add('ended');
       } else {
@@ -466,10 +497,15 @@
       if (!eventId) return;
       const baseUrl = window.location.origin + window.location.pathname;
       const fullLink = `${baseUrl}?event=${eventId}`;
-      const timeText = customGameDurationSec + ' 秒';
+      let endConditionText = customGameDurationSec + ' 秒 (限時制)';
+      if (endConditionType === 'lines') {
+        endConditionText = targetLinesCount + ' 條線 (連線制)';
+      }
+
       const speedText = (callIntervalMs / 1000) + ' 秒/個';
       let modeText = '遊戲圖片版';
       if (gameMode === 'number') modeText = '數字版';
+      if (gameMode === 'original') modeText = '原始版';
       if (gameMode === 'poker') modeText = '撲克牌模式';
       
       const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
@@ -478,7 +514,7 @@
       let copyMsg = `🎰 賓果遊戲 (${modeText})\n`;
       copyMsg += `🔗 挑戰連結：${fullLink}\n`;
       copyMsg += `⏰ 開賽時間：${startText}\n`;
-      copyMsg += `⏱️ 戰鬥時間：${timeText}\n`;
+      copyMsg += `⏱️ 遊戲結束條件：${endConditionText}\n`;
       copyMsg += `⚡ 叫號速度：${speedText}\n`;
       copyMsg += `📝 備註：${noteText}\n`;
 
@@ -533,7 +569,13 @@
 
     function generateGlobalCallList(seed) {
       const rng = pseudoRandom(seed);
-      const maxPool = (gameMode === 'poker') ? 52 : 99;
+      let maxPool = 99;
+      if (gameMode === 'poker') {
+        maxPool = 52;
+      } else if (gameMode === 'original') {
+        maxPool = totalTiles;
+      }
+      
       const list = Array.from({ length: maxPool }, (_, i) => i + 1);
       for (let i = list.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
@@ -564,7 +606,7 @@
         const durationMs = (data.customGameDurationSec || 60) * 1000;
         const endTimeMs = data.startTime + durationMs;
         
-        if (data.isEnded || nowMs >= endTimeMs) {
+        if (data.isEnded || (data.endConditionType !== 'lines' && nowMs >= endTimeMs)) {
           showEventEndedView('本次賓果活動已結束');
           return;
         }
@@ -575,6 +617,8 @@
         }
 
         customGameDurationSec = data.customGameDurationSec || 60;
+        endConditionType = data.endConditionType || 'time';
+        targetLinesCount = data.targetLinesCount || 3;
         totalTiles = data.totalTiles || 25;
         gameMode = data.gameMode || 'image';
         callIntervalMs = data.callIntervalMs || 2000;
@@ -618,10 +662,22 @@
       markedIndices = new Set();
       lastSpokenIndex = -1;
 
-      const maxPool = (gameMode === 'poker') ? 52 : 99;
+      let maxPool = 99;
+      if (gameMode === 'poker') {
+        maxPool = 52;
+      } else if (gameMode === 'original') {
+        maxPool = totalTiles;
+      }
+
       const personalPool = Array.from({ length: maxPool }, (_, i) => i + 1);
       shuffleArray(personalPool);
-      gridNumbers = personalPool.slice(0, totalTiles);
+      
+      if (gameMode === 'original') {
+        gridNumbers = personalPool; // 原始版大小直接對應 1 ~ totalTiles 並打亂
+      } else {
+        gridNumbers = personalPool.slice(0, totalTiles);
+      }
+      
       renderGrid();
 
       document.getElementById('lines-display').innerText = '0';
@@ -657,18 +713,24 @@
       document.getElementById('bingo-caller-block').classList.remove('hidden');
       document.getElementById('ended-action-block').classList.add('hidden');
 
-      let seconds = customGameDurationSec;
-      document.getElementById('time-display').innerText = seconds + 's';
+      const timeDisplayEl = document.getElementById('time-display');
 
-      if (timer) clearInterval(timer);
-      timer = setInterval(() => {
-        seconds--;
-        document.getElementById('time-display').innerText = seconds + 's';
+      if (endConditionType === 'lines') {
+        timeDisplayEl.innerText = `目標:${targetLinesCount}線`;
+      } else {
+        let seconds = customGameDurationSec;
+        timeDisplayEl.innerText = seconds + 's';
 
-        if (seconds <= 0) {
-          endPersonalGame(false, '⌛ 個人戰鬥時間結束！');
-        }
-      }, 1000);
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => {
+          seconds--;
+          timeDisplayEl.innerText = seconds + 's';
+
+          if (seconds <= 0) {
+            endPersonalGame(false, '⌛ 個人戰鬥時間結束！');
+          }
+        }, 1000);
+      }
 
       if (callerTimer) clearInterval(callerTimer);
       updateSynchronizedCall();
@@ -707,13 +769,13 @@
           callContainer.innerText = currentDrawn;
         }
 
-        // 修改處：當為「撲克牌模式」或「數字版模式」時，叫號時觸發真人語音播放
-        if ((gameMode === 'poker' || gameMode === 'number') && callIndex !== lastSpokenIndex) {
+        // 當為「撲克牌模式」、「數字版模式」或「原始版模式」時，叫號時觸發真人語音播放
+        if ((gameMode === 'poker' || gameMode === 'number' || gameMode === 'original') && callIndex !== lastSpokenIndex) {
           lastSpokenIndex = callIndex;
           if (gameMode === 'poker') {
             const card = getPokerCard(currentDrawn);
             speakText(card.text);
-          } else if (gameMode === 'number') {
+          } else {
             speakText(String(currentDrawn));
           }
         }
@@ -824,6 +886,12 @@
 
       completedLineCount = linesFound;
       document.getElementById('lines-display').innerText = completedLineCount;
+
+      // 如果是連線制，且達到了設定的目標連線數，直接結束遊戲！
+      if (endConditionType === 'lines' && completedLineCount >= targetLinesCount) {
+        endPersonalGame(false, `🎯 恭喜達成目標 ${targetLinesCount} 條線！`);
+        return;
+      }
 
       if (markedIndices.size === totalTiles) {
         endPersonalGame(false, '🏆 全盤完成（Full House）！');
@@ -969,27 +1037,41 @@
       <div id="mode-options" class="btn-group">
         <div class="btn-option active" data-val="image">遊戲圖片版</div>
         <div class="btn-option" data-val="number">數字版</div>
+        <div class="btn-option" data-val="original">原始版</div>
         <div class="btn-option" data-val="poker">撲克牌模式</div>
       </div>
     </div>
 
     <div class="menu-group">
-      <label>3. 統一開賽時間</label>
+      <label>3. 選擇遊戲結束條件</label>
+      <div id="end-condition-options" class="btn-group">
+        <div class="btn-option active" data-val="time">限時制</div>
+        <div class="btn-option" data-val="lines">連線制</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>4. 統一開賽時間</label>
       <input type="datetime-local" id="admin-starttime-input" class="input-box">
     </div>
 
-    <div class="menu-group">
-      <label>4. 個人戰鬥時間 (秒)</label>
+    <div id="duration-group" class="menu-group">
+      <label>5. 個人戰鬥時間 (秒)</label>
       <input type="number" id="admin-duration-input" class="input-box" value="60" min="10" placeholder="例如: 60">
     </div>
 
+    <div id="target-lines-group" class="menu-group hidden">
+      <label>5. 目標連線數 (達到幾條線結束)</label>
+      <input type="number" id="admin-targetlines-input" class="input-box" value="3" min="1" placeholder="例如: 3">
+    </div>
+
     <div class="menu-group">
-      <label>5. 賓果叫號速度 (秒/個)</label>
+      <label>6. 賓果叫號速度 (秒/個)</label>
       <input type="number" step="0.5" id="admin-speed-input" class="input-box" value="2" min="0.5" placeholder="例如: 2">
     </div>
 
     <div class="menu-group">
-      <label>6. 比賽備註說明 (可不填)</label>
+      <label>7. 比賽備註說明 (可不填)</label>
       <input type="text" id="admin-note-input" class="input-box" placeholder="例如：前三名有小禮物！">
     </div>
   </div>
