@@ -508,11 +508,15 @@
       if (gameMode === 'original') modeText = '原始版';
       if (gameMode === 'poker') modeText = '撲克牌模式';
       
+      const sideLength = Math.sqrt(totalTiles);
+      const boardSizeText = `${sideLength}x${sideLength}`;
+
       const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
 
       let copyMsg = `🎰 賓果遊戲 (${modeText})\n`;
       copyMsg += `🔗 挑戰連結：${fullLink}\n`;
+      copyMsg += `📐 盤面大小：${boardSizeText}\n`;
       copyMsg += `⏰ 開賽時間：${startText}\n`;
       copyMsg += `⏱️ 遊戲結束條件：${endConditionText}\n`;
       copyMsg += `⚡ 叫號速度：${speedText}\n`;
