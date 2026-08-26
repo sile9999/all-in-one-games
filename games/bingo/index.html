@@ -645,7 +645,7 @@
           if (evData) {
             renderLeaderboard('player-leaderboard-list', evData.scores || {});
             if (evData.isEnded && isGameActive) {
-              endPersonalGame(true, '🛑 管理者已強制結束本局比賽！');
+              endPersonalGame(true, '🛑 本局比賽已結束！');
             }
           }
         });
@@ -887,13 +887,15 @@
       completedLineCount = linesFound;
       document.getElementById('lines-display').innerText = completedLineCount;
 
-      // 如果是連線制，且達到了設定的目標連線數，直接結束遊戲！
+      // 如果是連線制，且達到了設定的目標連線數，同步更新 Firebase 房源狀態並結束遊戲！
       if (endConditionType === 'lines' && completedLineCount >= targetLinesCount) {
+        update(ref(db, `events_bingo_v2/${eventId}`), { isEnded: true }).catch(() => {});
         endPersonalGame(false, `🎯 恭喜達成目標 ${targetLinesCount} 條線！`);
         return;
       }
 
       if (markedIndices.size === totalTiles) {
+        update(ref(db, `events_bingo_v2/${eventId}`), { isEnded: true }).catch(() => {});
         endPersonalGame(false, '🏆 全盤完成（Full House）！');
       }
     }
