@@ -503,10 +503,10 @@
       }
 
       const speedText = (callIntervalMs / 1000) + ' 秒/個';
-      let modeText = '遊戲圖片版';
-      if (gameMode === 'number') modeText = '數字版';
-      if (gameMode === 'original') modeText = '原始版';
+      let modeText = '種菜圖片版';
+      if (gameMode === 'number') modeText = '99數字版';
       if (gameMode === 'poker') modeText = '撲克牌模式';
+      if (gameMode === 'original') modeText = '原始版';
       
       const sideLength = Math.sqrt(totalTiles);
       const boardSizeText = `${sideLength}x${sideLength}`;
