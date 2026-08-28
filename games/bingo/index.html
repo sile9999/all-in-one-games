@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title> 賓果連線遊戲 </title>
 
-  <!-- 引入 html2canvas 供玩家複製畫面 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -81,6 +80,9 @@
     .tile:hover { transform: scale(1.04); }
     .tile-poker { font-size: 24px; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
     
+    /* 原始版 9*9 專屬自動縮小字型樣式 */
+    .tile.tile-original-9x9 { font-size: 12px !important; }
+
     /* 成功的格子改為蓋牌樣式 */
     .tile.marked { 
       background: repeating-linear-gradient(
@@ -135,7 +137,6 @@
     .disabled-area { opacity: 0.5; pointer-events: none; }
   </style>
 
-  <!-- 防 F12 腳本 -->
   <script>
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -155,7 +156,6 @@
     }, 500);
   </script>
 
-  <!-- JS 模組載入 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
@@ -503,20 +503,16 @@
       }
 
       const speedText = (callIntervalMs / 1000) + ' 秒/個';
-      let modeText = '種菜圖片版';
-      if (gameMode === 'number') modeText = '99數字版';
-      if (gameMode === 'poker') modeText = '撲克牌模式';
+      let modeText = '遊戲圖片版';
+      if (gameMode === 'number') modeText = '數字版';
       if (gameMode === 'original') modeText = '原始版';
+      if (gameMode === 'poker') modeText = '撲克牌模式';
       
-      const sideLength = Math.sqrt(totalTiles);
-      const boardSizeText = `${sideLength}x${sideLength}`;
-
       const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
       const noteText = document.getElementById('admin-note-input').value.trim() || '無';
 
       let copyMsg = `🎰 賓果遊戲 (${modeText})\n`;
       copyMsg += `🔗 挑戰連結：${fullLink}\n`;
-      copyMsg += `📐 盤面大小：${boardSizeText}\n`;
       copyMsg += `⏰ 開賽時間：${startText}\n`;
       copyMsg += `⏱️ 遊戲結束條件：${endConditionText}\n`;
       copyMsg += `⚡ 叫號速度：${speedText}\n`;
@@ -649,7 +645,7 @@
           if (evData) {
             renderLeaderboard('player-leaderboard-list', evData.scores || {});
             if (evData.isEnded && isGameActive) {
-              endPersonalGame(true, '🛑 本局比賽已結束！');
+              endPersonalGame(true, '🛑 管理者已強制結束本局比賽！');
             }
           }
         });
@@ -807,6 +803,11 @@
         let tileClass = 'tile';
         if (markedIndices.has(idx)) tileClass += ' marked';
 
+        // 針對原始版模式且盤面為 9*9 (總格數 81) 時，加入自動縮小字型的專屬 class
+        if (gameMode === 'original' && totalTiles === 81) {
+          tileClass += ' tile-original-9x9';
+        }
+
         tile.className = tileClass;
         
         if (gameMode === 'image' && numberImages[val]) {
@@ -891,15 +892,13 @@
       completedLineCount = linesFound;
       document.getElementById('lines-display').innerText = completedLineCount;
 
-      // 如果是連線制，且達到了設定的目標連線數，同步更新 Firebase 房源狀態並結束遊戲！
+      // 如果是連線制，且達到了設定的目標連線數，直接結束遊戲！
       if (endConditionType === 'lines' && completedLineCount >= targetLinesCount) {
-        update(ref(db, `events_bingo_v2/${eventId}`), { isEnded: true }).catch(() => {});
         endPersonalGame(false, `🎯 恭喜達成目標 ${targetLinesCount} 條線！`);
         return;
       }
 
       if (markedIndices.size === totalTiles) {
-        update(ref(db, `events_bingo_v2/${eventId}`), { isEnded: true }).catch(() => {});
         endPersonalGame(false, '🏆 全盤完成（Full House）！');
       }
     }
@@ -982,7 +981,6 @@
 </head>
 <body>
 
-<!-- 彈窗 1：管理者驗證密碼 -->
 <div id="pwd-modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 style="margin-bottom: 12px; color: #1e293b;">🔒 解鎖管理者設定</h3>
@@ -994,7 +992,6 @@
   </div>
 </div>
 
-<!-- 彈窗 2：玩家暱稱輸入 -->
 <div id="join-modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 style="margin-bottom: 8px; color: #1e293b;">🎰 參加賓果挑戰賽</h3>
@@ -1005,7 +1002,6 @@
   </div>
 </div>
 
-<!-- 視圖：活動結束頁面 -->
 <div id="event-ended-view" class="ended-card hidden">
   <div class="ended-icon">🏁</div>
   <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次賓果活動已結束</h2>
@@ -1018,7 +1014,6 @@
 
 </div>
 
-<!-- 主介面 1：管理者發起活動建立 -->
 <div id="main-setup-view" class="container">
   <h1>🎰 Make 賓果連線賽 </h1>
 
@@ -1041,10 +1036,10 @@
     <div class="menu-group">
       <label>2. 選擇賓果顯示模式</label>
       <div id="mode-options" class="btn-group">
-        <div class="btn-option active" data-val="image">種菜圖片版</div>
-        <div class="btn-option" data-val="number">99數字版</div>
-        <div class="btn-option" data-val="poker">撲克牌模式</div>
+        <div class="btn-option active" data-val="image">遊戲圖片版</div>
+        <div class="btn-option" data-val="number">數字版</div>
         <div class="btn-option" data-val="original">原始版</div>
+        <div class="btn-option" data-val="poker">撲克牌模式</div>
       </div>
     </div>
 
@@ -1104,13 +1099,10 @@
     </div>
   </div>
 
-  <!-- 主設定頁面的回到大廳按鈕 -->
   <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
 </div>
 
-<!-- 主介面 2：玩家挑戰對戰畫面 -->
 <div id="player-game-view" class="container hidden">
-  <!-- 可截圖複製區塊 -->
   <div id="capture-board-area" style="background: white; padding: 12px; border-radius: 12px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
       <h1 style="margin-bottom: 0; font-size: 20px;">🎰 Make 賓果戰報</h1>
