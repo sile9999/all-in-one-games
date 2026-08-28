@@ -401,7 +401,7 @@
         unlockBtn.innerText = '✅ 管理者權限已解鎖';
         unlockBtn.classList.add('btn-success-state');
       } else {
-        alert('密密錯誤！');
+        alert('密碼錯誤！');
       }
     }
 
@@ -778,20 +778,23 @@
       if (maxSteps === 0) return;
 
       let targetStepIndex = 0;
+      const totalListDuration = globalMoleList[maxSteps - 1].timeAt;
+
       if (!isRandomSpeedMode) {
         targetStepIndex = Math.floor(elapsed / popIntervalMs);
       } else {
-        for (let i = 0; i < maxSteps; i++) {
-          if (elapsed >= globalMoleList[i].timeAt) {
-            targetStepIndex = i + 1;
+        if (elapsed < totalListDuration) {
+          for (let i = 0; i < maxSteps; i++) {
+            if (elapsed >= globalMoleList[i].timeAt) {
+              targetStepIndex = i + 1;
+            }
           }
+        } else {
+          // 超過總預設時間後，透過循環步數保持隨機模式繼續運作
+          const extraElapsed = elapsed - totalListDuration;
+          const avgInterval = totalListDuration / maxSteps;
+          targetStepIndex = maxSteps + Math.floor(extraElapsed / avgInterval);
         }
-      }
-
-      // FIX: 如果遊戲時間超過了所有預先生成的步驟總時間，讓其循環播放或安全夾取，避免卡在同一個洞
-      const totalListDuration = globalMoleList[maxSteps - 1].timeAt;
-      if (elapsed >= totalListDuration) {
-        targetStepIndex = Math.floor(elapsed / (popIntervalMs || 1000));
       }
 
       if (targetStepIndex !== lastStepIndex) {
