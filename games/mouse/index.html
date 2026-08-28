@@ -611,7 +611,6 @@
         if (gameMode === 'double') {
           isGold = rng() < 0.25; 
         } else if (gameMode === 'other_animals') {
-          // 30% 機率出現其他動物
           if (rng() < 0.3) {
             isOther = true;
             const animalObj = otherAnimalList[Math.floor(rng() * otherAnimalList.length)];
@@ -790,6 +789,12 @@
         }
       }
 
+      // FIX: 如果遊戲時間超過了所有預先生成的步驟總時間，讓其循環播放或安全夾取，避免卡在同一個洞
+      const totalListDuration = globalMoleList[maxSteps - 1].timeAt;
+      if (elapsed >= totalListDuration) {
+        targetStepIndex = Math.floor(elapsed / (popIntervalMs || 1000));
+      }
+
       if (targetStepIndex !== lastStepIndex) {
         lastStepIndex = targetStepIndex;
         
@@ -881,7 +886,6 @@
 
       if (isCorrect) {
         if (isOtherAnimal) {
-          // 打到其他動物 -> 扣分 (最低扣到 0)
           correctWinsCount = Math.max(0, correctWinsCount - 1);
           document.getElementById('lines-display').innerText = correctWinsCount;
 
@@ -893,7 +897,6 @@
             tile.classList.remove('error');
           }, 300);
         } else {
-          // 打到地鼠或黃金地鼠 -> 加分
           const pointsEarned = isGoldMole ? 2 : 1;
           correctWinsCount += pointsEarned;
           document.getElementById('lines-display').innerText = correctWinsCount;
@@ -984,7 +987,7 @@
           const timeA = a.firstLineTime !== null && a.firstLineTime !== undefined ? a.firstLineTime : 999999;
           const timeB = b.firstLineTime !== null && b.firstLineTime !== undefined ? b.firstLineTime : 999999;
           if (timeA !== timeB) return timeA - timeB;
-          return (b.clicks || 0) - (a.clicks || 0);
+          return (b.clicks || 0) - (b.clicks || 0);
         });
 
       lbEl.innerHTML = sorted.map((p, idx) => {
