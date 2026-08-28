@@ -41,20 +41,20 @@
       text-shadow: 0 0 10px #00f0ff, 2px 2px 5px rgba(0, 0, 0, 0.8);
     }
 
-    /* --- 4. 遊戲卡片容器 (改用 CSS Grid 鎖定一列二格) --- */
+    /* --- 4. 遊戲卡片容器 (修改為一列三格) --- */
     .game-container {
       display: grid;
-      grid-template-columns: repeat(2, 280px); /* 桌上型/平板預設一列二格 (每格寬度 280px) */
+      grid-template-columns: repeat(3, 1fr); /* 桌上型/平板改為一列三格 */
       justify-content: center;
-      gap: 30px;
+      gap: 25px;
       max-width: 1000px;
       margin: 0 auto;
     }
 
-    /* RWD 手機規格：當螢幕寬度小於 600px 時，切換回一列一格 */
-    @media (max-width: 600px) {
+    /* RWD 手機與小螢幕規格：當螢幕寬度小於 768px 時，自動切換為一列一格 */
+    @media (max-width: 768px) {
       .game-container {
-        grid-template-columns: repeat(1, 100%); /* 手機單欄顯示 */
+        grid-template-columns: repeat(1, 100%);
         max-width: 320px;
       }
     }
@@ -90,7 +90,6 @@
 </head>
 <body>
 
-  <!-- 背景圖片容器：自動適應任何裝置螢幕尺寸 -->
   <img class="bg-layer" src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png" alt="背景圖">
 
   <header>
@@ -98,50 +97,43 @@
   </header>
 
   <main class="game-container">
-    <!-- 遊戲 1: GOGO 遊戲 -->
     <a href="games/gogo/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/gogo01.png" alt="GOGO 遊戲" class="game-icon">
     </a>
 
-    <!-- 遊戲 2: 賓果 BINGO -->
     <a href="games/bingo/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/bingo01.png" alt="賓果 BINGO" class="game-icon">
     </a>
 
-    <!-- 遊戲 3: LALACA 遊戲 -->
     <a href="games/lalaca/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/lalaca01.png" alt="LALACA 遊戲" class="game-icon">
     </a>
 
-    <!-- 遊戲 4: 數字挑戰 -->
     <a href="games/number/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/number01.png" alt="數字挑戰" class="game-icon">
     </a>
 
-    <!-- 遊戲 5: 種菜 539 -->
     <a href="games/539/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/money.jpg" alt="種菜 539" class="game-icon">
     </a>
 
-    <!-- 遊戲 6: 數學消消樂 POPO -->
     <a href="games/popo/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/egg.png" alt="數學消消樂 POPO" class="game-icon">
     </a>
-    <!-- 遊戲 7: NO2 遊戲 -->
+
     <a href="games/no2/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/no2.jpg" alt="NO2 遊戲" class="game-icon">
     </a>
 
-    <!-- 遊戲 8: CUP 遊戲 -->
     <a href="games/cup/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/cup.jpg" alt="CUP 遊戲" class="game-icon">
-    <!-- 遊戲 9: MOUSE 遊戲 -->
+    </a>
+
     <a href="games/mouse/index.html" class="game-link">
       <img src="https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/mouse.jpg" alt="MOUSE 遊戲" class="game-icon">
     </a>
   </main>
 
-  <!-- 防 F12 與開發者工具指令碼 -->
   <script>
     // 1. 禁用右鍵選單
     document.addEventListener('contextmenu', function (e) {
