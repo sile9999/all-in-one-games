@@ -80,9 +80,6 @@
     .tile:hover { transform: scale(1.04); }
     .tile-poker { font-size: 24px; font-weight: 900; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
     
-    /* 原始版 9*9 專屬自動縮小字型樣式 */
-    .tile.tile-original-9x9 { font-size: 12px !important; }
-
     /* 成功的格子改為蓋牌樣式 */
     .tile.marked { 
       background: repeating-linear-gradient(
@@ -803,11 +800,6 @@
         let tileClass = 'tile';
         if (markedIndices.has(idx)) tileClass += ' marked';
 
-        // 針對原始版模式且盤面為 9*9 (總格數 81) 時，加入自動縮小字型的專屬 class
-        if (gameMode === 'original' && totalTiles === 81) {
-          tileClass += ' tile-original-9x9';
-        }
-
         tile.className = tileClass;
         
         if (gameMode === 'image' && numberImages[val]) {
@@ -824,6 +816,13 @@
           pokerDiv.innerHTML = `<span>${card.suitSymbol}${card.rank}</span>`;
           tile.appendChild(pokerDiv);
         } else {
+          // 針對「原始版」且盤面大小大於 7*7 (即 totalTiles > 49，如 8x8、9x9) 進行字體縮放
+          if (gameMode === 'original' && totalTiles > 49) {
+            // 利用 CSS clamp 隨畫面與格子動態計算最大化字體，避免溢出並維持清晰
+            tile.style.fontSize = `clamp(9px, ${Math.max(10, 32 - sideLength * 2.2)}vw, ${Math.max(11, 38 - sideLength * 1.5)}px)`;
+          } else {
+            tile.style.fontSize = ''; // 使用預設樣式
+          }
           tile.innerText = val;
         }
 
