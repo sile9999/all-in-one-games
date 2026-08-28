@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> 打地鼠遊戲 </title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    
+    /* 指定背景圖片並置中防重複 */
+    body { 
+      background-image: url('https://cdn.jsdelivr.net/gh/sile9999/my-assets@main/images2/BK01.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-color: #f0f4f8; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 16px; 
+    }
+
+    .container { background: rgba(255, 255, 255, 0.95); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 520px; text-align: center; position: relative; backdrop-filter: blur(4px); }
+    h1 { color: #2c3e50; margin-bottom: 16px; font-size: 22px; text-align: center; }
+    
+    .menu-group { margin-bottom: 16px; text-align: left; }
+    .menu-group label { display: block; font-weight: bold; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+    
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-option { flex: 1; min-width: 55px; padding: 10px 4px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569; text-align: center; font-size: 13px; }
+    .btn-option.active { border-color: #00abab; background-color: #e6f7f7; color: #008b8b; }
+    
+    .input-box { width: 100%; padding: 10px 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-weight: bold; outline: none; margin-bottom: 10px; }
+    
+    .btn-primary { width: 100%; padding: 12px; background-color: #00abab; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; transition: all 0.2s ease; display: inline-block; text-decoration: none; }
+    .btn-primary:hover { background-color: #008b8b; }
+    .btn-admin { background-color: #64748b; }
+    .btn-admin:hover { background-color: #475569; }
+    .btn-danger { background-color: #ef4444; }
+    .btn-danger:hover { background-color: #dc2626; }
+    .btn-copy { background-color: #8b5cf6; }
+    .btn-copy:hover { background-color: #7c3aed; }
+    .btn-start { background-color: #10b981; }
+    .btn-start:hover { background-color: #059669; }
+    
+    /* 回到遊戲大廳按鈕樣式 */
+    .btn-lobby { background-color: #0284c7; width: auto; min-width: 200px; margin: 16px auto 0 auto; display: block; }
+    .btn-lobby:hover { background-color: #0369a1; }
+
+    .btn-success-state { background-color: #059669 !important; color: white !important; transform: scale(0.98); }
+
+    .room-display-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 12px; text-align: center; margin-top: 12px; }
+    .room-number { font-size: 28px; font-weight: bold; color: #00abab; letter-spacing: 2px; }
+    .room-number.ended { color: #ef4444; font-size: 24px; letter-spacing: 0px; }
+
+    /* 遊戲對戰區 */
+    .status-bar { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #334155; font-size: 14px; gap: 4px; }
+    .status-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    /* 遊戲狀態提示區 */
+    .bingo-caller-box { background: linear-gradient(135deg, #006666, #00abab); color: white; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0, 171, 171, 0.2); min-height: 110px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .caller-title { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .current-number-display { font-size: 24px; font-weight: 900; line-height: 1.2; margin: 4px 0; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; text-align: center; }
+
+    /* 打地鼠專屬舞台與地洞排版 (設定每列 3 個，自動折行與寬度限制) */
+    .grid-container { position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; background: #3f6212; padding: 25px 10px 15px 10px; min-height: 200px; display: flex; justify-content: center; align-items: center; border: 4px solid #365314; box-shadow: inset 0 10px 20px rgba(0,0,0,0.3); }
+    .grid { display: flex; gap: 12px; justify-content: center; align-items: center; width: 100%; max-width: 270px; flex-wrap: wrap; position: relative; }
+
+    /* 地洞與地鼠樣式 */
+    .tile { 
+      width: 70px; 
+      height: 70px; 
+      background: radial-gradient(circle, #713f12 50%, #451a03 100%); 
+      border: 4px solid #292524; 
+      border-radius: 50%; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      cursor: pointer; 
+      transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease; 
+      position: relative; 
+      box-shadow: inset 0 8px 12px rgba(0,0,0,0.6), 0 4px 6px rgba(0,0,0,0.2); 
+      overflow: hidden;
+    }
+    
+    .tile:hover { transform: scale(1.03); }
+
+    /* 地鼠本體 (預設隱藏在洞裡) */
+    .mole {
+      position: absolute;
+      bottom: -60px;
+      width: 50px;
+      height: 50px;
+      background: #a855f7;
+      border-radius: 50% 50% 20% 20%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: bottom 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 -4px 6px rgba(0,0,0,0.2);
+      font-size: 24px;
+    }
+
+    /* 地鼠冒出來的狀態 */
+    .tile.active-mole .mole {
+      bottom: 6px;
+    }
+
+    /* 金色稀有地鼠樣式 */
+    .tile.active-mole.gold .mole {
+      background: #eab308;
+    }
+
+    /* 其他動物樣式 */
+    .tile.active-mole.other-animal .mole {
+      background: #f97316;
+    }
+
+    /* 被打中的瞬間效果 */
+    .tile.hit .mole {
+      background: #ef4444;
+      transform: scale(0.8) rotate(15deg);
+    }
+
+    .tile.error { background-color: #991b1b; animation: shake 0.3s; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .leaderboard { background: #e6f7f7; border: 2px solid #b3e0e0; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: left; }
+    .leaderboard-title { font-size: 14px; font-weight: bold; color: #006666; margin-bottom: 8px; }
+    .leaderboard-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; color: #334155; border-bottom: 1px dashed #cbd5e1; }
+    .leaderboard-item.me { font-weight: bold; color: #00abab; }
+    .sub-info { font-size: 11px; color: #64748b; margin-left: 4px; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
+    
+    .ended-card { background: rgba(255, 255, 255, 0.95); padding: 32px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 100%; backdrop-filter: blur(4px); }
+    .ended-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .hidden { display: none !important; }
+    .disabled-area { opacity: 0.5; pointer-events: none; }
+  </style>
+
+  <script>
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) { e.preventDefault(); return false; }
+      if ((e.ctrlKey || e.metaKey) && ['U','u'].includes(e.key)) { e.preventDefault(); return false; }
+    });
+
+    setInterval(() => {
+      const startTime = performance.now();
+      (function() { return false; }).constructor("debugger")();
+      const endTime = performance.now();
+      if (endTime - startTime > 100) {
+        document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20%; font-family:sans-serif;">⚠️ 系統偵測到開發者工具，禁止開啟！</h1>';
+      }
+    }, 500);
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDfajfgTmrYRSo7lyRa4j23rsODFzFZSRY",
+      authDomain: "gogogame-ce8ba.firebaseapp.com",
+      databaseURL: "https://gogogame-ce8ba-default-rtdb.firebaseio.com",
+      projectId: "gogogame-ce8ba",
+      storageBucket: "gogogame-ce8ba.firebasestorage.app",
+      messagingSenderId: "823932242561",
+      appId: "1:823932242561:web:7aaea77c9d8cf300b15b80"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let voices = [];
+    function loadVoices() {
+      if ('speechSynthesis' in window) {
+        voices = window.speechSynthesis.getVoices();
+      }
+    }
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        if (voices.length === 0) voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => 
+          (v.lang.includes('zh-TW') || v.lang.includes('zh-HK') || v.lang.includes('zh')) && 
+          (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('HsiaoChen') || v.name.includes('YunJhe'))
+        ) || voices.find(v => v.lang.includes('zh-TW'));
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+
+        utterance.lang = 'zh-TW';
+        utterance.rate = 1.0;  
+        utterance.pitch = 1.0; 
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    let eventId = null;
+    let playerId = 'usr_' + Math.random().toString(36).substring(2, 7);
+    let playerName = '';
+    let customGameDurationSec = 60; 
+    let totalHoles = 6; 
+    let gameMode = 'classic'; 
+    let endConditionType = 'time'; 
+    let targetScoreCount = 10; 
+    let popIntervalMs = 1500; 
+    let isRandomSpeedMode = false; // 是否啟用速度隨機模式
+    let totalStepsCount = 30; 
+    let startTimeMs = 0;
+    let matchStartTimestamp = 0; 
+    let adminStatusTimer = null; 
+    
+    let activeMoleIndex = -1;
+    let isGoldMole = false;
+    let isOtherAnimal = false;
+    let currentAnimalEmoji = '🐹';
+    const otherAnimalList = [
+      { name: '狐狸', emoji: '🦊' },
+      { name: '兔子', emoji: '🐰' },
+      { name: '貓貓', emoji: '🐱' },
+      { name: '熊貓', emoji: '🐼' },
+      { name: '青蛙', emoji: '🐸' }
+    ];
+
+    let correctWinsCount = 0; 
+    let firstWinTimeSec = null; 
+    
+    let timer = null;
+    let moleTimer = null;
+    let waitTimer = null;
+    let eventRef = null;
+    let currentLeaderboard = {};
+    let isGameActive = false;
+    let globalMoleList = []; 
+    let lastStepIndex = -1; 
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('admin-unlock-btn').addEventListener('click', openAdminModal);
+      document.getElementById('pwd-check-btn').addEventListener('click', checkPassword);
+      document.getElementById('pwd-cancel-btn').addEventListener('click', () => closeModal('pwd-modal'));
+      document.getElementById('create-event-btn').addEventListener('click', createEvent);
+      document.getElementById('open-newtab-btn').addEventListener('click', openJoinModalNewTab);
+      document.getElementById('copy-link-btn').addEventListener('click', function() { copyEventLink(this); });
+      document.getElementById('copy-score-btn').addEventListener('click', function() { copyScores(this); });
+      document.getElementById('join-game-btn').addEventListener('click', joinIndividualGame);
+      document.getElementById('copy-board-btn').addEventListener('click', function() { copyBoardToClipboard(this); });
+
+      setupOptionGroup('grid-options', (val) => {
+        totalHoles = parseInt(val);
+      });
+
+      setupOptionGroup('mode-options', (val) => gameMode = val);
+      
+      setupOptionGroup('speed-options', (val) => {
+        const speedInputBox = document.getElementById('admin-speed-input');
+        if (val === 'random') {
+          isRandomSpeedMode = true;
+          speedInputBox.value = '0.2-1';
+          speedInputBox.disabled = true;
+          speedInputBox.style.opacity = '0.6';
+        } else {
+          isRandomSpeedMode = false;
+          speedInputBox.disabled = false;
+          speedInputBox.style.opacity = '1';
+          speedInputBox.value = val;
+        }
+      });
+
+      setupOptionGroup('end-condition-options', (val) => {
+        endConditionType = val;
+        const targetLinesGroup = document.getElementById('target-lines-group');
+        const durationGroup = document.getElementById('duration-group');
+        const targetLabel = document.querySelector('label[for="admin-targetlines-input"]') || targetLinesGroup.querySelector('label');
+        
+        if (val === 'score') {
+          targetLinesGroup.classList.remove('hidden');
+          durationGroup.classList.add('hidden');
+          if (targetLabel) targetLabel.innerText = '5. 目標擊中數 (達到幾分結束)';
+        } else {
+          targetLinesGroup.classList.add('hidden');
+          durationGroup.classList.remove('hidden');
+        }
+      });
+
+      const now = new Date();
+      const startDef = new Date(now.getTime() + 60000);
+      document.getElementById('admin-starttime-input').value = formatDateForInput(startDef);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventParam = urlParams.get('event');
+
+      if (eventParam) {
+        document.getElementById('main-setup-view').classList.add('hidden');
+        eventId = eventParam;
+        
+        get(ref(db, 'events_bingo_v2/' + eventId)).then((snapshot) => {
+          if (!snapshot.exists()) {
+            alert('找不到該活動代號，請確認後重試！');
+            document.getElementById('main-setup-view').classList.remove('hidden');
+            return;
+          }
+
+          const data = snapshot.val();
+          const nowMs = Date.now();
+          const durationMs = (data.customGameDurationSec || 60) * 1000;
+          const endTimeMs = data.startTime + durationMs;
+          
+          if (data.isEnded || (data.endConditionType !== 'score' && nowMs >= endTimeMs)) {
+            showEventEndedView('本次打地鼠活動已結束');
+            return;
+          }
+
+          if (nowMs >= data.startTime) {
+            showEventEndedView('活動比賽已開始，下次請早');
+            return;
+          }
+
+          document.getElementById('input-event-id').value = eventId;
+          document.getElementById('join-modal').classList.remove('hidden');
+        }).catch((error) => {
+          alert('讀取活動失敗：' + error.message);
+          document.getElementById('main-setup-view').classList.remove('hidden');
+        });
+      }
+    });
+
+    function formatDateForInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function showEventEndedView(msg = '本次打地鼠活動已結束') {
+      document.getElementById('main-setup-view').classList.add('hidden');
+      document.getElementById('join-modal').classList.add('hidden');
+      document.getElementById('player-game-view').classList.add('hidden');
+      
+      document.getElementById('ended-title-text').innerText = msg;
+      document.getElementById('event-ended-view').classList.remove('hidden');
+
+      onValue(ref(db, `events_bingo_v2/${eventId}`), (snap) => {
+        const evData = snap.val();
+        if (evData) {
+          renderLeaderboard('ended-leaderboard-list', evData.scores || {});
+        }
+      });
+    }
+
+    function setupOptionGroup(groupId, callback) {
+      const group = document.getElementById(groupId);
+      group.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-option')) {
+          Array.from(group.children).forEach(btn => btn.classList.remove('active'));
+          e.target.classList.add('active');
+          callback(e.target.dataset.val);
+        }
+      });
+    }
+
+    function openAdminModal() {
+      document.getElementById('pwd-modal').classList.remove('hidden');
+    }
+
+    function checkPassword() {
+      const pwd = document.getElementById('admin-pwd').value;
+      if (pwd === '17696969') {
+        document.getElementById('pwd-modal').classList.add('hidden');
+        document.getElementById('setting-fields').classList.remove('disabled-area');
+        document.getElementById('admin-create-actions').classList.remove('hidden');
+        
+        const unlockBtn = document.getElementById('admin-unlock-btn');
+        unlockBtn.innerText = '✅ 管理者權限已解鎖';
+        unlockBtn.classList.add('btn-success-state');
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+
+    function createEvent() {
+      const startTimeStr = document.getElementById('admin-starttime-input').value;
+
+      if (!startTimeStr) {
+        alert('請先設定「活動開始時間」！');
+        return;
+      }
+
+      if (endConditionType === 'score') {
+        customGameDurationSec = parseInt(document.getElementById('admin-duration-input').value);
+        targetScoreCount = parseInt(document.getElementById('admin-targetlines-input').value);
+        if (isNaN(targetScoreCount) || targetScoreCount <= 0) {
+          alert('請輸入有效的目標擊中數！');
+          return;
+        }
+      } else {
+        customGameDurationSec = parseInt(document.getElementById('admin-duration-input').value);
+        if (isNaN(customGameDurationSec) || customGameDurationSec <= 0) {
+          alert('請輸入有效的單局戰鬥秒數！');
+          return;
+        }
+      }
+
+      if (!isRandomSpeedMode) {
+        const speedSecInput = parseFloat(document.getElementById('admin-speed-input').value);
+        if (isNaN(speedSecInput) || speedSecInput <= 0) {
+          alert('請輸入有效的地鼠冒出速度！');
+          return;
+        }
+        popIntervalMs = Math.round(speedSecInput * 1000);
+      } else {
+        popIntervalMs = 0; // 標記為隨機模式
+      }
+
+      const stepsInput = parseInt(document.getElementById('admin-steps-input').value);
+      if (isNaN(stepsInput) || stepsInput <= 0) {
+        alert('請輸入有效的總出現次數！');
+        return;
+      }
+      totalStepsCount = stepsInput;
+
+      const noteText = document.getElementById('admin-note-input').value.trim();
+      const calculatedStartMs = new Date(startTimeStr).getTime();
+
+      eventId = Math.floor(100000 + Math.random() * 900000).toString();
+      eventRef = ref(db, 'events_bingo_v2/' + eventId);
+
+      const seed = Math.floor(Math.random() * 1000000);
+
+      set(eventRef, {
+        customGameDurationSec: customGameDurationSec,
+        endConditionType: endConditionType,
+        targetLinesCount: targetScoreCount,
+        totalTiles: totalHoles,
+        gameMode: gameMode,
+        callIntervalMs: popIntervalMs,
+        isRandomSpeed: isRandomSpeedMode,
+        shuffleStepsCount: totalStepsCount,
+        startTime: calculatedStartMs,
+        seed: seed,
+        isEnded: false,
+        note: noteText,
+        scores: {}
+      }).then(() => {
+        const roomNumEl = document.getElementById('room-num-display');
+        roomNumEl.innerText = eventId;
+        roomNumEl.classList.remove('ended');
+        
+        document.getElementById('admin-action-area').classList.remove('hidden');
+        alert(`🎉 打地鼠活動建立成功！活動代號為：${eventId}`);
+      }).catch((error) => {
+        alert('建立失敗，請檢查網路連線：' + error.message);
+      });
+
+      onValue(eventRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        checkRoomStatus(data);
+        currentLeaderboard = data.scores || {};
+        renderLeaderboard('admin-leaderboard-list', currentLeaderboard);
+
+        if (adminStatusTimer) clearInterval(adminStatusTimer);
+        adminStatusTimer = setInterval(() => {
+          checkRoomStatus(data);
+        }, 1000);
+      });
+    }
+
+    function checkRoomStatus(data) {
+      const roomNumEl = document.getElementById('room-num-display');
+      if (!roomNumEl) return;
+
+      const now = Date.now();
+      let isEndedByTime = false;
+
+      if (data.endConditionType !== 'score') {
+        const durationMs = (data.customGameDurationSec || 60) * 1000;
+        const endTime = data.startTime + durationMs;
+        if (now > endTime) isEndedByTime = true;
+      }
+
+      if (data.isEnded || isEndedByTime) {
+        roomNumEl.innerText = '該局結束';
+        roomNumEl.classList.add('ended');
+      } else {
+        roomNumEl.innerText = eventId;
+        roomNumEl.classList.remove('ended');
+      }
+    }
+
+    function copyEventLink(btn) {
+      if (!eventId) return;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const fullLink = `${baseUrl}?event=${eventId}`;
+      let endConditionText = customGameDurationSec + ' 秒 (限時制)';
+      if (endConditionType === 'score') {
+        endConditionText = targetScoreCount + ' 分 (勝場制)';
+      }
+
+      const speedText = isRandomSpeedMode ? '隨機 (0.2s~1s)' : ((popIntervalMs / 1000) + ' 秒/隻');
+      const stepsText = totalStepsCount + ' 次';
+      
+      let modeText = '標準打地鼠模式';
+      if (gameMode === 'double') modeText = '黃金地鼠加分模式';
+      if (gameMode === 'other_animals') modeText = '其他動物扣分模式';
+
+      const boardSizeText = `${totalHoles} 個地洞`;
+
+      const startText = document.getElementById('admin-starttime-input').value.replace('T', ' ');
+      const noteText = document.getElementById('admin-note-input').value.trim() || '無';
+
+      let copyMsg = `🏆 打地鼠遊戲 (${modeText})\n`;
+      copyMsg += `🔗 挑戰連結：${fullLink}\n`;
+      copyMsg += `📐 遊戲規模：${boardSizeText}\n`;
+      copyMsg += `⏰ 開賽時間：${startText}\n`;
+      copyMsg += `⏱️ 遊戲結束條件：${endConditionText}\n`;
+      copyMsg += `⚡ 冒出速度：${speedText}\n`;
+      copyMsg += `🔄 出現次數：${stepsText}\n`;
+      copyMsg += `📝 備註：${noteText}\n`;
+
+      navigator.clipboard.writeText(copyMsg).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製活動連結！', '📋 複製活動連結');
+      }).catch(() => {});
+    }
+
+    function copyScores(btn) {
+      if (!currentLeaderboard || Object.keys(currentLeaderboard).length === 0) {
+        return alert('目前尚無玩家成績！');
+      }
+      const sorted = Object.values(currentLeaderboard).sort((a, b) => b.lines - a.lines || (a.firstLineTime || 999) - (b.firstLineTime || 999) || b.clicks - a.clicks);
+      let text = `🏆【 打地鼠挑戰賽 - 總排行榜】\n📍 活動代號：${eventId || '無'}\n-------------------\n`;
+      sorted.forEach((p, idx) => { 
+        const winTimeStr = p.firstLineTime !== null && p.firstLineTime !== undefined ? `${p.firstLineTime}s` : '--';
+        text += `第 ${idx + 1} 名: ${p.name} - ${p.lines || 0} 分 (打中: ${p.clicks || 0} 次, 首擊: ${winTimeStr})\n`; 
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        triggerButtonFeedback(btn, '✅ 已複製戰報成績！', '🏆 複製總排行榜成績');
+      }).catch(() => {});
+    }
+
+    function triggerButtonFeedback(btnElement, activeText, originalText) {
+      if (!btnElement) return;
+      btnElement.innerText = activeText;
+      btnElement.classList.add('btn-success-state');
+      setTimeout(() => {
+        btnElement.innerText = originalText;
+        btnElement.classList.remove('btn-success-state');
+      }, 1200);
+    }
+
+    function openJoinModalNewTab() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const targetUrl = eventId ? `${baseUrl}?event=${eventId}` : baseUrl;
+      window.open(targetUrl, '_blank');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function pseudoRandom(seed) {
+      let value = seed;
+      return function() {
+        value = (value * 9301 + 49297) % 233280;
+        return value / 233280;
+      };
+    }
+
+    function generateGlobalMoleList(seed, stepsCount, isRandom, baseInterval) {
+      const rng = pseudoRandom(seed);
+      const list = [];
+      let cumulativeTime = 0;
+      
+      for (let i = 0; i < stepsCount; i++) {
+        const holeIdx = Math.floor(rng() * totalHoles);
+        
+        let isGold = false;
+        let isOther = false;
+        let animalEmoji = '🐹';
+
+        if (gameMode === 'double') {
+          isGold = rng() < 0.25; 
+        } else if (gameMode === 'other_animals') {
+          // 30% 機率出現其他動物
+          if (rng() < 0.3) {
+            isOther = true;
+            const animalObj = otherAnimalList[Math.floor(rng() * otherAnimalList.length)];
+            animalEmoji = animalObj.emoji;
+          }
+        }
+        
+        let interval;
+        if (isRandom) {
+          interval = Math.round((rng() * 0.8 + 0.2) * 1000);
+        } else {
+          interval = baseInterval;
+        }
+
+        cumulativeTime += interval;
+        list.push({ holeIdx, isGold, isOther, animalEmoji, timeAt: cumulativeTime });
+      }
+      return list;
+    }
+
+    function joinIndividualGame() {
+      const inputEvent = document.getElementById('input-event-id').value.trim();
+      const inputName = document.getElementById('input-player-name').value.trim();
+
+      if (!inputEvent) return alert('請輸入活動代號！');
+      if (!inputName) return alert('請輸入暱稱！');
+
+      eventId = inputEvent;
+      playerName = inputName;
+      eventRef = ref(db, 'events_bingo_v2/' + eventId);
+
+      get(eventRef).then((snapshot) => {
+        if (!snapshot.exists()) {
+          alert('找不到該活動代號，請確認後重試！');
+          return;
+        }
+
+        const data = snapshot.val();
+        const nowMs = Date.now();
+        const durationMs = (data.customGameDurationSec || 60) * 1000;
+        const endTimeMs = data.startTime + durationMs;
+        
+        if (data.isEnded || (data.endConditionType !== 'score' && nowMs >= endTimeMs)) {
+          showEventEndedView('本次打地鼠活動已結束');
+          return;
+        }
+
+        if (nowMs >= data.startTime) {
+          showEventEndedView('活動比賽已開始，下次請早');
+          return;
+        }
+
+        customGameDurationSec = data.customGameDurationSec || 60;
+        endConditionType = data.endConditionType || 'time';
+        targetScoreCount = data.targetLinesCount || 10;
+        totalHoles = data.totalTiles || 6;
+        gameMode = data.gameMode || 'classic';
+        popIntervalMs = data.callIntervalMs || 1500;
+        isRandomSpeedMode = !!data.isRandomSpeed;
+        totalStepsCount = data.shuffleStepsCount || 30;
+        startTimeMs = data.startTime || Date.now();
+        
+        globalMoleList = generateGlobalMoleList(data.seed || 12345, totalStepsCount, isRandomSpeedMode, popIntervalMs);
+
+        document.getElementById('join-modal').classList.add('hidden');
+        document.getElementById('main-setup-view').classList.add('hidden');
+        document.getElementById('player-game-view').classList.remove('hidden');
+
+        document.getElementById('player-name-display').innerText = playerName;
+
+        update(ref(db, `events_bingo_v2/${eventId}/scores/${playerId}`), {
+          name: playerName,
+          lines: 0,
+          clicks: 0,
+          firstLineTime: null,
+          timestamp: Date.now()
+        });
+
+        onValue(eventRef, (snap) => {
+          const evData = snap.val();
+          if (evData) {
+            renderLeaderboard('player-leaderboard-list', evData.scores || {});
+            if (evData.isEnded && isGameActive) {
+              endPersonalGame(true, '🛑 本局比賽已結束！');
+            }
+          }
+        });
+
+        prepareBoardAndCountdown();
+      }).catch((error) => {
+        alert('讀取活動失敗：' + error.message);
+      });
+    }
+
+    function prepareBoardAndCountdown() {
+      correctWinsCount = 0;
+      firstWinTimeSec = null;
+      lastStepIndex = -1;
+      activeMoleIndex = -1;
+
+      renderHoles();
+
+      document.getElementById('lines-display').innerText = '0';
+      document.getElementById('room-tag-display').innerText = '活動: ' + eventId;
+
+      const now = Date.now();
+      if (now < startTimeMs) {
+        document.getElementById('caller-title-label').innerText = 'COUNTDOWN 開賽倒數';
+        
+        if (waitTimer) clearInterval(waitTimer);
+        
+        waitTimer = setInterval(() => {
+          const current = Date.now();
+          const diffSec = Math.ceil((startTimeMs - current) / 1000);
+          if (diffSec <= 0) {
+            clearInterval(waitTimer);
+            document.getElementById('caller-title-label').innerText = 'GAME STATUS 遊戲進行中';
+            startMoleGame();
+          } else {
+            document.getElementById('current-call-number').innerHTML = diffSec + 's';
+          }
+        }, 300);
+      } else {
+        document.getElementById('caller-title-label').innerText = 'GAME STATUS 遊戲進行中';
+        startMoleGame();
+      }
+    }
+
+    function startMoleGame() {
+      isGameActive = true;
+      matchStartTimestamp = Date.now();
+      
+      document.getElementById('bingo-caller-block').classList.remove('hidden');
+      document.getElementById('ended-action-block').classList.add('hidden');
+
+      const timeDisplayEl = document.getElementById('time-display');
+
+      if (endConditionType === 'score') {
+        timeDisplayEl.innerText = `目標:${targetScoreCount}分`;
+      } else {
+        let seconds = customGameDurationSec;
+        timeDisplayEl.innerText = seconds + 's';
+
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => {
+          seconds--;
+          timeDisplayEl.innerText = seconds + 's';
+
+          if (seconds <= 0) {
+            endPersonalGame(false, '⌛ 個人戰鬥時間結束！');
+          }
+        }, 1000);
+      }
+
+      if (moleTimer) clearInterval(moleTimer);
+      updateSynchronizedMoles();
+      moleTimer = setInterval(updateSynchronizedMoles, 50);
+    }
+
+    function updateSynchronizedMoles() {
+      if (!isGameActive) return;
+      const elapsed = Date.now() - startTimeMs;
+      if (elapsed < 0) return;
+
+      const maxSteps = globalMoleList.length;
+      if (maxSteps === 0) return;
+
+      let targetStepIndex = 0;
+      if (!isRandomSpeedMode) {
+        targetStepIndex = Math.floor(elapsed / popIntervalMs);
+      } else {
+        for (let i = 0; i < maxSteps; i++) {
+          if (elapsed >= globalMoleList[i].timeAt) {
+            targetStepIndex = i + 1;
+          }
+        }
+      }
+
+      if (targetStepIndex !== lastStepIndex) {
+        lastStepIndex = targetStepIndex;
+        
+        const currentMoleData = globalMoleList[targetStepIndex % maxSteps];
+        activeMoleIndex = currentMoleData.holeIdx;
+        isGoldMole = currentMoleData.isGold;
+        isOtherAnimal = currentMoleData.isOther;
+        currentAnimalEmoji = currentMoleData.animalEmoji;
+
+        if (isOtherAnimal) {
+          document.getElementById('current-call-number').innerText = `⚠️ 小心！跑出 ${currentAnimalEmoji} (打中會扣分)`;
+        } else if (isGoldMole) {
+          document.getElementById('current-call-number').innerText = '🌟 黃金地鼠出現！快打！';
+        } else {
+          document.getElementById('current-call-number').innerText = '🔨 地鼠冒出來了！';
+        }
+        
+        renderHoles();
+      }
+    }
+
+    function renderHoles() {
+      const gridEl = document.getElementById('grid');
+      if (!gridEl) return;
+
+      gridEl.style.display = 'flex';
+      gridEl.style.justifyContent = 'center';
+      gridEl.style.alignItems = 'center';
+      gridEl.style.gap = '12px';
+      gridEl.style.flexWrap = 'wrap';
+
+      const existingTiles = new Map();
+      Array.from(gridEl.querySelectorAll('.tile')).forEach(tile => {
+        const holeIndex = Number(tile.dataset.holeIndex);
+        if (Number.isInteger(holeIndex)) {
+          existingTiles.set(holeIndex, tile);
+        }
+      });
+
+      for (let holeIndex = 0; holeIndex < totalHoles; holeIndex++) {
+        let tile = existingTiles.get(holeIndex);
+
+        if (!tile) {
+          tile = document.createElement('div');
+          tile.className = 'tile';
+          tile.dataset.holeIndex = String(holeIndex);
+
+          const mole = document.createElement('div');
+          mole.className = 'mole';
+          mole.innerText = '🐹';
+          tile.appendChild(mole);
+
+          tile.onclick = () => {
+            handleHoleClick(holeIndex, tile);
+          };
+
+          gridEl.appendChild(tile);
+        }
+
+        const isActive = (holeIndex === activeMoleIndex);
+        tile.classList.toggle('active-mole', isActive);
+        tile.classList.toggle('gold', isActive && isGoldMole);
+        tile.classList.toggle('other-animal', isActive && isOtherAnimal);
+
+        const moleEl = tile.querySelector('.mole');
+        if (moleEl) {
+          if (isActive) {
+            if (isGoldMole) moleEl.innerText = '✨🐹';
+            else if (isOtherAnimal) moleEl.innerText = currentAnimalEmoji;
+            else moleEl.innerText = '🐹';
+          } else {
+            moleEl.innerText = '🐹';
+          }
+        }
+      }
+
+      Array.from(gridEl.querySelectorAll('.tile')).forEach(tile => {
+        const holeIndex = Number(tile.dataset.holeIndex);
+        if (!Number.isInteger(holeIndex) || holeIndex < 0 || holeIndex >= totalHoles) {
+          tile.remove();
+        }
+      });
+    }
+
+    function handleHoleClick(holeIndex, tile) {
+      if (!isGameActive) return;
+      
+      const isCorrect = (holeIndex === activeMoleIndex);
+
+      if (isCorrect) {
+        if (isOtherAnimal) {
+          // 打到其他動物 -> 扣分 (最低扣到 0)
+          correctWinsCount = Math.max(0, correctWinsCount - 1);
+          document.getElementById('lines-display').innerText = correctWinsCount;
+
+          tile.classList.add('error');
+          speakText('扣分');
+          syncPlayerScoreToFirebase();
+
+          setTimeout(() => {
+            tile.classList.remove('error');
+          }, 300);
+        } else {
+          // 打到地鼠或黃金地鼠 -> 加分
+          const pointsEarned = isGoldMole ? 2 : 1;
+          correctWinsCount += pointsEarned;
+          document.getElementById('lines-display').innerText = correctWinsCount;
+
+          if (firstWinTimeSec === null) {
+            firstWinTimeSec = Math.round((Date.now() - matchStartTimestamp) / 1000);
+          }
+
+          tile.classList.add('hit');
+          speakText('打中');
+
+          syncPlayerScoreToFirebase();
+
+          if (endConditionType === 'score' && correctWinsCount >= targetScoreCount) {
+            update(ref(db, `events_bingo_v2/${eventId}`), { isEnded: true }).catch(() => {});
+            endPersonalGame(false, `🎯 恭喜達成目標 ${targetScoreCount} 分！`);
+            return;
+          }
+
+          setTimeout(() => {
+            tile.classList.remove('hit');
+          }, 250);
+        }
+      } else {
+        tile.classList.add('error');
+        speakText('哎呀');
+        setTimeout(() => {
+          tile.classList.remove('error');
+        }, 300);
+      }
+    }
+
+    function syncPlayerScoreToFirebase() {
+      update(ref(db, `events_bingo_v2/${eventId}/scores/${playerId}`), {
+        name: playerName,
+        lines: correctWinsCount,
+        clicks: correctWinsCount, 
+        firstLineTime: firstWinTimeSec,
+        timestamp: Date.now()
+      });
+    }
+
+    function endPersonalGame(isEventExpired = false, reason = '') {
+      isGameActive = false;
+      if (timer) clearInterval(timer);
+      if (moleTimer) clearInterval(moleTimer);
+      
+      document.getElementById('bingo-caller-block').classList.add('hidden');
+      document.getElementById('ended-action-block').classList.remove('hidden');
+      document.getElementById('ended-reason-text').innerText = `${reason} 最終得分：${correctWinsCount} 分`;
+
+      syncPlayerScoreToFirebase();
+    }
+
+    function copyBoardToClipboard(btnElement) {
+      const captureArea = document.getElementById('capture-board-area');
+
+      html2canvas(captureArea, { 
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      }).then(canvas => {
+        canvas.toBlob(blob => {
+          if (!blob) return alert('複製畫面失敗！');
+          
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            navigator.clipboard.write([item]).then(() => {
+              triggerButtonFeedback(btnElement, '✅ 畫面已成功複製！', '📋 複製盤面畫面');
+            }).catch(err => {
+              alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
+            });
+          } catch (e) {
+            alert('您的瀏覽器不支援直接複製圖片，請手動截圖！');
+          }
+        }, 'image/png');
+      });
+    }
+
+    function renderLeaderboard(elementId, scoresObj) {
+      const lbEl = document.getElementById(elementId);
+      if (!lbEl) return;
+
+      const sorted = Object.entries(scoresObj || {})
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => {
+          if ((b.lines || 0) !== (a.lines || 0)) return (b.lines || 0) - (a.lines || 0);
+          const timeA = a.firstLineTime !== null && a.firstLineTime !== undefined ? a.firstLineTime : 999999;
+          const timeB = b.firstLineTime !== null && b.firstLineTime !== undefined ? b.firstLineTime : 999999;
+          if (timeA !== timeB) return timeA - timeB;
+          return (b.clicks || 0) - (a.clicks || 0);
+        });
+
+      lbEl.innerHTML = sorted.map((p, idx) => {
+        const winTimeStr = p.firstLineTime !== null && p.firstLineTime !== undefined ? `${p.firstLineTime}s` : '--';
+        return `
+          <div class="leaderboard-item ${p.id === playerId ? 'me' : ''}">
+            <span>#${idx + 1} ${p.name} ${p.id === playerId ? '(你)' : ''}</span>
+            <div>
+              <span><b>${p.lines || 0}</b> 分</span>
+              <span class="sub-info">(擊中: ${p.clicks || 0}次 | ⚡${winTimeStr})</span>
+            </div>
+          </div>
+        `;
+      }).join('') || '<div style="color:#94a3b8; font-size:13px; text-align:center;">尚無玩家成績</div>';
+    }
+  </script>
+</head>
+<body>
+
+<div id="pwd-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom: 12px; color: #1e293b;">🔒 解鎖管理者設定</h3>
+    <input type="password" id="admin-pwd" class="input-box" placeholder="請輸入管理者密碼">
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button id="pwd-check-btn" class="btn-primary">確認</button>
+      <button id="pwd-cancel-btn" class="btn-primary btn-admin">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="join-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 style="margin-bottom: 8px; color: #1e293b;">🏆 參加打地鼠挑戰賽</h3>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">請輸入您的暱稱以加入多人對戰</p>
+    <input type="text" id="input-event-id" class="input-box" placeholder="活動代號" style="display: none;">
+    <input type="text" id="input-player-name" class="input-box" placeholder="請輸入你的暱稱">
+    <button id="join-game-btn" class="btn-primary btn-start" style="margin-top: 8px;">進入遊戲舞台</button>
+  </div>
+</div>
+
+<div id="event-ended-view" class="ended-card hidden">
+  <div class="ended-icon">🏁</div>
+  <h2 id="ended-title-text" style="color: #1e293b; margin-bottom: 8px;">本次打地鼠活動已結束</h2>
+  <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">感謝大家的熱烈參與！以下為本次比賽的終極總排行榜：</p>
+  
+  <div class="leaderboard" style="margin-top: 0;">
+    <div class="leaderboard-title">🏆 最終總排行榜</div>
+    <div id="ended-leaderboard-list"></div>
+  </div>
+</div>
+
+<div id="main-setup-view" class="container">
+  <h1>🏆 Make 打地鼠挑戰賽 </h1>
+
+  <button id="admin-unlock-btn" class="btn-primary btn-admin" style="margin-bottom: 16px;">🔓 點此輸入密碼解鎖管理者設定</button>
+
+  <div id="setting-fields" class="disabled-area">
+    <div class="menu-group">
+      <label>1. 設定遊戲地洞數量</label>
+      <div id="grid-options" class="btn-group">
+        <div class="btn-option active" data-val="6">6 個地洞</div>
+        <div class="btn-option" data-val="9">9 個地洞</div>
+        <div class="btn-option" data-val="12">12 個地洞</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>2. 選擇打地鼠遊戲模式</label>
+      <div id="mode-options" class="btn-group">
+        <div class="btn-option active" data-val="classic">標準打地鼠</div>
+        <div class="btn-option" data-val="double">黃金地鼠加分版</div>
+        <div class="btn-option" data-val="other_animals">其他動物扣分版</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>3. 選擇遊戲結束條件</label>
+      <div id="end-condition-options" class="btn-group">
+        <div class="btn-option active" data-val="time">限時制</div>
+        <div class="btn-option" data-val="score">勝場制 (分數制)</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <label>4. 統一開賽時間</label>
+      <input type="datetime-local" id="admin-starttime-input" class="input-box">
+    </div>
+
+    <div id="duration-group" class="menu-group">
+      <label>5. 個人戰鬥時間 (秒)</label>
+      <input type="number" id="admin-duration-input" class="input-box" value="60" min="10" placeholder="例如: 60">
+    </div>
+
+    <div id="target-lines-group" class="menu-group hidden">
+      <label>5. 目標擊中數 (達到幾分結束)</label>
+      <input type="number" id="admin-targetlines-input" class="input-box" value="10" min="1" placeholder="例如: 10">
+    </div>
+
+    <div class="menu-group">
+      <label>6. 地鼠冒出速度 (秒/隻)</label>
+      <div id="speed-options" class="btn-group" style="margin-bottom: 8px;">
+        <div class="btn-option active" data-val="1.2">固定 1.2s</div>
+        <div class="btn-option" data-val="0.8">固定 0.8s</div>
+        <div class="btn-option" data-val="random">隨機 (0.2s~1s)</div>
+      </div>
+      <input type="number" step="0.2" id="admin-speed-input" class="input-box" value="1.2" min="0.4" placeholder="例如: 1.2">
+    </div>
+
+    <div class="menu-group">
+      <label>7. 地鼠總出現次數 (隻)</label>
+      <input type="number" id="admin-steps-input" class="input-box" value="40" min="10" placeholder="例如: 40">
+    </div>
+
+    <div class="menu-group">
+      <label>8. 比賽備註說明 (可不填)</label>
+      <input type="text" id="admin-note-input" class="input-box" placeholder="例如：反應力大考驗！">
+    </div>
+  </div>
+
+  <div id="admin-create-actions" class="hidden">
+    <button id="create-event-btn" class="btn-primary btn-start">🚀 建立打地鼠賽事</button>
+  </div>
+
+  <div id="admin-action-area" class="hidden">
+    <div class="room-display-box">
+      <div style="font-size: 13px; color: #64748b;">房間號碼</div>
+      <div id="room-num-display" class="room-number">------</div>
+    </div>
+
+    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+      <button id="copy-link-btn" class="btn-primary btn-copy">📋 複製活動連結</button>
+      <button id="open-newtab-btn" class="btn-primary">↗️ 開啟對戰分頁</button>
+      <button id="copy-score-btn" class="btn-primary btn-copy">🏆 複製總排行榜成績</button>
+    </div>
+
+    <div class="leaderboard">
+      <div class="leaderboard-title">📊 玩家排行榜</div>
+      <div id="admin-leaderboard-list"></div>
+    </div>
+  </div>
+
+  <a href="https://sile9999.github.io/all-in-one-games/" class="btn-primary btn-lobby">🏠 回到遊戲大廳</a>
+</div>
+
+<div id="player-game-view" class="container hidden">
+  <div id="capture-board-area" style="background: white; padding: 12px; border-radius: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h1 style="margin-bottom: 0; font-size: 20px;">🏆 打地鼠戰報</h1>
+      <span id="room-tag-display" style="font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-weight: bold; color: #475569;"></span>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item">👤 玩家: <span id="player-name-display">--</span></div>
+      <div class="status-item">⏱️ 時間: <span id="time-display" style="color: #ef4444;">--s</span></div>
+      <div class="status-item">🎉 得分: <span id="lines-display" style="color: #10b981; font-size: 16px;">0</span> 分</div>
+    </div>
+
+    <div id="bingo-caller-block" class="bingo-caller-box">
+      <div id="caller-title-label" class="caller-title">GAME STATUS 遊戲進行中</div>
+      <div id="current-call-number" class="current-number-display">--</div>
+    </div>
+
+    <div id="ended-action-block" class="bingo-caller-box hidden" style="background: linear-gradient(135deg, #334155, #475569);">
+      <div id="ended-reason-text" style="font-size: 15px; font-weight: bold; color: #fde047;">比賽已結束</div>
+    </div>
+
+    <div class="grid-container">
+      <div id="grid" class="grid"></div>
+    </div>
+  </div>
+
+  <button id="copy-board-btn" class="btn-primary btn-copy" style="margin-top: 4px; margin-bottom: 12px;">📋 複製盤面畫面</button>
+
+  <div class="leaderboard">
+    <div class="leaderboard-title">🏆 全國排行榜</div>
+    <div id="player-leaderboard-list"></div>
+  </div>
+</div>
+
+</body>
+</html>
