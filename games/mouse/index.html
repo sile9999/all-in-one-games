@@ -98,14 +98,13 @@
       bottom: -60px;
       width: 50px;
       height: 50px;
-      background: #a855f7;
+      background: transparent;
       border-radius: 50% 50% 20% 20%;
       display: flex;
       justify-content: center;
       align-items: center;
       transition: bottom 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      box-shadow: 0 -4px 6px rgba(0,0,0,0.2);
-      font-size: 24px;
+      font-size: 42px;
     }
 
     /* 地鼠冒出來的狀態 */
@@ -115,17 +114,17 @@
 
     /* 金色稀有地鼠樣式 */
     .tile.active-mole.gold .mole {
-      background: #eab308;
+      background: transparent;
     }
 
     /* 其他動物樣式 */
     .tile.active-mole.other-animal .mole {
-      background: #f97316;
+      background: transparent;
     }
 
     /* 被打中的瞬間效果 */
     .tile.hit .mole {
-      background: #ef4444;
+      background: transparent;
       transform: scale(0.8) rotate(15deg);
     }
 
@@ -402,7 +401,7 @@
         unlockBtn.innerText = '✅ 管理者權限已解鎖';
         unlockBtn.classList.add('btn-success-state');
       } else {
-        alert('密碼錯誤！');
+        alert('密密錯誤！');
       }
     }
 
